@@ -14,6 +14,8 @@ This repository teaches that skill and gives you the tools to practice it:
 
 It is independent of platform and framework. There is no decompiler and no traffic proxy.
 
+**Read it online:** https://jaydeepagravat.github.io/app-teardown/
+
 ## Proof: two real apps, torn down and checked against their source
 
 Claims are cheap, so the method was tested on two real apps whose source code is public. The handbook's probes were run on each app in an Android emulator. Every conclusion was then checked against the app's source.
@@ -142,6 +144,8 @@ Plans are written to `plans/<name>/`. The feature command writes inside your own
 
 ### Proof: all three commands, on one small app
 
+The app and every plan file the commands wrote are in [examples/habit-tracker](examples/habit-tracker/).
+
 **1. `new-app`: from an idea to a running app.** The idea was a habit tracker with no account and no backend that must never lose its history.
 
 | Step | What happened |
@@ -215,6 +219,7 @@ bin/plan.mjs          The build commands: new-app, rebuild-app, feature
 AGENT_PLAYBOOK.md     What an AI agent follows during a teardown
 PLAN_PLAYBOOK.md      What an AI agent follows when planning and building
 teardowns/            Recorded teardowns: bluesky/ and expensify/
+examples/             The habit tracker built with the three build commands, with its plans
 scripts/              check-chapter.mjs, which validates a chapter
 templates/            Chapter templates and the diagram kit
 STYLE.md              Writing rules, the fixed lists and the file format
@@ -229,7 +234,7 @@ STYLE.md              Writing rules, the fixed lists and the file format
 | One-command agent teardown | Works on Android emulators. Limited on the iOS simulator |
 | Build commands: new-app, rebuild-app, feature | Each run once on a small app. See the limits above |
 | License | MIT for code, CC BY-NC-SA 4.0 for content |
-| Hosting | Not chosen yet |
+| Hosting | GitHub Pages, deployed on every push to `main` |
 
 ## License
 
@@ -237,7 +242,7 @@ Two licenses, by kind of file.
 
 | What | Files | License |
 |---|---|---|
-| Code and agent playbooks | `bin/`, `scripts/`, `src/components/`, `src/pages/`, `src/plugins/`, `src/lib/`, `src/styles/`, `.claude/`, `AGENT_PLAYBOOK.md`, `PLAN_PLAYBOOK.md`, `AGENTS.md`, and the config files at the root | [MIT](LICENSE) |
-| Handbook content | `src/content/`, `src/data/`, `templates/`, `teardowns/`, `public/`, `STYLE.md`, `OUTLINE.md` and this README | [CC BY-NC-SA 4.0](LICENSE-CONTENT) |
+| Code and agent playbooks | `bin/`, `scripts/`, `src/components/`, `src/pages/`, `src/plugins/`, `src/lib/`, `src/styles/`, `examples/habit-tracker/` (the app), `.claude/`, `AGENT_PLAYBOOK.md`, `PLAN_PLAYBOOK.md`, `AGENTS.md`, and the config files at the root | [MIT](LICENSE) |
+| Handbook content | `src/content/`, `src/data/`, `templates/`, `teardowns/`, `public/`, `STYLE.md`, `OUTLINE.md`, the plan files in `examples/` and this README | [CC BY-NC-SA 4.0](LICENSE-CONTENT) |
 
 In practice: you can run the commands anywhere, including on a company codebase, and what you plan or build with them is yours. You can share and adapt the handbook content with credit, not for commercial use, and under the same license.

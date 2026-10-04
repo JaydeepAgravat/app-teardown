@@ -25,7 +25,7 @@ const payload = { name: `${data.name} ${data.version ?? ''} (example)`.trim(), p
   document.querySelectorAll<HTMLElement>('.load-teardown').forEach((box) => {
     box.querySelector('button')!.addEventListener('click', () => {
       importTeardown(JSON.parse(box.dataset.teardown!));
-      box.querySelector('span')!.innerHTML = 'Loaded. <a href="/worksheet/">Open the worksheet</a> to see it.';
+      box.querySelector('span')!.innerHTML = `Loaded. <a href="${import.meta.env.BASE_URL.replace(/\/$/, '')}/worksheet/">Open the worksheet</a> to see it.`;
     });
   });
 </script>
