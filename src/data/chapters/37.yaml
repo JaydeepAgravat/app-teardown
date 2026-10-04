@@ -136,7 +136,7 @@ probes:
     caution: This probe changes a language setting to a script you may not read. Use the per-app language setting if the device offers one. Before you start, note the position of each step on the path back to your own language.
     do:
       - Check the store listing for a right-to-left language the app supports. If there is none, record that and stop.
-      - Switch the app to that language.
+      - "Switch to that language with the device's language setting or its per-app language setting. If the app has its own language setting, try that as a separate run, since it may change the text without changing the layout direction."
       - "Visit the main screens and compare each with a screenshot taken beforehand."
       - Look at the back control, list alignment, arrows and chevrons, progress bars, swipe gestures and screen transitions.
     watch: Whether the whole layout mirrors, and which elements stay on the side they were on.
@@ -196,7 +196,7 @@ probes:
         confidence: Inferred
         fills: { c37-time-zone: shifts at once }
       - label: Past timestamps shift only after a refresh
-        reading: "The backend sends formatted times using the zone the client reports, or the client caches formatted strings."
+        reading: "One of three designs. The backend sends formatted times using the zone the client reports, the client caches formatted strings, or the client formats at display time with a zone that its runtime read at launch. If a restart of the app was the refresh that worked, the third is the likely one."
         confidence: Inferred
         fills: { c37-time-zone: shifts after refresh }
       - label: Past timestamps do not shift

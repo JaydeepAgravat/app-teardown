@@ -29,7 +29,7 @@ for (const dir of readdirSync(docsRoot, { withFileTypes: true }).filter((d) => d
 // "/<part folder>/<number>-<title in lowercase, punctuation removed, spaces as hyphens>/".
 const slugify = (title) => title.toLowerCase().replace(/[^a-z0-9 -]/g, '').trim().replace(/\s+/g, '-');
 const outline = parse(readFileSync('src/data/outline.yaml', 'utf8'));
-const planned = ['/contents/', '/lookup/', '/worksheet/', '/glossary/', '/probes/', '/interview/', '/further-reading/', '/examples/bluesky/', '/examples/expensify/'];
+const planned = ['/contents/', '/lookup/', '/worksheet/', '/glossary/', '/probes/', '/interview/', '/further-reading/', '/examples/bluesky/', '/examples/expensify/', '/examples/joplin/'];
 for (const part of outline.parts) {
   for (const section of part.sections) {
     for (const chapter of section.chapters) planned.push(`/${part.dir}/${chapter.n}-${slugify(chapter.title)}/`);

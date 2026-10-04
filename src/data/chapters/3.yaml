@@ -101,7 +101,7 @@ probes:
         confidence: Speculative
         fills: { c3-media-delivery: unclear }
       - label: The app shows no remote media
-        reading: "All images ship inside the app. No media delivery."
+        reading: "No media delivery was seen. Either all images ship inside the app or are stored on the device, or remote media exists only in a state you did not reach, such as with sync turned on."
         confidence: Observed
         fills: { c3-media-delivery: absent }
 

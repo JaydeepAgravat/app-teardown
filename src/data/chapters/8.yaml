@@ -120,7 +120,7 @@ probes:
     watch: Where the first back takes you.
     outcomes:
       - label: A parent screen inside the app
-        reading: "A synthesized back stack. The router built the screens that would normally sit under the target."
+        reading: "Either a synthesized back stack, where the router built the screens that would normally sit under the target, or the target was pushed over the app's ordinary start screen. If the screen you reach is the item's own parent, the stack was built for it. If it is whatever the app would have opened on anyway, it was not."
         confidence: Inferred
         fills: { c8-link-back: synthesized back stack }
       - label: The app you came from, or the device's home screen
@@ -145,7 +145,7 @@ probes:
         confidence: Observed
         fills: { c8-link-running: presented over current place }
       - label: You reach a parent of the item, and your earlier place is gone
-        reading: "The router replaces the navigation state with a stack built for the target."
+        reading: "The router does not keep your place. Either it replaces the navigation state with a stack built for the target, or it closes the screen you were on and pushes the target. The screen that back leads to separates them. The item's own parent means a built stack. A screen from your earlier path means a pop and a push."
         confidence: Inferred
         fills: { c8-link-running: replaces current place }
       - label: The app restarts with a splash before showing the item

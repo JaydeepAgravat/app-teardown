@@ -48,7 +48,7 @@ probes:
     watch: Whether the offline changes are still present.
     outcomes:
       - label: The changes are still there
-        reading: "The outbox and the local change are stored durably. Level 2 or above."
+        reading: "The local change is stored durably. Level 2 or above. Either an outbox holds the pending mutations, or the local store is itself the source of truth and the sync engine compares it with the backend later. A local-first app is built the second way and has no outbox."
         confidence: Inferred
         fills: { c12-pending-survive: "yes" }
       - label: The changes are gone

@@ -121,7 +121,7 @@ probes:
     watch: Whether the typed text, the scroll position and the open sections are kept, and whether the content reloads.
     outcomes:
       - label: Everything is kept and nothing reloads
-        reading: "Screen state is held outside the visual tree and survives it being rebuilt."
+        reading: "Either screen state is held outside the visual tree and survives it being rebuilt, or the app handles the change itself and nothing is rebuilt. The two look the same from outside."
         confidence: Inferred
         fills: { c9-config-change: kept without reload }
       - label: Input and position are kept, and the content reloads

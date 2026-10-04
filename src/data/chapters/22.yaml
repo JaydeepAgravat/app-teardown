@@ -42,7 +42,7 @@ probes:
         confidence: Observed
         fills: { c22-denied: blocked with explanation }
       - label: The feature shows a blank or broken screen, or nothing happens
-        reading: "The code assumed a grant. The denied state has no branch."
+        reading: "The denied state is not handled in a way the user can see. Either the code assumed a grant, or it has a branch that is silent or that did not show."
         confidence: Inferred
         fills: { c22-denied: silent failure }
       - label: The whole app refuses to continue

@@ -17,7 +17,7 @@ probes:
         confidence: Speculative
         fills: { c4-footprint: negligible }
       - label: Stored data is modest and grows as you browse
-        reading: "A cache filled by visits. Chapter 11 covers what it holds and when it is discarded."
+        reading: "Either a cache filled by visits, or data the app writes as you use it, such as items you create and logs. Growth in the cache figure while you only browse points to the first. Growth in user data while you create points to the second. Chapter 11 covers what a cache holds and when it is discarded."
         confidence: Inferred
         fills: { c4-footprint: grows with use }
       - label: Stored data is already large, far beyond what one session explains

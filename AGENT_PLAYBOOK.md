@@ -31,6 +31,8 @@ Everything goes through one command. Run it from the repository root.
 | `node bin/teardown.mjs field {{DIR}} <field id> <value>` | Sets a worksheet field by hand, or `name`, `app`, `version`, `device`, `date` |
 | `node bin/teardown.mjs report {{DIR}}` | Writes `report.md` from what was recorded |
 
+If more than one Android device is connected, choose one first with `export ANDROID_SERIAL=<serial from adb devices>`. Without it the tool stops with "more than one device".
+
 ### Device actions
 
 `info`, `installed <app>`, `version <app>`, `launch <app>`, `cold-start <app>` (force-quits, then times the launch), `force-quit <app>`, `process-death <app>` (ends the background process the way the system does, keeping saved state), `home`, `back`, `airplane on|off`, `open-url <url> [app]`, `tap <x> <y>`, `tap-text <words>`, `long-press <x> <y>`, `swipe <x1> <y1> <x2> <y2> [ms]`, `scroll-down [n]`, `scroll-up [n]`, `type <text>`, `texts` (every readable label on screen with tap coordinates), `screenshot <file>`, `storage <app>` (app size, user data and cache from device settings), `permissions <app>`, `font-scale [value]`, `wait <seconds>`.

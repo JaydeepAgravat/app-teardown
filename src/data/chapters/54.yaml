@@ -93,7 +93,7 @@ probes:
     watch: Whether the item exists, how much of what you entered it holds, and whether it opens without an error.
     outcomes:
       - label: Everything you entered is there
-        reading: "Each change is committed to the local store as it is made. Process death cannot lose more than the last keystroke."
+        reading: "Changes are committed to the local store as they are made, or within moments of each one. Repeat with a force-quit straight after the last keystroke. Anything lost then is the length of the save delay."
         confidence: Inferred
         fills: { c54-write-durability: written as you go }
       - label: The item is there as of the last explicit save
