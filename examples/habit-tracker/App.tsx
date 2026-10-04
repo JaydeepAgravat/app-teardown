@@ -22,6 +22,11 @@ export default function App() {
   );
 }
 
+// Text follows the system text size up to these limits. Buttons and the title stop growing
+// sooner than the habits, which are what the user came to read.
+const CHROME_SCALE = 1.4;
+const CONTENT_SCALE = 2;
+
 const forgivenNote = (count: number) => `${count} ${count === 1 ? 'miss' : 'misses'} forgiven`;
 
 function HabitList() {
@@ -112,17 +117,22 @@ function HabitList() {
     }
   };
 
-  return (
-    <SafeAreaView style={styles.screen}>
+  // The header and the add row scroll with the list, so large text never pushes the habits off screen.
+  const top = (
+    <View>
       <View style={styles.header}>
-        <Text style={styles.title} accessibilityRole="header">
+        <Text style={styles.title} accessibilityRole="header" maxFontSizeMultiplier={CHROME_SCALE}>
           Habits
         </Text>
         <Pressable onPress={importBackup} accessibilityRole="button" hitSlop={8}>
-          <Text style={styles.link}>Import</Text>
+          <Text style={styles.link} maxFontSizeMultiplier={CHROME_SCALE}>
+            Import
+          </Text>
         </Pressable>
         <Pressable onPress={exportBackup} accessibilityRole="button" hitSlop={8}>
-          <Text style={styles.link}>Export</Text>
+          <Text style={styles.link} maxFontSizeMultiplier={CHROME_SCALE}>
+            Export
+          </Text>
         </Pressable>
       </View>
 
@@ -136,17 +146,25 @@ function HabitList() {
           placeholderTextColor="#6B7280"
           returnKeyType="done"
           maxLength={60}
+          maxFontSizeMultiplier={CONTENT_SCALE}
           accessibilityLabel="New habit name"
         />
         <Pressable style={[styles.addButton, !newName.trim() && styles.disabled]} onPress={add} disabled={!newName.trim()} accessibilityRole="button">
-          <Text style={styles.addButtonText}>Add</Text>
+          <Text style={styles.addButtonText} maxFontSizeMultiplier={CHROME_SCALE}>
+            Add
+          </Text>
         </Pressable>
       </View>
+    </View>
+  );
 
+  return (
+    <SafeAreaView style={styles.screen}>
       <FlatList
         data={habits ?? []}
         keyExtractor={(habit) => habit.id}
         contentContainerStyle={styles.list}
+        ListHeaderComponent={top}
         keyboardShouldPersistTaps="handled"
         ListEmptyComponent={habits ? <Text style={styles.empty}>No habits yet. Add one above, then tap it each day you do it.</Text> : null}
         renderItem={({ item }) => (
@@ -159,13 +177,13 @@ function HabitList() {
             accessibilityLabel={`${item.name}, streak ${item.streak} ${item.streak === 1 ? 'day' : 'days'}${item.forgiven > 0 ? `, ${forgivenNote(item.forgiven)}` : ''}`}
             accessibilityHint="Tap to mark done for today. Long press to rename or delete."
           >
-            <View style={[styles.check, item.doneToday && styles.checkDone]}>{item.doneToday && <Text style={styles.checkMark}>✓</Text>}</View>
-            <Text style={styles.name}>{item.name}</Text>
+            <View style={[styles.check, item.doneToday && styles.checkDone]}>{item.doneToday && <Text style={styles.checkMark} maxFontSizeMultiplier={1}>✓</Text>}</View>
+            <Text style={styles.name} maxFontSizeMultiplier={CONTENT_SCALE}>{item.name}</Text>
             <View style={styles.streakBox}>
-              <Text style={styles.streak}>
+              <Text style={styles.streak} maxFontSizeMultiplier={CONTENT_SCALE}>
                 {item.streak} {item.streak === 1 ? 'day' : 'days'}
               </Text>
-              {item.forgiven > 0 && <Text style={styles.forgiven}>{forgivenNote(item.forgiven)}</Text>}
+              {item.forgiven > 0 && <Text style={styles.forgiven} maxFontSizeMultiplier={CONTENT_SCALE}>{forgivenNote(item.forgiven)}</Text>}
             </View>
           </Pressable>
         )}
@@ -201,23 +219,23 @@ function HabitList() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#F9FAFB' },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 20, paddingHorizontal: 20, paddingVertical: 12 },
+  header: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 20, paddingHorizontal: 4, paddingVertical: 12 },
   title: { flex: 1, fontSize: 28, fontWeight: '700', color: '#111827' },
   link: { fontSize: 16, color: '#2563EB' },
   bold: { fontWeight: '700' },
-  addRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingBottom: 8 },
+  addRow: { flexDirection: 'row', gap: 8, paddingBottom: 8 },
   input: { flex: 1, minHeight: 48, borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 10, paddingHorizontal: 12, fontSize: 16, color: '#111827', backgroundColor: '#FFFFFF' },
   addButton: { minHeight: 48, justifyContent: 'center', paddingHorizontal: 18, borderRadius: 10, backgroundColor: '#2563EB' },
   addButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
   disabled: { opacity: 0.4 },
   list: { padding: 16, gap: 10 },
   empty: { textAlign: 'center', color: '#6B7280', fontSize: 16, marginTop: 48, paddingHorizontal: 24 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 60, padding: 14, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB' },
+  row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12, minHeight: 60, padding: 14, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB' },
   rowDone: { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' },
   check: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: '#9CA3AF', alignItems: 'center', justifyContent: 'center' },
   checkDone: { backgroundColor: '#059669', borderColor: '#059669' },
   checkMark: { color: '#FFFFFF', fontWeight: '700' },
-  name: { flex: 1, fontSize: 17, color: '#111827' },
+  name: { flex: 1, minWidth: 120, fontSize: 17, color: '#111827' },
   streakBox: { alignItems: 'flex-end' },
   streak: { fontSize: 15, color: '#374151', fontVariant: ['tabular-nums'] },
   forgiven: { fontSize: 12, color: '#6B7280' },

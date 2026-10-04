@@ -23,8 +23,8 @@ The handbook describes designs for generic app types and names no products. The 
 
 ## Chapter 11. Local storage, caching and prefetching
 
-- [Instagram: Building an Open Source, Carefree Android Disk Cache](https://instagram-engineering.com/building-an-open-source-carefree-android-disk-cache-af57aa9b7c7)
-- [Instagram: Background Data Prefetching](https://instagram-engineering.com/improving-performance-with-background-data-prefetching-b191acb39898)
+- [Instagram: Building an Open Source, Carefree Android Disk Cache](https://medium.com/instagram-engineering/building-an-open-source-carefree-android-disk-cache-af57aa9b7c7)
+- [Instagram: Background Data Prefetching](https://medium.com/instagram-engineering/improving-performance-with-background-data-prefetching-b191acb39898)
 
 ## Chapter 12. Offline and sync
 
@@ -53,7 +53,7 @@ Also:
 
 ## Chapter 14. Real-time delivery
 
-- [Instagram: Making Direct Messages Reliable and Fast](https://instagram-engineering.com/making-direct-messages-reliable-and-fast-a152bdfd697f)
+- [Instagram: Making Direct Messages Reliable and Fast](https://medium.com/instagram-engineering/making-direct-messages-reliable-and-fast-a152bdfd697f)
 
 ## Chapter 15. Lists, feeds and pagination
 
@@ -71,7 +71,7 @@ Also:
 ## Chapter 31. Server-driven UI
 
 - [Airbnb: A Deep Dive into Airbnb's Server-Driven UI System](https://medium.com/airbnb-engineering/a-deep-dive-into-airbnbs-server-driven-ui-system-842244c5f5)
-- [DoorDash: Generic, Server-Driven UI Components](https://doordash.engineering/2021/08/24/improving-development-velocity-with-generic-server-driven-ui-components/)
+- [DoorDash: Generic, Server-Driven UI Components](https://careersatdoordash.com/blog/improving-development-velocity-with-generic-server-driven-ui-components/)
 - [Uber Freight: Lists of Modular, Reusable Components](https://www.uber.com/blog/uber-freight-app-architecture-design/)
 - [Mobile Native Foundation: Server-driven UI strategies](https://github.com/MobileNativeFoundation/discussions/discussions/47)
 
