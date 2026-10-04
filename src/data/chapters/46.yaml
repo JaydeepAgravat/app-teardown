@@ -1,0 +1,230 @@
+chapter: 46
+title: Banking, payments and fintech
+link: /part-3-archetypes/46-banking-payments-and-fintech/
+
+probes:
+  - id: P46.1
+    name: Balance in airplane mode
+    do:
+      - Open the app with a network, pass its unlock and note the balance on the first screen.
+      - Leave the app and turn on airplane mode.
+      - Open the app again and pass any unlock it asks for.
+      - Look at the place where the balance was, and at anything written next to it.
+    watch: Whether a balance is shown at all without a network, and whether the app says how old the figure is.
+    outcomes:
+      - label: No balance. An error or a connection screen replaces the account
+        reading: "The balance is read with a network only policy. The app keeps no copy that it is willing to show, which is offline Level 0."
+        confidence: Inferred
+        fills: { c46-offline-balance: refused }
+      - label: The last balance is shown with a time, a date or an offline mark
+        reading: "The app keeps the last figure it fetched and labels it as old. Reads are cached and marked as stale, and nothing else works."
+        confidence: Observed
+        fills: { c46-offline-balance: shown with a time }
+      - label: The last balance is shown with nothing to mark it as old
+        reading: "The app shows a cached figure as if it were current. This is rare for the archetype and worth recording as a weakness."
+        confidence: Observed
+        fills: { c46-offline-balance: shown without a mark }
+
+  - id: P46.2
+    name: Gate on every return
+    do:
+      - Open the app and pass its unlock.
+      - Switch to another app for ten seconds, then return.
+      - Note whether an unlock is asked.
+      - Switch away again for five minutes, then return.
+      - Note whether an unlock is asked this time.
+    watch: How long the app may be out of sight before it asks you to prove you are present again.
+    outcomes:
+      - label: An unlock is asked on both returns
+        reading: "The app places a local gate on every return to the foreground, with no period of grace."
+        confidence: Observed
+        fills: { c46-gate: every return }
+      - label: An unlock is asked only after the five minutes
+        reading: "The app places a local gate on return after a short period out of sight. The period is a product setting."
+        confidence: Observed
+        fills: { c46-gate: after a few minutes }
+      - label: No unlock is asked on either return
+        reading: "The app relies on the device's own lock. A gate may exist as a setting that is off, so check the security settings before you record this."
+        confidence: Observed
+        fills: { c46-gate: none }
+
+  - id: P46.3
+    name: Idle inside the app
+    caution: This probe leaves an unlocked banking app on screen. Run it where nobody else can see or reach the device.
+    do:
+      - Open the app, pass its unlock and stay on the account screen.
+      - Keep the screen awake without touching the app. Raising the device's screen timeout for the probe is one way.
+      - Wait up to ten minutes and watch for a message.
+      - Tap an account or a menu item and note what happens.
+      - Set the screen timeout back to its old value.
+    watch: Whether the app ends or locks the session by itself, whether it warns first, and what the first tap afterwards leads to.
+    outcomes:
+      - label: A warning with a countdown, then the sign-in or unlock screen
+        reading: "An idle timeout that the client runs on a timer and that ends the session. The warning exists so that a half-filled form is not lost without notice."
+        confidence: Observed
+        fills: { c46-idle-timeout: ended with a warning }
+      - label: No message, and the first tap leads to an unlock or sign-in
+        reading: "The session expired without a message. The backend refused the next request, or a client timer locked the app silently."
+        confidence: Inferred
+        fills: { c46-idle-timeout: ended silently }
+      - label: The tap works after ten minutes
+        reading: "No idle timeout shorter than ten minutes. The session is limited by time in the background and not by time without input."
+        confidence: Observed
+        fills: { c46-idle-timeout: none seen }
+
+  - id: P46.4
+    name: Transfer form offline
+    caution: Stop before the final confirmation. This probe looks at the form only. If the app offers to queue or schedule the transfer, read the offer, note it and go back without accepting.
+    do:
+      - Open the app with a network and pass its unlock.
+      - Turn on airplane mode.
+      - Tap the control that starts a transfer or a payment to a person.
+      - If a form opens, choose your own second account or a saved payee and enter a small amount.
+      - Tap the control that leads to the review step, and stop there. Go back without confirming.
+    watch: The first point at which the app refuses to go on, and the words it uses.
+    outcomes:
+      - label: The transfer control is disabled or gives an error at once
+        reading: "The app checks the network before it lets a transfer begin. A transfer is a Level 0 action, and the form itself needs backend data such as limits and payees."
+        confidence: Observed
+        fills: { c46-transfer-offline: refused at entry }
+      - label: The form can be filled and the review step refuses
+        reading: "The form is client UI over cached payees. The backend creates the transfer at the review step, so that is where the refusal comes."
+        confidence: Inferred
+        fills: { c46-transfer-offline: refused at review }
+      - label: The app offers to send the transfer later
+        reading: "The app has an outbox for transfers. This is very rare, because the user is not present when the money moves."
+        confidence: Observed
+        fills: { c46-transfer-offline: offers to queue }
+
+  - id: P46.5
+    name: Transfer up to review
+    caution: Stop at the review screen and do not confirm. No money moves in this probe. Use your own second account or a payee you already have, and leave the form with the back control.
+    do:
+      - With a network, start a transfer to your own second account or to a saved payee.
+      - Enter a small amount and continue to the review screen.
+      - Note any unlock, password or code the app asked for before the review screen appeared.
+      - Read the review screen. Note the fee, the stated arrival time, the payee name as the app shows it and the wording of the final control.
+      - Go back without confirming. Open the transaction history and look for a trace of the attempt.
+    watch: Where the app places its proof of presence, what the review screen promises, and whether an unconfirmed attempt leaves a record.
+    outcomes:
+      - label: A proof is asked before the review screen appears
+        reading: "The step-up proof guards entry to the transfer flow. The backend, or a local gate, has already cleared you when the review is drawn."
+        confidence: Observed
+        fills: { c46-step-up-place: before review }
+      - label: The final control names a proof, such as confirm with unlock or with a code
+        reading: "The step-up proof is tied to the confirmation itself, so the proof covers this amount and this payee and not the session."
+        confidence: Inferred
+        fills: { c46-step-up-place: at confirmation }
+      - label: A plain confirm control, and no proof was asked on the way
+        reading: "The probe cannot see past the final tap. A proof may follow it, may be adaptive, or may be absent for your own accounts."
+        confidence: Speculative
+        fills: { c46-step-up-place: not visible before confirming }
+
+  - id: P46.6
+    name: Pending and settled
+    do:
+      - Do not make a payment for this probe. Use the activity your account already has.
+      - Open the transaction history on a day after you have paid by card or received a transfer.
+      - Look for entries marked pending, processing or reserved, and note the balance figures on the account screen.
+      - Open the same history two or three days later.
+      - Find the same entries and compare their mark, their date and their amount.
+    watch: Whether the app shows a transaction before it is final, and whether it shows one balance or two.
+    outcomes:
+      - label: Pending entries, and two balance figures such as available and booked
+        reading: "The ledger keeps holds apart from settled entries, and the app shows both views of the account. A transaction is a record that changes state."
+        confidence: Observed
+        fills: { c46-pending: pending with two balances }
+      - label: Pending entries, and one balance figure
+        reading: "The ledger tracks holds, and the single figure is the available balance. The settled balance exists on the backend and is not shown."
+        confidence: Inferred
+        fills: { c46-pending: pending with one balance }
+      - label: Entries appear only once, already final
+        reading: "The app reads a settled ledger only, or its transactions settle at once. Common for a wallet whose transfers stay inside one system."
+        confidence: Inferred
+        fills: { c46-pending: final entries only }
+
+  - id: P46.7
+    name: Read the device binding
+    caution: Read only. Do not start a device change, a re-registration or a recovery flow, because some apps deregister the current device as the first step.
+    do:
+      - Open the security settings and look for a screen about registered, trusted or linked devices.
+      - Note how many devices it lists and what it calls this one.
+      - Open the maker's help pages and find the article on changing to a new phone.
+      - Note every step a new device must complete, and any waiting period or reduced limit that follows.
+      - Leave the screens without changing anything.
+    watch: Whether the account is tied to named devices, how many, and what a new device has to prove.
+    outcomes:
+      - label: One registered device, and a new one replaces it after a proof
+        reading: "The account is bound to one device at a time, and a new registration revokes the old one. That the binding is a device-bound credential is likely, and only the maker can confirm it."
+        confidence: Inferred
+        fills: { c46-device-binding: one device at a time }
+      - label: Several registered devices, each added with a proof
+        reading: "Each device is bound separately and appears in a device list. Each binding can be revoked alone."
+        confidence: Inferred
+        fills: { c46-device-binding: several registered devices }
+      - label: No device screen and no stated steps beyond signing in
+        reading: "No binding is visible. Sign-in alone opens the account on a new device, or the binding exists and the maker does not describe it."
+        confidence: Speculative
+        fills: { c46-device-binding: none stated }
+
+  - id: P46.8
+    name: Live price rhythm
+    do:
+      - In an investing app, open the screen of one heavily traded instrument while its market is open. Do not open an order form.
+      - Watch the price for two minutes without touching the screen, and note the rhythm of its changes.
+      - Read any small print near the price about delay or source.
+      - Turn on airplane mode and watch the price for one more minute.
+      - Turn the network back on and note how the price catches up.
+    watch: Whether the price moves irregularly or on a beat, and what the app does to a price it can no longer update.
+    outcomes:
+      - label: The price changes irregularly, often several times in a few seconds
+        reading: "Prices arrive over a persistent connection or a server stream, one event per change or per short batch."
+        confidence: Inferred
+        fills: { c46-prices: streamed }
+      - label: The price changes on a steady beat of some seconds
+        reading: "Polling on a timer, or a stream that the backend samples at a fixed interval. The two look the same from outside."
+        confidence: Speculative
+        fills: { c46-prices: fixed interval }
+      - label: The price changes only when you refresh or reopen the screen
+        reading: "A fetch per visit. The app treats the price as reference data, and the price that counts is the one the order form shows."
+        confidence: Observed
+        fills: { c46-prices: on refresh }
+      - label: The app has no market prices
+        reading: "Not the investing variant. Leave the field at its default."
+        confidence: Observed
+        fills: { c46-prices: no prices }
+
+signals:
+  - { signal: The account screen shows an error and no balance in airplane mode, design: Balances are read with a network only policy at offline Level 0, confidence: Inferred }
+  - { signal: "A balance carries a time, such as updated two minutes ago, or turns gray when the network is lost", design: A cached figure shown as stale and never as current, confidence: Observed }
+  - { signal: The app asks for a fingerprint, a face or a PIN each time it returns to the foreground, design: A local gate in front of a live session, confidence: Inferred }
+  - { signal: The unlock prompt appears and then fails in airplane mode, design: "The unlock releases a device-bound credential that signs a backend challenge, or a local gate guards an app with nothing to show offline", confidence: Speculative }
+  - { signal: The app asks for the password again after you add a fingerprint or a face to the device, design: A device-bound credential that secure hardware invalidates when the enrolled biometrics change, confidence: Inferred }
+  - { signal: A countdown warns that you will be signed out after minutes without input, design: An idle timeout on a short session, confidence: Observed }
+  - { signal: "A new phone must scan a code from the old one, enter a code sent by post or message, or wait before limits rise", design: Device binding with a proof that sign-in credentials alone cannot supply, confidence: Inferred }
+  - { signal: Signing in on a new phone signs the old phone out and the app says so, design: One bound device per account, confidence: Inferred }
+  - { signal: A transfer to a new payee asks for a code and a transfer to a known payee does not, design: Adaptive step-up proof decided by risk scoring on the backend, confidence: Inferred }
+  - { signal: "A transfer shows as pending, processing or scheduled before it shows as done", design: A transfer is a backend record that moves through states, confidence: Observed }
+  - { signal: Available balance and booked balance differ, design: The ledger holds an amount at authorization and posts it at settlement, confidence: Inferred }
+  - { signal: "A notification about a payment, a sign-in or a new payee arrives within seconds and cannot be switched off in the app", design: Notifications used as a security channel that the backend sends on every sensitive event, confidence: Inferred }
+  - { signal: Screenshots of the account come out blank and the app switcher shows a logo, design: Sensitive screens are excluded from capture and covered when the app leaves the foreground, confidence: Observed }
+  - { signal: The help pages say the app does not run on modified devices, design: "A device integrity requirement. Whether the check is local or verified by the backend cannot be told from outside", confidence: Speculative }
+  - { signal: A screen with one update control replaces the app a few months after a release, design: A forced-update gate with a high minimum supported version, confidence: Inferred }
+  - { signal: "Opening an account asks for an identity document and a selfie, and the account is limited until someone has reviewed them", design: Regulation adds an identity check run by a third party and an asynchronous review state, confidence: Inferred }
+  - { signal: A price on an instrument screen moves irregularly with no gesture and freezes with a mark when the network is lost, design: Real-time delivery of prices over a persistent connection or a server stream, confidence: Inferred }
+  - { signal: An order form shows a quote with a countdown and asks you to refresh it when the countdown ends, design: The backend prices the order and the price on screen is only a display, confidence: Inferred }
+
+worksheet:
+  - { id: c46-variant, label: Variant, options: [bank account, wallet between people, investing, mixed] }
+  - { id: c46-offline-balance, label: Balance without a network, options: [refused, shown with a time, shown without a mark] }
+  - { id: c46-gate, label: Unlock on return to the app, options: [every return, after a few minutes, none] }
+  - { id: c46-idle-timeout, label: Idle timeout inside the app, options: [ended with a warning, ended silently, none seen] }
+  - { id: c46-transfer-offline, label: Transfer started offline, options: [refused at entry, refused at review, offers to queue] }
+  - { id: c46-step-up-place, label: Where the step-up proof sits, options: [before review, at confirmation, not visible before confirming] }
+  - { id: c46-pending, label: Pending and settled entries, options: [pending with two balances, pending with one balance, final entries only] }
+  - { id: c46-device-binding, label: Device binding, options: [one device at a time, several registered devices, none stated] }
+  - { id: c46-new-device, label: What a new device must do }
+  - { id: c46-prices, label: Live prices, options: [streamed, fixed interval, on refresh, no prices] }
+  - { id: c46-security-alerts, label: Alerts that cannot be turned off }
+  - { id: c46-regulation, label: Screens and delays that come from regulation }
+  - { id: c46-notes, label: Notes and open questions }

@@ -1,0 +1,236 @@
+chapter: 49
+title: Meetings and calling
+link: /part-3-archetypes/49-meetings-and-calling/
+
+probes:
+  - id: P49.1
+    name: Answer on one device
+    do:
+      - Sign account B in on two devices, B1 and B2. Lock both.
+      - Call B from account A, which is your own second account or a helper's.
+      - Note which of B1 and B2 ring, and how many seconds apart they start.
+      - Answer on B1 and watch B2.
+      - Repeat, and this time hang up on A before anyone answers.
+    watch: Whether both devices ring, and how quickly the device you did not touch stops in each run.
+    outcomes:
+      - label: Both ring, and the other device stops within a second or two in both runs
+        reading: "Ringing is fanned out to every device of the callee, and each way a ring ends sends a stop message to all of them."
+        confidence: Inferred
+        fills: { c49-ring-fanout: all ring and stop together }
+      - label: Both ring, and one keeps ringing after the answer or the hang-up
+        reading: "The ring is fanned out and the stop message is not, or it did not reach a device with no running process."
+        confidence: Inferred
+        fills: { c49-ring-fanout: a device keeps ringing }
+      - label: Only one device rings
+        reading: "The call is sent to one device, usually the most recently active or the primary one."
+        confidence: Observed
+        fills: { c49-ring-fanout: one device only }
+
+  - id: P49.2
+    name: Join by link without an account
+    do:
+      - Create a meeting with your own account on device A and copy its link.
+      - On device B, install the app and stay signed out. If you are signed in, sign out first.
+      - Open the link on B.
+      - Follow what the app offers, without creating a new account.
+    watch: Whether B can enter with only a name, and where B lands after any sign-in the app demands.
+    outcomes:
+      - label: B enters after typing only a name
+        reading: "The backend creates a guest session scoped to this meeting."
+        confidence: Inferred
+        fills: { c49-guest-join: guest with a name }
+      - label: B must sign in, and then lands in the meeting
+        reading: "An account is required. The router keeps the link through the sign-in flow."
+        confidence: Observed
+        fills: { c49-guest-join: sign-in then meeting }
+      - label: B must sign in, and then lands on the home screen
+        reading: "An account is required and the link is dropped during sign-in."
+        confidence: Observed
+        fills: { c49-guest-join: sign-in then home }
+
+  - id: P49.3
+    name: Join before the host
+    do:
+      - Create a meeting on device A with the lobby or waiting room setting on, if the app has one. Do not start it.
+      - Open the link on device B with a second account or as a guest.
+      - Note what B shows. Then join the meeting on A as the host.
+      - Note what A shows about B, and admit B if asked.
+    watch: Whether B waits, what B can see or hear while waiting, and whether A has to act before B enters.
+    outcomes:
+      - label: B waits on a holding screen until A admits them
+        reading: "Admission is a decision recorded in call state. A participant in the lobby is not connected to the meeting's media."
+        confidence: Inferred
+        fills: { c49-lobby: held until admitted }
+      - label: B waits until A joins, then enters without being admitted
+        reading: "The backend holds participants until a host is present. There is no lobby per participant."
+        confidence: Inferred
+        fills: { c49-lobby: held until the host joins }
+      - label: B enters the meeting at once and is alone in it
+        reading: "The room is open to anyone who holds the link. The link is the only control."
+        confidence: Observed
+        fills: { c49-lobby: enters at once }
+
+  - id: P49.4
+    name: Host mutes a participant
+    do:
+      - Start a meeting with A as host and B as a participant. Keep the two devices in different rooms, or use headphones on both.
+      - Let B speak, and confirm that A hears B.
+      - On A, mute B from the participant list. Look for a setting that stops participants from unmuting, and note its position.
+      - On B, note what the microphone control shows, and try to unmute.
+    watch: Whether B is silenced at once, whether B is told, and whether B can undo it.
+    outcomes:
+      - label: B is silenced at once and can unmute again
+        reading: "The mute is a command through the backend that B's client obeys. Unmuting stays with the participant."
+        confidence: Inferred
+        fills: { c49-host-mute: muted and may unmute }
+      - label: B is silenced and cannot unmute until the host allows it
+        reading: "The backend records that B may not send audio, and refuses or ignores it until the host lifts the rule."
+        confidence: Inferred
+        fills: { c49-host-mute: muted and locked }
+      - label: B sees a request and stays audible until they accept
+        reading: "The host can only ask. Control of the microphone stays on B's device."
+        confidence: Observed
+        fills: { c49-host-mute: asked to mute }
+      - label: The host has no mute control for others
+        reading: "No host role is in evidence for audio. Typical of one-to-one calls and small group calls."
+        confidence: Observed
+        fills: { c49-host-mute: no host mute }
+
+  - id: P49.5
+    name: Host loses the app
+    do:
+      - Start a meeting with A as host and with B and C as participants. A helper can be C.
+      - Confirm that B and C hear each other.
+      - Force-quit the app on A. Do not use the control that ends the meeting.
+      - Watch B and C for five minutes, and note what the participant list says about A.
+      - Open the app on A again and return to the meeting.
+    watch: Whether the meeting continues without A, for how long, and what role A has on return.
+    outcomes:
+      - label: The meeting continues, and A returns as host
+        reading: "Call state and roles live on the backend. The host's device is one more participant."
+        confidence: Inferred
+        fills: { c49-host-leave: continues }
+      - label: The meeting continues, and another participant becomes host
+        reading: "Call state lives on the backend, with a rule that passes the host role on when the host is gone."
+        confidence: Inferred
+        fills: { c49-host-leave: continues with a new host }
+      - label: The meeting ends for everyone after a minute or more
+        reading: "The backend holds the call through a grace period and then applies a rule that a meeting needs its host."
+        confidence: Inferred
+        fills: { c49-host-leave: ends after a delay }
+      - label: The meeting ends for everyone within seconds
+        reading: "The host's connection is what holds the meeting open. Rare for group meetings, normal for a two-person call."
+        confidence: Inferred
+        fills: { c49-host-leave: ends at once }
+
+  - id: P49.6
+    name: Chat for a late joiner
+    do:
+      - Start a meeting with A and B. Send three chat messages from A and one reaction.
+      - Join with a third account or as a guest on device C.
+      - Note which of the earlier messages C can see.
+      - Put C in airplane mode for 20 seconds while A sends two more messages and a reaction, then go back online.
+      - End the meeting, then look for the chat on A.
+    watch: Whether C sees messages from before it joined, whether C receives the messages and the reaction it missed while offline, and whether the chat outlives the meeting.
+    outcomes:
+      - label: C sees the earlier messages, and the missed ones arrive on return
+        reading: "Chat is stored on the backend with catch-up. The reaction is not, if it never arrives."
+        confidence: Inferred
+        fills: { c49-chat: stored with history for late joiners }
+      - label: C sees only messages sent after it joined, and the missed ones arrive on return
+        reading: "Chat is stored, and history is cut at the moment of joining as a product rule."
+        confidence: Inferred
+        fills: { c49-chat: stored from the moment of joining }
+      - label: C never sees the messages sent while it was offline
+        reading: "Chat is delivered as live events only, like an ephemeral signal. A disconnected client loses them."
+        confidence: Inferred
+        fills: { c49-chat: live only }
+
+  - id: P49.7
+    name: Outage and return
+    do:
+      - Join a meeting or a call from device A with a helper or your second device on the other side.
+      - Turn on airplane mode on A for 10 seconds, then turn it off. Note what A and the other side show.
+      - Once the call is steady again, turn on airplane mode on A for two full minutes.
+      - Turn it off and do not touch the app for one minute.
+    watch: What the other side sees about A during each outage, and whether A is back in the call without a tap after each one.
+    outcomes:
+      - label: A returns by itself after both outages
+        reading: "The client joins again without the user after the backend's grace period has passed. The call itself stayed open on the backend."
+        confidence: Inferred
+        fills: { c49-rejoin: automatic after a long outage }
+      - label: A returns by itself after the short outage and offers a rejoin control after the long one
+        reading: "The backend holds a participant for a grace period shorter than two minutes. After it, the client must join again and waits for the user."
+        confidence: Inferred
+        fills: { c49-rejoin: automatic short and manual long }
+      - label: The call has ended after the long outage
+        reading: "The call was closed when the grace period ran out. Normal for a two-person call, since nobody was left to hold it."
+        confidence: Inferred
+        fills: { c49-rejoin: call ended }
+      - label: The call ends during the short outage
+        reading: "There is no grace period. Loss of the connection is treated as leaving."
+        confidence: Observed
+        fills: { c49-rejoin: no recovery }
+
+  - id: P49.8
+    name: Route change
+    do:
+      - Start a voice call, then hold the phone to your ear and away again. Note the screen.
+      - Switch to speaker and back.
+      - Connect a wireless or wired headset during the call. Note where the sound goes.
+      - Disconnect the headset. Note where the sound goes, and whether the other side heard a gap.
+      - Open the control that lists audio routes, and note whether it is drawn by the app or by the system.
+    watch: Whether the sound follows each change by itself, how long any gap lasts, and who draws the route picker.
+    outcomes:
+      - label: The sound follows every change at once, with a system route picker
+        reading: "The app uses the platform's calling integration, which arbitrates routes and holds the call when another call arrives."
+        confidence: Inferred
+        fills: { c49-routing: follows by itself with a system picker }
+      - label: The sound follows every change at once, with the app's own picker
+        reading: "The client listens for route changes and manages the audio output itself."
+        confidence: Inferred
+        fills: { c49-routing: follows by itself with an app picker }
+      - label: The sound moves only when you pick a route by hand, or after a gap of seconds
+        reading: "Route changes are handled in part. The media engine restarts its audio output on a change."
+        confidence: Inferred
+        fills: { c49-routing: manual or with a gap }
+      - label: The sound is lost until you leave and join again
+        reading: "The client does not handle a route change during a call."
+        confidence: Observed
+        fills: { c49-routing: breaks }
+
+signals:
+  - { signal: A locked phone shows a full incoming-call screen seconds after the caller taps, design: Call push with the platform's calling integration, confidence: Inferred }
+  - { signal: A second device stops ringing the moment the first one answers, design: Ringing state fanned out to all devices with stop messages, confidence: Inferred }
+  - { signal: A missed-call entry appears with no ring having sounded, design: The call push arrived after the caller gave up, confidence: Inferred }
+  - { signal: The call timer runs and nobody hears anything, design: Signaling succeeded and the media path failed to open, confidence: Inferred }
+  - { signal: A brief reconnect when a third person joins a two-person call, design: Move from direct or relayed media to a media server, confidence: Inferred }
+  - { signal: An enlarged tile is soft for a moment and then sharpens, design: Forwarding server with quality layers, confidence: Inferred }
+  - { signal: Tiles are blank for a moment after you scroll to another page of the grid, design: The client subscribes to video only for visible participants, confidence: Inferred }
+  - { signal: A shared screen stays readable while its scrolling stutters, design: Separate adaptation policy for screen sharing that keeps resolution and cuts frame rate, confidence: Inferred }
+  - { signal: Your own picture freezes for others while your voice stays clear, design: Adaptation policy that pauses video to protect audio, confidence: Observed }
+  - { signal: A person in the lobby hears nothing of the meeting, design: No media credentials are issued before admission, confidence: Inferred }
+  - { signal: A removed participant cannot enter again with the same link, design: Removal is recorded in call state and checked on every join request, confidence: Inferred }
+  - { signal: The meeting continues after the host's app is force-quit, design: Call state and roles live on the backend, confidence: Inferred }
+  - { signal: "A recording appears in the account minutes after the meeting, on any device", design: Recording composed on the backend by a recorder or a later job, confidence: Inferred }
+  - { signal: "Every participant sees a notice when recording starts, including late joiners", design: Recording is a field of call state delivered to every client, confidence: Inferred }
+  - { signal: A late joiner sees a raised hand but not an earlier reaction, design: "The hand is state, and the reaction is an ephemeral signal", confidence: Inferred }
+  - { signal: Viewers of a broadcast see the speaker several seconds after chat mentions what was said, design: Viewers are on a live stream and chat is on the signaling path, confidence: Inferred }
+  - { signal: A link opened on a device without the app joins the meeting in the browser, design: Web client behind a verified web link, confidence: Observed }
+  - { signal: Everyone in the meeting freezes and returns at the same moment, design: "A media server failed or moved the call. A fault on your own network looks the same from one seat", confidence: Speculative }
+
+worksheet:
+  - { id: c49-variant, label: Variant, options: [one-to-one calls, group meetings, broadcast with few speakers, more than one] }
+  - { id: c49-start, label: How a call starts, options: [ring, link, both] }
+  - { id: c49-ring-fanout, label: Ringing across devices, options: [all ring and stop together, a device keeps ringing, one device only] }
+  - { id: c49-guest-join, label: Link without an account, options: [guest with a name, sign-in then meeting, sign-in then home] }
+  - { id: c49-not-installed, label: Link with the app not installed, options: [web client, store then the meeting, store then home, nothing] }
+  - { id: c49-lobby, label: Joining before the host, options: [held until admitted, held until the host joins, enters at once] }
+  - { id: c49-host-mute, label: Host mutes a participant, options: [muted and may unmute, muted and locked, asked to mute, no host mute] }
+  - { id: c49-host-leave, label: When the host's app is gone, options: [continues, continues with a new host, ends after a delay, ends at once] }
+  - { id: c49-chat, label: In-call chat, options: [stored with history for late joiners, stored from the moment of joining, live only, no chat] }
+  - { id: c49-rejoin, label: After an outage, options: [automatic after a long outage, automatic short and manual long, call ended, no recovery] }
+  - { id: c49-routing, label: Audio route changes, options: [follows by itself with a system picker, follows by itself with an app picker, manual or with a gap, breaks] }
+  - { id: c49-recording, label: "Recording: where it is made, where it appears and after how long" }
+  - { id: c49-size, label: Stated participant limits and what changes at size }
+  - { id: c49-notes, label: Notes and open questions }

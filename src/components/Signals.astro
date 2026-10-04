@@ -1,0 +1,35 @@
+---
+import { loadChapter } from '../lib/data.mjs';
+
+interface Props {
+  chapter: number;
+}
+
+const { signals } = loadChapter(Astro.props.chapter);
+---
+
+<table class="signals">
+  <thead>
+    <tr>
+      <th>Signal</th>
+      <th>Design it points to</th>
+      <th>Confidence</th>
+    </tr>
+  </thead>
+  <tbody>
+    {
+      signals.map((row: any) => (
+        <tr>
+          <td>{row.signal}</td>
+          <td>{row.design}</td>
+          <td>
+            <span class={`conf conf-${row.confidence.toLowerCase()}`}>{row.confidence}</span>
+          </td>
+        </tr>
+      ))
+    }
+  </tbody>
+</table>
+<p>
+  <a href="/lookup/">Search the signals from every chapter in the signal lookup.</a>
+</p>

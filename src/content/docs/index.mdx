@@ -1,0 +1,71 @@
+---
+title: The App Teardown Handbook
+description: Mobile system design, read from the outside. Work out how any app is built from how it behaves.
+template: splash
+hero:
+  tagline: Mobile system design, read from the outside. Use an app, run a few simple experiments on it, and work out the design behind it. Any app, any store, any scale, any technology.
+  actions:
+    - text: Start reading
+      link: /part-1-method/1-reading-apps-from-the-outside/
+      icon: right-arrow
+    - text: Look up a signal
+      link: /lookup/
+      variant: minimal
+---
+
+import { CardGrid, LinkCard, Card } from '@astrojs/starlight/components';
+
+## How it works
+
+Every mobile app is built under the same constraints: an unreliable network, a process the operating system can end at any time, a limited battery, a release that cannot be recalled, and a client the backend cannot trust. Those constraints leave only a few workable designs for each problem, and each design behaves differently in ways you can see.
+
+<CardGrid>
+  <Card title="1. Run a probe" icon="rocket">
+    A probe is an experiment anyone can run: turn on airplane mode, force-quit the app, use a second device. No tools
+    needed.
+  </Card>
+  <Card title="2. Read the signal" icon="magnifier">
+    Pick what you saw. The handbook tells you which design produces that behavior, and how sure you can be.
+  </Card>
+  <Card title="3. Record the teardown" icon="pencil">
+    Your results fill in a worksheet for that app, which you can export and keep.
+  </Card>
+  <Card title="4. Sketch the backend" icon="puzzle">
+    Each client design needs specific backend support, so a client teardown also gives you the backend.
+  </Card>
+</CardGrid>
+
+## Where to go
+
+<CardGrid>
+  <LinkCard title="Contents" description="All 55 chapters and the question each one answers." href="/contents/" />
+  <LinkCard
+    title="Signal lookup"
+    description="Describe a behavior you saw and find the designs behind it."
+    href="/lookup/"
+  />
+  <LinkCard
+    title="Teardown worksheet"
+    description="Record an app's design, probe by probe, and export it."
+    href="/worksheet/"
+  />
+  <LinkCard title="Glossary" description="Every term, with one meaning each." href="/glossary/" />
+  <LinkCard
+    title="Worked example: Bluesky"
+    description="A real teardown, checked against the app's public source code."
+    href="/examples/bluesky/"
+  />
+  <LinkCard
+    title="Worked example: Expensify"
+    description="An offline-first app, and the three readings the method got wrong."
+    href="/examples/expensify/"
+  />
+</CardGrid>
+
+## What the handbook covers
+
+- **Part I. The teardown method.** The constraints, a model of any app, the probes, and how to turn a signal into a design claim.
+- **Part II. Concerns.** One chapter for each aspect of system design, from startup and sync to payments and releases.
+- **Part III. Archetypes.** Complete teardowns of app types such as messaging, feeds and ride-hailing, each with notes on how it is asked in a design interview.
+
+The handbook is independent of platform and framework. Logic is shown as neutral pseudocode and diagrams.

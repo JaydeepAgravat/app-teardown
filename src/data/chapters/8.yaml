@@ -1,0 +1,262 @@
+chapter: 8
+title: "Navigation, deep links and screen state"
+link: /part-2-concerns/8-navigation-deep-links-and-screen-state/
+
+probes:
+  - id: P8.1
+    name: Tab histories
+    do:
+      - In one tab, go two or three screens deep and scroll partway down.
+      - Switch to another tab and open a screen there.
+      - Switch back to the first tab.
+    watch: Whether the first tab is where you left it, and whether its content reloads.
+    outcomes:
+      - label: The same screen at the same scroll position, with no reload
+        reading: "Each tab has its own stack, and its screens stay alive while another tab is shown."
+        confidence: Inferred
+        fills: { c8-tabs: independent histories }
+      - label: The same screen, but it reloads or returns to the top
+        reading: "Each tab has its own stack of routes. The screens are rebuilt when the tab is selected."
+        confidence: Inferred
+        fills: { c8-tabs: independent histories rebuilt on return }
+      - label: The tab is back at its first screen
+        reading: "Tabs do not keep a history. The app has one stack, or resets a tab when it is left."
+        confidence: Inferred
+        fills: { c8-tabs: reset on switch }
+
+  - id: P8.2
+    name: Half a form
+    do:
+      - Open a screen that takes text, such as a message, a post or a profile field. Type a sentence and do not submit it.
+      - Switch to another app for a minute, then return.
+      - Leave the screen with back, declining any prompt to save, then open the same screen again.
+    watch: Whether the text is still there after the app switch, and after leaving and re-entering. Note any prompt about discarding.
+    outcomes:
+      - label: The text survives both
+        reading: "A draft is stored apart from the screen, keyed by the thing it belongs to. P8.4 shows whether it is stored durably."
+        confidence: Inferred
+        fills: { c8-input: draft kept apart from the screen }
+      - label: The text survives the app switch only
+        reading: "The input belongs to the screen and lives as long as the screen does."
+        confidence: Inferred
+        fills: { c8-input: held by the screen }
+      - label: The text is gone after the app switch
+        reading: "The screen is rebuilt on every return to the foreground, and input is not kept."
+        confidence: Observed
+        fills: { c8-input: lost on app switch }
+
+  - id: P8.3
+    name: Long absence in the middle of a task
+    do:
+      - Go several screens deep, scroll partway down a list or type half a form, and go to the device's home screen. Do not force-quit.
+      - Leave the app for several hours. Use the camera, a game or other heavy apps in between.
+      - Return to the app through the app switcher or its icon.
+    watch: First, whether a splash appears. A splash means the process died, and only then does this probe test restoration. Then, which screen you are on, and whether scroll position and input are intact.
+    outcomes:
+      - label: No splash, and everything is as you left it
+        reading: "The process survived. Nothing is learned about restoration. Repeat with a longer absence."
+        confidence: Speculative
+      - label: A splash, then the same screen with position and input intact
+        reading: "Route, view state and input are all restored after process death."
+        confidence: Inferred
+        fills: { c8-restore: route with view state and input }
+      - label: A splash, then the same screen, reloaded at the top or with empty fields
+        reading: "The route is restored. View state or input is not."
+        confidence: Inferred
+        fills: { c8-restore: route only }
+      - label: A splash, then the app's home screen
+        reading: "Navigation state was in memory only, or the app restores it only under a condition, such as a time limit, an account type or a platform. A shorter absence that still shows a splash tests the time limit. The other conditions cannot be ruled out from one account on one device."
+        confidence: Speculative
+        fills: { c8-restore: none }
+
+  - id: P8.4
+    name: Force-quit and reopen
+    do:
+      - Go several screens deep and type half a form, as in P8.2.
+      - Force-quit the app.
+      - Open it again, and if you land elsewhere, navigate back to the form by hand.
+    watch: Which screen you land on, and whether the typed text is there once you reach the form.
+    outcomes:
+      - label: The home screen, and the text is gone
+        reading: "Neither navigation state nor input is stored durably by the app."
+        confidence: Inferred
+        fills: { c8-force-quit: nothing survives }
+      - label: The home screen, and the text is there when you reach the form
+        reading: "A draft in the local store. Navigation state is not persisted by the app."
+        confidence: Inferred
+        fills: { c8-force-quit: draft survives }
+      - label: The screen you left, with the text
+        reading: "The app persists its own navigation state and input, beyond what the operating system saves."
+        confidence: Inferred
+        fills: { c8-force-quit: screen and draft survive }
+
+  - id: P8.5
+    name: Link while signed in
+    do:
+      - Use the app's share action on one item and send the link to yourself, for example into a notes app.
+      - Force-quit the app.
+      - Tap the link.
+    watch: What opens, and what is on screen. Note the form of the link, a web address or something else.
+    outcomes:
+      - label: The app opens on the item
+        reading: "A router maps the link to a route and can reach the screen from a cold start."
+        confidence: Observed
+        fills: { c8-link-signed-in: opens the item }
+      - label: The app opens on its home screen
+        reading: "The operating system handed the link to the app, and the app has no route for it or lost it during startup."
+        confidence: Inferred
+        fills: { c8-link-signed-in: opens home }
+      - label: A web page opens in the browser
+        reading: "The link is not handed to the app. Either the app does not claim the address, or the link passes through a redirect on another domain."
+        confidence: Speculative
+        fills: { c8-link-signed-in: opens the browser }
+
+  - id: P8.6
+    name: Back after a link
+    do:
+      - Run P8.5 so that the app opens on the item from a cold start.
+      - Press back, or use the back gesture, once.
+      - Keep pressing back and note each screen until you leave the app.
+    watch: Where the first back takes you.
+    outcomes:
+      - label: A parent screen inside the app
+        reading: "A synthesized back stack. The router built the screens that would normally sit under the target."
+        confidence: Inferred
+        fills: { c8-link-back: synthesized back stack }
+      - label: The app you came from, or the device's home screen
+        reading: "A single-screen stack. The router opens the target and nothing else."
+        confidence: Observed
+        fills: { c8-link-back: single screen }
+      - label: Nothing happens, or there is no back control
+        reading: "The target was presented with no stack under it and no way out, which is a routing defect."
+        confidence: Observed
+        fills: { c8-link-back: no way back }
+
+  - id: P8.7
+    name: Link into a running app
+    do:
+      - Open the app and go several screens deep in a section unrelated to the linked item.
+      - Switch to the notes app and tap the link from P8.5.
+      - When the item is shown, press back or close it.
+    watch: Whether you return to the screen you were on before the link.
+    outcomes:
+      - label: You return to the screen you were on
+        reading: "The router presents the target over the existing navigation state and keeps the user's place."
+        confidence: Observed
+        fills: { c8-link-running: presented over current place }
+      - label: You reach a parent of the item, and your earlier place is gone
+        reading: "The router replaces the navigation state with a stack built for the target."
+        confidence: Inferred
+        fills: { c8-link-running: replaces current place }
+      - label: The app restarts with a splash before showing the item
+        reading: "The link starts the app afresh instead of being delivered to the live process."
+        confidence: Observed
+        fills: { c8-link-running: restarts the app }
+
+  - id: P8.8
+    name: Link while signed out
+    caution: Signing out may delete drafts and downloaded content on this device. Check that anything you care about is saved first, and make sure you know your sign-in details.
+    do:
+      - Sign out of the app.
+      - Tap the link from P8.5.
+      - If the app asks you to sign in, do so, and watch where you land.
+    watch: Whether the item is shown without a session, and where you land after signing in.
+    outcomes:
+      - label: The item is shown without signing in
+        reading: "The screen is public. The backend serves it without a session."
+        confidence: Observed
+        fills: { c8-link-signed-out: shown without a session }
+      - label: Sign-in first, then the item
+        reading: "The router holds the pending link through the sign-in flow."
+        confidence: Inferred
+        fills: { c8-link-signed-out: link kept through sign-in }
+      - label: Sign-in first, then the home screen
+        reading: "The pending link is dropped when sign-in begins."
+        confidence: Inferred
+        fills: { c8-link-signed-out: link dropped }
+
+  - id: P8.9
+    name: Link with the app not installed
+    do:
+      - Use a second device that does not have the app. Do not uninstall the app from your main device for this, because that deletes its local data.
+      - Send the link from P8.5 to that device and tap it.
+      - If you are led to the store, install the app, open it and continue through onboarding.
+    watch: What the link opens. After an install, where the app lands, whether that happens before or after sign-in, and whether the system shows a notice that the app pasted from the clipboard.
+    outcomes:
+      - label: A web page shows the item
+        reading: "A verified web link with a web version of the screen as its fallback."
+        confidence: Observed
+        fills: { c8-link-not-installed: web page with content }
+      - label: The store, and after install the app opens on the item
+        reading: "A deferred deep link. If the item appears before sign-in, the target crossed the installation and was not looked up by account."
+        confidence: Inferred
+        fills: { c8-link-not-installed: deferred deep link }
+      - label: The store, and after install the app opens on its usual first screen
+        reading: "The link leads to the store and the target is not carried through installation."
+        confidence: Inferred
+        fills: { c8-link-not-installed: store only }
+      - label: Nothing opens, or an error appears
+        reading: "A custom-scheme link with no fallback."
+        confidence: Inferred
+        fills: { c8-link-not-installed: nothing }
+
+  - id: P8.10
+    name: Interrupted flow
+    caution: Stop before the step that pays or submits. This probe never needs a completed order.
+    do:
+      - Start a flow of several steps, such as checkout, a booking or a long form. Complete the first two or three steps.
+      - Force-quit the app.
+      - Sign in on a second device or the web version and look for the unfinished flow.
+      - Reopen the app on the first device and return to the flow.
+    watch: Whether your progress is visible on the second device, and whether it is still there on the first.
+    outcomes:
+      - label: The progress is visible on the second device
+        reading: "Flow state is held on the backend, against the account."
+        confidence: Observed
+        fills: { c8-flow-state: backend }
+      - label: The progress is on the first device only
+        reading: "Flow state is persisted on the device and not sent to the backend until the commit."
+        confidence: Inferred
+        fills: { c8-flow-state: persisted on the device }
+      - label: The progress is gone everywhere
+        reading: "Flow state was held in memory by the flow's screens."
+        confidence: Inferred
+        fills: { c8-flow-state: memory only }
+
+signals:
+  - { signal: A tab keeps its screen and scroll position while you use another tab, design: Independent stack per tab, confidence: Inferred }
+  - { signal: "After a splash, the app returns to the screen you left", design: "Navigation state restored after process death", confidence: Inferred }
+  - { signal: "After a splash, the right screen appears and then reloads", design: "Route restored with IDs. The data is loaded again", confidence: Inferred }
+  - { signal: "After a splash, the right screen is blank or the app closes", design: "Route restored without its data. The screen depended on an object passed in memory", confidence: Inferred }
+  - { signal: The screen you left returns after a force-quit, design: Navigation state persisted by the app in its local store, confidence: Inferred }
+  - { signal: Typed text is there after leaving and re-entering a screen, design: Draft stored apart from the screen, confidence: Inferred }
+  - { signal: Unfinished input or a cart appears on a second device, design: Draft or flow state held on the backend, confidence: Observed }
+  - { signal: Back after a link from a cold start shows a parent screen, design: Synthesized back stack, confidence: Inferred }
+  - { signal: Back after a link from a cold start leaves the app, design: Single-screen stack with no synthesis, confidence: Observed }
+  - { signal: A link opens the app on its home screen, design: "No route for the link in this version, and no fallback", confidence: Speculative }
+  - { signal: A link opens a web page inside the app, design: Router falls back to a web view for routes it does not know, confidence: Speculative }
+  - { signal: After sign-in the app continues to the linked item, design: Pending link held through the sign-in flow, confidence: Inferred }
+  - { signal: The app opens on a shared item right after a fresh install, design: Deferred deep link, confidence: Inferred }
+  - { signal: The system reports a paste from the browser on first launch, design: Deferred deep link carried by the clipboard, confidence: Inferred }
+  - { signal: An invitation appears only after signing in on a fresh install, design: "Pending invitation stored on the backend by account. Nothing crossed the installation", confidence: Inferred }
+  - { signal: A short spinner between tapping a banner and an otherwise instant screen, design: Link resolved by the backend at tap time, confidence: Speculative }
+  - { signal: Back after a completed flow shows the flow's last form, design: Flow pushed on the ordinary stack and not removed on completion, confidence: Inferred }
+  - { signal: A countdown is still correct after a force-quit and matches on a second device, design: Deadline set by the backend, confidence: Inferred }
+
+worksheet:
+  - { id: c8-structure, label: "Navigation structure: tabs, stacks, modals and flows" }
+  - { id: c8-tabs, label: Tab histories, options: [independent histories, independent histories rebuilt on return, reset on switch, no tabs] }
+  - { id: c8-input, label: Unfinished input, options: [draft kept apart from the screen, held by the screen, lost on app switch] }
+  - { id: c8-restore, label: Restored after process death, options: [none, route only, route with view state and input, not determined] }
+  - { id: c8-force-quit, label: Survives a force-quit, options: [nothing survives, draft survives, screen and draft survive] }
+  - { id: c8-link-form, label: Link form, options: [verified web link, custom-scheme link, short link resolved by the backend, unknown] }
+  - { id: c8-link-signed-in, label: Link while signed in, options: [opens the item, opens home, opens the browser] }
+  - { id: c8-link-back, label: Back stack after a link, options: [synthesized back stack, single screen, no way back] }
+  - { id: c8-link-running, label: Link into a running app, options: [presented over current place, replaces current place, restarts the app] }
+  - { id: c8-link-signed-out, label: Link while signed out, options: [shown without a session, link kept through sign-in, link dropped] }
+  - { id: c8-link-not-installed, label: Link with the app not installed, options: [web page with content, deferred deep link, store only, nothing] }
+  - { id: c8-backend-navigation, label: Evidence of navigation decided by the backend }
+  - { id: c8-flow-state, label: Flow state location, options: [memory only, persisted on the device, backend] }
+  - { id: c8-back-notes, label: Back behavior worth noting }
+  - { id: c8-backend, label: Backend components implied }
+  - { id: c8-failures, label: Failure modes seen }

@@ -1,0 +1,215 @@
+chapter: 35
+title: Performance and resource budgets
+link: /part-2-concerns/35-performance-and-resource-budgets/
+
+probes:
+  - id: P35.1
+    name: App size
+    do:
+      - Read the download size on the app's store listing and write it down.
+      - On a device where the app is installed, open the device's storage screen and read the figure for the app itself, separate from its data.
+      - If you can, read the same figure just after a fresh install on a spare device, before and after opening two or three major features for the first time.
+    watch: How the installed figure compares with the listed size, whether it grows when a feature is first opened, and whether a feature shows a download indicator on first use.
+    outcomes:
+      - label: A feature downloads on first use, and the app figure grows
+        reading: "On-demand resources. Part of the app is left out of the install and fetched when needed."
+        confidence: Observed
+        fills: { c35-on-demand: "yes" }
+      - label: The app figure stays fixed and every feature opens at once
+        reading: "Everything is bundled. The team spent app size to save time on first use."
+        confidence: Inferred
+        fills: { c35-on-demand: "no" }
+      - label: The app figure is small and most screens need the network to appear
+        reading: "Content and possibly layout come from the backend. App size was saved by depending on the network."
+        confidence: Inferred
+        fills: { c35-on-demand: "no" }
+
+  - id: P35.2
+    name: Storage over a week
+    do:
+      - Open the device's storage screen and note the app's data and cache figures.
+      - Use the app normally for a week.
+      - Note the figures every day or two.
+    watch: Whether the total keeps rising, or rises and then holds.
+    outcomes:
+      - label: It rises, then levels off
+        reading: "Bounded caches with eviction. The level is the bound."
+        confidence: Inferred
+        fills: { c35-storage-trend: levels off }
+      - label: It barely changes
+        reading: "Little is kept on the device. The app refetches what it shows."
+        confidence: Inferred
+        fills: { c35-storage-trend: flat }
+      - label: It keeps rising all week
+        reading: "Some store has no bound, or the bound is higher than a week of use reaches. A longer run separates the two."
+        confidence: Speculative
+        fills: { c35-storage-trend: keeps growing }
+
+  - id: P35.3
+    name: Battery over a day
+    do:
+      - Use the app as you normally would for a day.
+      - Open the device's battery screen and find the app.
+      - Read its share, and the split between time on screen and time in the background if the device shows it.
+    watch: How large the background part is, and whether a feature you used explains it, such as playback, navigation or a call.
+    outcomes:
+      - label: Almost all use is on screen
+        reading: "The app does little while closed. Background work is rare or well grouped."
+        confidence: Observed
+        fills: { c35-battery-background: negligible }
+      - label: Notable background use, and a feature explains it
+        reading: "A background feature you asked for is running. This is the price of that feature."
+        confidence: Observed
+        fills: { c35-battery-background: explained by a feature }
+      - label: Notable background use, and nothing explains it
+        reading: "Frequent wake-ups. Polling, location or unscheduled background tasks are the candidates, and the figure cannot separate them."
+        confidence: Speculative
+        fills: { c35-battery-background: unexplained }
+
+  - id: P35.4
+    name: Data over a day
+    do:
+      - Note the app's figure on the device's data usage screen, with the background figure if shown.
+      - Use the app for a day on a cellular connection as you normally would. Keep a rough note of what you watched or read.
+      - Read the figures again.
+    watch: Whether the total is in proportion to what you consumed, and how much was used in the background.
+    outcomes:
+      - label: "In proportion to what you watched or read, almost all on screen"
+        reading: "Data follows use. Prefetching is limited on a metered network."
+        confidence: Inferred
+        fills: { c35-data-pattern: proportionate }
+      - label: "Far more than what you watched or read, used while on screen"
+        reading: "Prefetching, autoplay or refetching is running on a metered network."
+        confidence: Inferred
+        fills: { c35-data-pattern: more than consumed }
+      - label: "A notable share used in the background"
+        reading: "Background refresh. The app spends data while closed to save time when opened."
+        confidence: Inferred
+        fills: { c35-data-pattern: notable background share }
+
+  - id: P35.5
+    name: Heavy list scroll
+    do:
+      - Open the longest list in the app that contains images or video.
+      - Scroll slowly for a few screens, then flick as fast as you can several times.
+      - Continue deep into the list, well past a hundred items if it allows.
+    watch: Whether the list follows your finger, what rows look like as they enter the screen, and whether the scroll gets worse the deeper you go.
+    outcomes:
+      - label: Smooth, with placeholders that fill in a moment later
+        reading: "View recycling, and image decoding off the main thread. The frame budget is protected."
+        confidence: Inferred
+        fills: { c35-scroll: smooth with placeholders }
+      - label: It stutters when new rows or images arrive
+        reading: "Work for new rows runs on the main thread and competes with drawing."
+        confidence: Inferred
+        fills: { c35-scroll: stutters on new content }
+      - label: Smooth at first, slower the deeper you go
+        reading: "Rows or images accumulate in memory instead of being recycled and released."
+        confidence: Inferred
+        fills: { c35-scroll: degrades with depth }
+
+  - id: P35.6
+    name: Leave and return
+    do:
+      - Open a screen a few levels deep in the app and scroll part way down.
+      - Leave the app without closing it.
+      - Use several other apps for ten minutes, including the camera or another demanding app.
+      - Return to the app.
+      - Repeat on two or three different days, and run the same steps on another app for comparison.
+    watch: Whether the screen is exactly as you left it, or whether a splash appears first, and where you land.
+    outcomes:
+      - label: The same screen, at once, every time
+        reading: "The process survived. The app holds little memory in the background."
+        confidence: Inferred
+        fills: { c35-return: resumes }
+      - label: A splash, then the screen you left
+        reading: "Process death followed by state restoration. Memory use in the background is high enough for the operating system to end the process."
+        confidence: Inferred
+        fills: { c35-return: restarts and restores }
+      - label: A splash, then the home screen
+        reading: "Process death with no state restoration (Chapter 8)."
+        confidence: Inferred
+        fills: { c35-return: restarts at home }
+
+  - id: P35.7
+    name: Low-power mode
+    caution: This probe changes a device-wide setting that affects every app. Turn the mode off when you finish.
+    do:
+      - With the mode off, note how the app behaves. Look at autoplay, animations, how fresh content is on opening, and whether an unvisited item opens at once.
+      - Turn on the device's low-power mode.
+      - Force-quit the app, open it and repeat the same actions.
+    watch: Any difference in autoplay, animation, media quality, freshness on opening, or a message from the app about the mode.
+    outcomes:
+      - label: Visible changes, such as no autoplay or fewer animations
+        reading: "The app reads the device's power state and lowers its own limits. The Adaptive posture."
+        confidence: Observed
+        fills: { c35-low-power: adapts }
+      - label: Content is older on opening, and nothing else changes
+        reading: "The operating system withheld background refresh. The app itself did not adapt."
+        confidence: Inferred
+        fills: { c35-low-power: system limits only }
+      - label: No difference
+        reading: "The app does not respond to the power state, and has little background work for the system to withhold."
+        confidence: Inferred
+        fills: { c35-low-power: no change }
+
+  - id: P35.8
+    name: Sustained use
+    caution: Stop at once if the device shows a temperature warning or becomes uncomfortable to hold. Do not charge the device or leave it in the sun during this probe.
+    do:
+      - Start with a cool device at normal room temperature.
+      - Use the app's most demanding feature continuously for fifteen minutes, such as video, a camera feature, a map or a game.
+      - Then spend fifteen minutes on its simplest screens on another day, for comparison.
+    watch: Whether the device grows warm, and whether the app's quality or smoothness changes over the fifteen minutes.
+    outcomes:
+      - label: The device stays cool and the app is unchanged
+        reading: "The feature is within the heat budget on this device."
+        confidence: Observed
+        fills: { c35-heat: cool }
+      - label: Warm, and the app lowers quality or frame rate smoothly
+        reading: "The app reads the thermal state and reduces its own load before the operating system forces it."
+        confidence: Inferred
+        fills: { c35-heat: warm and adapts }
+      - label: Warm, then sudden stutter or a dimmed screen
+        reading: "The operating system reduced processing power, and the app made no adjustment of its own."
+        confidence: Inferred
+        fills: { c35-heat: warm and degrades }
+      - label: Warm even on the simplest screens
+        reading: "Something runs continuously without need. A redraw loop, a recorder or repeated background work all fit."
+        confidence: Speculative
+        fills: { c35-heat: warm when idle }
+
+signals:
+  - { signal: A feature shows a download indicator the first time it is opened, design: On-demand resources left out of the install, confidence: Observed }
+  - { signal: The same listing shows a different size on another device, design: The store delivers only the resources that match each device, confidence: Inferred }
+  - { signal: The storage figure rises for some days and then holds, design: Bounded caches with eviction, confidence: Inferred }
+  - { signal: The storage figure rises without limit, design: "A cache, log or queue with no bound", confidence: Speculative }
+  - { signal: The app restarts on return more often than other apps on the same device, design: High memory held in the background and not released on a warning, confidence: Inferred }
+  - { signal: The app closes on a media-heavy screen, design: "Foreground memory limit exceeded. Full-size images or no view recycling", confidence: Speculative }
+  - { signal: Fast scrolling is smooth and placeholders fill in afterwards, design: View recycling with decoding off the main thread, confidence: Inferred }
+  - { signal: Scrolling stutters as each new image arrives, design: Decoding or parsing on the main thread, confidence: Inferred }
+  - { signal: Scrolling slows deep in a long list, design: Rows or images accumulate in memory, confidence: Inferred }
+  - { signal: Background battery use with no background feature in use, design: "Frequent wake-ups from polling, location or unscheduled tasks", confidence: Speculative }
+  - { signal: Data use far above what was watched or read, design: Prefetching or autoplay not limited on a metered network, confidence: Inferred }
+  - { signal: Content is already fresh on opening and background data is notable, design: Background refresh that spends data and battery to save time, confidence: Inferred }
+  - { signal: Autoplay and animations stop in low-power mode, design: A budget policy that reads the device's power state, confidence: Observed }
+  - { signal: Quality or frame rate steps down smoothly during long demanding use, design: The app responds to the thermal state, confidence: Inferred }
+  - { signal: Sudden stutter and a dimmed screen after minutes of load, design: The operating system throttled the device and the app did not adapt, confidence: Inferred }
+  - { signal: A small install whose screens all need the network, design: App size saved by moving content or layout to the backend, confidence: Inferred }
+  - { signal: Instant opening with fresh content and high figures for data and battery, design: Aggressive prefetching and background refresh, confidence: Inferred }
+
+worksheet:
+  - { id: c35-download-size, label: Download size on the store listing }
+  - { id: c35-installed-size, label: "Installed size, app part" }
+  - { id: c35-on-demand, label: On-demand resources, options: ["yes", "no", unknown] }
+  - { id: c35-storage-trend, label: Storage trend, options: [flat, levels off, keeps growing] }
+  - { id: c35-battery-background, label: Background battery use, options: [negligible, explained by a feature, unexplained] }
+  - { id: c35-data-day, label: Data used in a day and what was consumed }
+  - { id: c35-data-pattern, label: Data pattern, options: [proportionate, more than consumed, notable background share] }
+  - { id: c35-scroll, label: Heavy list scroll, options: [smooth with placeholders, stutters on new content, degrades with depth] }
+  - { id: c35-return, label: Return after ten minutes away, options: [resumes, restarts and restores, restarts at home] }
+  - { id: c35-low-power, label: Low-power mode, options: [adapts, system limits only, no change] }
+  - { id: c35-heat, label: Sustained use, options: [cool, warm and adapts, warm and degrades, warm when idle] }
+  - { id: c35-posture, label: Posture, options: [1 Unmanaged, 2 Reactive, 3 Budgeted, 4 Adaptive] }
+  - { id: c35-trades, label: "Trades observed, such as data spent to save time" }
+  - { id: c35-failures, label: Failure modes seen }

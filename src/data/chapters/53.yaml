@@ -1,0 +1,216 @@
+chapter: 53
+title: Super-apps and mini-programs
+link: /part-3-archetypes/53-super-apps-and-mini-programs/
+
+probes:
+  - id: P53.1
+    name: First open of a service
+    do:
+      - Pick three services in the app that you have never opened, from different parts of the home screen or catalog.
+      - Open each one and note what shows between the tap and the first usable screen.
+      - Go back to the home screen and open each one a second time.
+      - Turn on airplane mode, force-quit the app, launch it and open each one a third time.
+    watch: Whether a loading step with the service's own name or icon appears the first time only, every time or never, and what each service shows with no network.
+    outcomes:
+      - label: A loading step with the service's name appears once, and later opens are quick
+        reading: "A mini-program package was downloaded at first use and cached. With no network the service's frame still draws, because its code is on the device."
+        confidence: Inferred
+        fills: { c53-load: package downloaded once }
+      - label: A loading step appears on every open, and nothing draws with no network
+        reading: "The service is embedded web content loaded from the network each time. The host keeps no package for it."
+        confidence: Inferred
+        fills: { c53-load: loads every time }
+      - label: Every service opens at once, the first time included
+        reading: "The services are feature modules compiled into the app. This is one company's app, whatever the home screen looks like."
+        confidence: Inferred
+        fills: { c53-load: compiled in }
+
+  - id: P53.2
+    name: Identity across services
+    do:
+      - Sign in to the host app once.
+      - Open a service you have never used, and go to a screen that needs to know who you are, such as an order history or a profile.
+      - Note anything that asks for your consent, your phone number or a password.
+      - Repeat with a second service from what looks like a different company or team.
+    watch: Whether the service already knows you, asks through a sheet in the host's style, or shows a sign-in form of its own.
+    outcomes:
+      - label: The service knows you with no prompt of any kind
+        reading: "One account system serves every service. The services are parts of one company's backend and share the host session."
+        confidence: Inferred
+        fills: { c53-identity: shared silently }
+      - label: A sheet in the host's style asks whether to share your name or phone number with the service
+        reading: "The host owns identity and releases it to each mini-program by consent. The service has its own backend and receives a scoped identity for you."
+        confidence: Inferred
+        fills: { c53-identity: released by host consent }
+      - label: The service shows a sign-in or sign-up form of its own
+        reading: "A seam. The service is embedded web content that the bridge does not hand the session to."
+        confidence: Observed
+        fills: { c53-identity: separate sign-in }
+
+  - id: P53.3
+    name: Payment sheet in two services
+    do:
+      - In one service, take a small order to the last step before payment and tap pay.
+      - Note the screen that asks you to confirm, then cancel without paying.
+      - Do the same in a second, unrelated service.
+      - Compare the two confirmation screens.
+    watch: Whether both services end in the same payment sheet with the same wallet and saved methods, and who draws it.
+    outcomes:
+      - label: Both services end in the same sheet, with the same wallet balance and saved methods
+        reading: "Payment belongs to the host. A service asks the host to collect an amount and never sees how you pay."
+        confidence: Inferred
+        fills: { c53-payment: one host payment sheet }
+      - label: Each service has a payment screen of its own, with the same saved methods
+        reading: "A shared payment backend with a screen built per team. Payment is a shared service and not a host capability."
+        confidence: Inferred
+        fills: { c53-payment: own screen on shared methods }
+      - label: A service asks for card details again, or sends you to a web page
+        reading: "That service handles payment by itself, outside the host's wallet. It is a guest in the app and not a part of the platform."
+        confidence: Observed
+        fills: { c53-payment: separate payment }
+
+  - id: P53.4
+    name: Location in two services
+    do:
+      - Find two services that use your location, such as a delivery service and a ride or store finder.
+      - Open the first and grant location when asked. Note who draws the prompt and what it names.
+      - Open the second and note whether anything asks again.
+      - Look in the host's settings for a screen that lists permissions per service.
+    watch: Whether the second service has your location without asking, and whether the host keeps a grant for each service.
+    outcomes:
+      - label: The second service asks again through a host sheet that names the service
+        reading: "Per-mini-program permissions. The operating system granted location to the host once, and the host keeps its own grant for each service."
+        confidence: Inferred
+        fills: { c53-permission: host grant per service }
+      - label: The second service has your location with no prompt
+        reading: "One grant covers the whole app. The services are trusted equally, which fits one company and would be a weakness on an open platform."
+        confidence: Inferred
+        fills: { c53-permission: one grant for the whole app }
+      - label: The second service asks through a prompt in the style of a web page
+        reading: "The service is embedded web content asking through the web view, with no host layer between it and the device."
+        confidence: Inferred
+        fills: { c53-permission: asked by the web content }
+
+  - id: P53.5
+    name: Home screen on two accounts
+    do:
+      - Open the home screen on two accounts side by side, on the same app version. Accounts of different ages or in different cities are best.
+      - List the services each one shows, in order.
+      - If the app has a region or city setting, change it on one account and reload the home screen.
+      - Search the catalog for a service that one account shows and the other lacks.
+    watch: Whether the set of services, their order or neither differs, and whether a missing service can still be found by search.
+    outcomes:
+      - label: The set of services differs between accounts or regions
+        reading: "The home screen is described by the backend, and targeting decides which services exist for whom. A service absent from search as well is switched off for that region."
+        confidence: Inferred
+        fills: { c53-home: set differs }
+      - label: The same services appear in a different order
+        reading: "Backend-ordered sections ranked per user. Availability is the same for both accounts."
+        confidence: Inferred
+        fills: { c53-home: order differs }
+      - label: Both home screens are identical
+        reading: "A fixed home screen, or two accounts in the same targeting group. Repeat with a more different account before you conclude."
+        confidence: Speculative
+        fills: { c53-home: identical }
+
+  - id: P53.6
+    name: Leave a service and return
+    do:
+      - Open a service and type into a form without submitting it.
+      - Return to the host's home screen with the host's own close or home control.
+      - Open two other services, one after the other, and close each.
+      - Open the first service again and look at the form.
+      - Look for a host control that lists recently used services.
+    watch: Whether the first service is exactly as you left it, restarts with your text, or restarts empty.
+    outcomes:
+      - label: The service is exactly as you left it
+        reading: "The host keeps several runtimes alive at once, one per open service, and brings one forward when you return."
+        confidence: Inferred
+        fills: { c53-lifecycle: kept as left }
+      - label: The service restarts at its first screen, and the form text is restored
+        reading: "The runtime was discarded and the service saved a draft, on the device or on its backend."
+        confidence: Inferred
+        fills: { c53-lifecycle: restarts with input restored }
+      - label: The service restarts empty
+        reading: "The host runs one service at a time and discards it on close. Nothing of the service's state is kept."
+        confidence: Inferred
+        fills: { c53-lifecycle: restarts empty }
+
+  - id: P53.7
+    name: Storage after exploring
+    do:
+      - Note the app figure and the data figure for the app in the device's storage settings.
+      - Open ten services you have never used, each for a minute.
+      - Note both figures again.
+      - Look in the host's settings for a storage screen, and note whether it lists services one by one.
+      - If it offers to clear one service, clear one that holds nothing you need, and open that service again.
+    watch: How much the data figure grows per service, and whether the host accounts for storage per service.
+    outcomes:
+      - label: The data figure grows with each service, and the host lists storage per service
+        reading: "Each mini-program has a package and a data area of its own on the device. The host can evict one without touching the others."
+        confidence: Inferred
+        fills: { c53-storage: grows and listed per service }
+      - label: The data figure grows, and the host shows one total only
+        reading: "Packages or web caches are kept, in a shared cache with no separation that a user can see."
+        confidence: Inferred
+        fills: { c53-storage: grows as one cache }
+      - label: The data figure barely changes
+        reading: "Nothing is downloaded per service. The services are compiled in, or they are web pages with little cached."
+        confidence: Inferred
+        fills: { c53-storage: barely changes }
+
+  - id: P53.8
+    name: The frame around each service
+    do:
+      - Open six services from different parts of the app.
+      - In each, look at the top of the screen and note the title, the back control and any close or menu control.
+      - Open the menu control, if there is one, and note what it offers.
+      - Compare the content under the top bar across the six.
+    watch: Whether one fixed control set sits over content that differs in look, or the whole screen shares one look.
+    outcomes:
+      - label: The same close and menu control sits over content that looks different in each service
+        reading: "The host draws a frame that a mini-program cannot remove. The content below it comes from different authors."
+        confidence: Inferred
+        fills: { c53-frame: host frame over differing content }
+      - label: Every service shares one look, top bar and content alike
+        reading: "One design system across compiled features. The app belongs to one company with a strong shared layer."
+        confidence: Inferred
+        fills: { c53-frame: one look throughout }
+      - label: Some services show a website's header or footer inside the app
+        reading: "Embedded web content with no host frame and no adaptation for the app."
+        confidence: Observed
+        fills: { c53-frame: website parts inside }
+
+signals:
+  - { signal: A loading step shows a service's own name and icon the first time it opens and never again, design: A mini-program package downloaded on first use and cached, confidence: Inferred }
+  - { signal: The same close and menu control floats over every service whatever the content looks like, design: A host frame that a mini-program cannot draw over or remove, confidence: Inferred }
+  - { signal: A host sheet asks whether to share your phone number with a named service, design: The host owns identity and releases a scoped identity per mini-program by consent, confidence: Inferred }
+  - { signal: Every service ends in the same payment sheet with the same wallet, design: Payment is a host capability reached through the bridge, confidence: Inferred }
+  - { signal: A second service asks for location again after the first was granted, design: Per-mini-program permissions kept by the host above the operating system's single grant, confidence: Inferred }
+  - { signal: A settings screen lists services with the data each has been given and a control to withdraw it, design: A consent record per user and mini-program, confidence: Inferred }
+  - { signal: A service appears on the home screen in one city and is absent from search in another, design: Server-driven home screen with targeting by region, confidence: Inferred }
+  - { signal: A new service appears in the catalog with no store update, design: Services are data in a catalog and code in packages delivered outside the store, confidence: Inferred }
+  - { signal: A service behaves differently from one day to the next with no store update and one brief loading step, design: A new version of the mini-program package replaced the cached one, confidence: Inferred }
+  - { signal: Long-press selects any text in one service and nothing in the next, design: Different UI families behind one host and a seam between them, confidence: Inferred }
+  - { signal: A control in a service does nothing on an old version of the host, design: The mini-program called a bridge message that this host version lacks, confidence: Inferred }
+  - { signal: An address saved in one service is unknown to the next, design: Data separation per mini-program with no shared profile beyond what the host releases, confidence: Inferred }
+  - { signal: The app figure is large although most services download on first use, design: The host carries the runtime and every capability that any mini-program may call, confidence: Speculative }
+  - { signal: The first frame comes quickly and the grid of services fills in a moment later, design: A cached home description shown first and refreshed from the backend, confidence: Inferred }
+  - { signal: A service that sells digital goods is present on one platform and absent or changed on the other, design: "Store rules on payment differ by platform and the catalog is targeted to match. A product decision explains it equally well", confidence: Speculative }
+  - { signal: A link or a scanned code opens one screen deep inside a service that was never used before, design: The link resolver maps to a mini-program and a route and the host downloads the package before opening it, confidence: Inferred }
+  - { signal: A recently used list brings back a service exactly as it was left, design: The host keeps several runtimes alive and limits their number, confidence: Inferred }
+
+worksheet:
+  - { id: c53-variant, label: Variant, options: [one company, open platform, mixed] }
+  - { id: c53-load, label: First open of a service, options: [package downloaded once, loads every time, compiled in, differs by service] }
+  - { id: c53-identity, label: Identity across services, options: [shared silently, released by host consent, separate sign-in] }
+  - { id: c53-payment, label: Payment across services, options: [one host payment sheet, own screen on shared methods, separate payment] }
+  - { id: c53-permission, label: Device permissions across services, options: [host grant per service, one grant for the whole app, asked by the web content] }
+  - { id: c53-home, label: Home screen across accounts and regions, options: [set differs, order differs, identical] }
+  - { id: c53-lifecycle, label: Return to a service, options: [kept as left, restarts with input restored, restarts empty] }
+  - { id: c53-storage, label: Storage after opening new services, options: [grows and listed per service, grows as one cache, barely changes] }
+  - { id: c53-frame, label: Frame around each service, options: [host frame over differing content, one look throughout, website parts inside] }
+  - { id: c53-families, label: UI family per service }
+  - { id: c53-discovery, label: "How services are found: home grid, catalog, search, links, scanned codes" }
+  - { id: c53-seams, label: Seams seen between services }
+  - { id: c53-notes, label: Notes and open questions }

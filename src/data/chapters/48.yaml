@@ -1,0 +1,235 @@
+chapter: 48
+title: "Notes, documents and collaboration"
+link: /part-3-archetypes/48-notes-documents-and-collaboration/
+
+probes:
+  - id: P48.1
+    name: Kill while typing
+    do:
+      - Create a test note and turn on airplane mode.
+      - Type three short sentences without a pause.
+      - Within a second of the last keystroke, force-quit the app. Do not leave the editor first.
+      - Open the app, still in airplane mode, and open the note.
+    watch: How much of the typed text is there, and whether the app shows any recovery notice.
+    outcomes:
+      - label: All three sentences are there
+        reading: "Every edit is committed to the local store within moments of the keystroke. The editor does not depend on a save step or on leaving the screen."
+        confidence: Inferred
+        fills: { c48-kill-typing: all text kept, c48-save: saved as you type }
+      - label: The last words or the last sentence are missing
+        reading: "Edits are held in memory and committed to the local store on a timer or after a pause in typing. The gap you lost is the length of that timer."
+        confidence: Inferred
+        fills: { c48-kill-typing: last moments lost, c48-save: saved after a pause }
+      - label: None of the new text is there
+        reading: "The note is committed only when you leave the editor or tap a save control. Process death while editing loses the whole session."
+        confidence: Inferred
+        fills: { c48-kill-typing: text lost, c48-save: saved on leaving the editor }
+
+  - id: P48.2
+    name: Two paragraphs, two devices
+    caution: Use a test note. In some designs one of the two edits is lost.
+    do:
+      - Sign in to one account on two devices, A and B. Create a note with five short paragraphs and wait until both devices show it.
+      - Turn on airplane mode on both devices.
+      - On A, change a word in the first paragraph. On B, change a word in the last paragraph.
+      - Turn the network back on at A, wait a minute, then turn it on at B.
+      - Compare the note on both devices, and look in the note list for a second copy.
+    watch: Whether both changed words are in one note, and whether anything tells you that a conflict happened.
+    outcomes:
+      - label: Both changes are in the one note on both devices
+        reading: "The conflict unit of the body is smaller than the note. Edits to different paragraphs do not collide. P48.3 finds how small the unit is."
+        confidence: Inferred
+        fills: { c48-conflict-result: both merged }
+      - label: One change is there and the other is gone, with no notice
+        reading: "The whole note is the conflict unit and the rule is LWW. One device's body replaced the other's."
+        confidence: Inferred
+        fills: { c48-conflict-result: one side lost silently, c48-conflict-unit: whole note }
+      - label: A second note or a conflicted copy appears
+        reading: "The whole note or the whole file is the conflict unit and the rule is keep both. The design refuses to choose a loser."
+        confidence: Inferred
+        fills: { c48-conflict-result: conflicted copy, c48-conflict-unit: whole note }
+      - label: The app shows both versions and asks you to choose
+        reading: "The whole note is the conflict unit, a version check detects the conflict, and the user decides."
+        confidence: Observed
+        fills: { c48-conflict-result: user asked to choose, c48-conflict-unit: whole note }
+
+  - id: P48.3
+    name: One sentence, two devices
+    caution: Use a test note. In some designs one of the two edits is lost.
+    do:
+      - Run this probe only if P48.2 kept both changes.
+      - On a test note, write one paragraph with a single sentence, "The cat sat on the mat", and wait until A and B both show it.
+      - Turn on airplane mode on both devices.
+      - On A, insert the word "black" before "cat". On B, insert the word "red" before "mat".
+      - Turn the network back on at A, then at B, and compare.
+    watch: Whether the sentence holds both inserted words, one of them, or appears twice.
+    outcomes:
+      - label: One sentence with both inserted words
+        reading: "The conflict unit is the character. Edits inside one paragraph are merged as operations at their positions. This is the Level 4 merge, even though you ran it offline."
+        confidence: Inferred
+        fills: { c48-conflict-unit: character }
+      - label: One sentence with only one of the inserted words
+        reading: "The conflict unit is the block or paragraph. Blocks merge with each other, and inside one block the rule is LWW."
+        confidence: Inferred
+        fills: { c48-conflict-unit: block or paragraph }
+      - label: The paragraph appears twice, once with each word
+        reading: "The conflict unit is the block or paragraph, and the rule inside a block is keep both."
+        confidence: Inferred
+        fills: { c48-conflict-unit: block or paragraph }
+
+  - id: P48.4
+    name: Live typing
+    do:
+      - Open the same document on two devices side by side, both online. Use two accounts if the document can be shared, or one account on both.
+      - On A, type a sentence slowly, about one letter per second.
+      - Watch B without touching it.
+      - On B, type in a different paragraph at the same time and watch A.
+    watch: The size of the pieces in which A's text reaches B, the delay, and whether you must do anything on B to see it.
+    outcomes:
+      - label: Letters appear on B one by one, within about a second
+        reading: "Operations travel over a persistent connection as they are made. The document is edited at Level 4 while both are online."
+        confidence: Inferred
+        fills: { c48-live-editing: character by character }
+      - label: Text appears on B in chunks, some seconds after A pauses
+        reading: "The client sends its changes in batches after a pause, and B receives them by a push hint, a connection or a short poll. The design is a fast Level 3 sync, not live editing."
+        confidence: Inferred
+        fills: { c48-live-editing: in chunks after a pause }
+      - label: B changes only after you leave the document and reopen it
+        reading: "No live path exists for an open document. B pulls when the screen opens."
+        confidence: Inferred
+        fills: { c48-live-editing: on reopen only }
+
+  - id: P48.5
+    name: Cursor after disconnect
+    do:
+      - Open a shared document on A and B with two accounts, both online.
+      - On A, place the text cursor in the middle of a paragraph. Note what B shows for A, such as a colored cursor, a name tag or an avatar.
+      - Turn on airplane mode on A and start a timer.
+      - Watch B until A's mark disappears, or for three minutes.
+    watch: Whether B shows a mark for A at all, and how long the mark outlives A's connection.
+    outcomes:
+      - label: A's mark disappears on B within about a minute
+        reading: "Live cursors and presence are ephemeral signals with an expiry. The delay you timed is the heartbeat time limit of the connection."
+        confidence: Inferred
+        fills: { c48-presence: ephemeral with expiry }
+      - label: A's mark stays until B reopens the document
+        reading: "The mark is stored state that is read when the document opens, and nothing removes it when a connection is lost."
+        confidence: Inferred
+        fills: { c48-presence: stale until reopened }
+      - label: B never shows a mark for A
+        reading: "The product shows no presence. The probe cannot tell whether a connection exists. P48.4 answers that."
+        confidence: Observed
+        fills: { c48-presence: none shown }
+
+  - id: P48.6
+    name: Attachment added offline
+    do:
+      - Turn on airplane mode on A and open a test note.
+      - Add a photo of several megabytes to the note, then type a sentence after it.
+      - Force-quit the app, reopen it and confirm what the note shows.
+      - Move to a weak connection, turn the network back on, and watch the same note on B.
+    watch: Whether the photo can be added offline, whether it survives the force-quit, and whether the sentence reaches B before the photo does.
+    outcomes:
+      - label: The sentence reaches B first, with a placeholder, and the photo fills in later
+        reading: "The attachment is a file in the transfer queue and the note refers to it by a client-generated id. Text sync does not wait for the upload."
+        confidence: Inferred
+        fills: { c48-attachment: queued and text syncs first }
+      - label: Nothing reaches B until the photo is uploaded, then both arrive together
+        reading: "Upload, then attach, in strict order. The note's mutation waits in the outbox for the upload it depends on."
+        confidence: Inferred
+        fills: { c48-attachment: queued and note waits }
+      - label: The app refuses to add the photo offline
+        reading: "Attachments are sent straight to the backend from the editor. They are Level 0, inside a note that is Level 3."
+        confidence: Observed
+        fills: { c48-attachment: refused offline }
+      - label: The photo is gone after the force-quit, or never reaches B
+        reading: "The file was held in memory or in a temporary location, with no durable transfer queue behind it."
+        confidence: Inferred
+        fills: { c48-attachment: lost }
+
+  - id: P48.7
+    name: Remove access from an offline replica
+    caution: Use a test document with nothing private in it, and two accounts that are both yours.
+    do:
+      - With account A, share a test document with account B, with permission to edit.
+      - On B's device, open the document, wait until it has loaded, then turn on airplane mode.
+      - With account A, remove B's access.
+      - On B, still offline, add a sentence to the document.
+      - Turn the network back on at B, wait a minute, then look for the document on B and for the sentence on A.
+    watch: Whether the document leaves B's device, and what happens to the sentence B wrote after access was removed.
+    outcomes:
+      - label: The document leaves B, and the sentence does not appear on A
+        reading: "The loss of access is delivered as a change, the replica is removed, and the backend checks permission on every mutation it receives."
+        confidence: Inferred
+        fills: { c48-revoke: removed and offline edit refused }
+      - label: The document leaves B, and B is offered its text as a private copy
+        reading: "The same design, with a rejection path that keeps the user's own words. The team treated a refused edit as data to preserve."
+        confidence: Observed
+        fills: { c48-revoke: removed and offline edit kept as a copy }
+      - label: The sentence appears on A
+        reading: "The backend accepted a mutation from an account that no longer had access. Permission is checked when the document is opened, not when a change arrives."
+        confidence: Observed
+        fills: { c48-revoke: offline edit accepted after removal }
+      - label: The document is still readable on B after reconnecting
+        reading: "Access changes do not travel through the change log. A replica that already holds the data keeps it."
+        confidence: Inferred
+        fills: { c48-revoke: stays readable }
+
+  - id: P48.8
+    name: First sync on a new device
+    caution: Run this on a spare device or a fresh install. Do not clear data on a device that holds unsynced notes.
+    do:
+      - Use an account with at least a hundred notes, some of them years old and some with attachments.
+      - On an unmetered connection, sign in on a device that has never had the app.
+      - As soon as the note list is usable, turn on airplane mode.
+      - Open the oldest note you can find, then a long note, then a note with an attachment.
+      - Turn the network back on and note how long it takes before those notes open.
+    watch: What is on the device at the moment the list first appears. Titles, bodies and attachments are three separate answers.
+    outcomes:
+      - label: Every note opens offline with its full text
+        reading: "The first sync loads all bodies before or as the list appears. The replica is complete from the start, and attachments may still follow."
+        confidence: Inferred
+        fills: { c48-first-sync: all bodies at once }
+      - label: The full list is there, and old notes fail to open offline
+        reading: "The first sync loads the list of titles first. Bodies arrive on open or by a backfill that had not finished."
+        confidence: Inferred
+        fills: { c48-first-sync: list first and bodies later }
+      - label: Only recent notes are in the list
+        reading: "The first sync loads recent data and backfills the rest. The replica is usable early and incomplete for a while."
+        confidence: Inferred
+        fills: { c48-first-sync: recent first then backfill }
+
+signals:
+  - { signal: The editor has no save control and typed text survives a force-quit, design: The local store is the place the editor writes and each edit is committed within moments, confidence: Inferred }
+  - { signal: The editor responds at the same speed in airplane mode as online, design: The UI reads and writes the local store only and a sync engine works behind it, confidence: Inferred }
+  - { signal: "A small mark in the note or the list shows synced, syncing or waiting", design: The outbox state is exposed to the user per note, confidence: Inferred }
+  - { signal: Edits made offline on two devices to different paragraphs both survive, design: The conflict unit of the body is the block or smaller, confidence: Inferred }
+  - { signal: Edits made offline on two devices inside one sentence both survive, design: Character-level merge of operations, confidence: Inferred }
+  - { signal: A second copy of a note appears after two devices edited it apart, design: "Whole-note or whole-file conflict unit, resolved by keep both", confidence: Inferred }
+  - { signal: One device's edit vanishes after both devices reconnect and nothing reports it, design: Whole-note LWW with no conflict detection, confidence: Inferred }
+  - { signal: Another person's letters appear one by one while you watch, design: Operations sent over a persistent connection to every open editor, confidence: Inferred }
+  - { signal: "A collaborator's colored cursor disappears some seconds after their device loses the network", design: Live cursors are ephemeral signals with an expiry on the receiver, confidence: Inferred }
+  - { signal: "The document turns read-only or shows a reconnecting notice when the network drops", design: "Level 4 editing that is online only. Operations are not queued for later merge", confidence: Inferred }
+  - { signal: The version history lists entries at regular intervals or at the end of editing sessions, design: Checkpoints taken from the operation log by the backend, confidence: Speculative }
+  - { signal: A photo added offline shows at once and reaches other devices after the text around it, design: "Upload, then attach, through a transfer queue separate from the outbox", confidence: Inferred }
+  - { signal: Search finds text inside notes never opened on this device while in airplane mode, design: On-device index over a full replica, confidence: Inferred }
+  - { signal: Search finds titles offline and body text only online, design: The device holds the list and the backend holds the search index, confidence: Inferred }
+  - { signal: A shared document disappears from a device after its owner removes access, design: Loss of access is delivered through the change log as a deletion, confidence: Inferred }
+  - { signal: A document stays readable offline on a device whose access was removed, design: Access changes are not delivered through the change log, confidence: Inferred }
+  - { signal: Storage used by the app is small compared with the attachments the account holds, design: Attachments are fetched on demand and are not in the replica, confidence: Inferred }
+  - { signal: A file edited in two places produces two files with a device name or date in the title, design: File-based sync with the whole file as the unit, confidence: Inferred }
+
+worksheet:
+  - { id: c48-variant, label: Variant, options: [personal notes, shared documents, file-based documents, mixed] }
+  - { id: c48-save, label: When an edit is committed to the local store, options: [saved as you type, saved after a pause, saved on leaving the editor, explicit save] }
+  - { id: c48-kill-typing, label: Text after a force-quit while typing, options: [all text kept, last moments lost, text lost] }
+  - { id: c48-conflict-unit, label: Conflict unit of the body, options: [whole note, block or paragraph, character, whole file] }
+  - { id: c48-conflict-result, label: Result of edits made apart, options: [both merged, one side lost silently, conflicted copy, user asked to choose] }
+  - { id: c48-live-editing, label: Arrival of another editor's text, options: [character by character, in chunks after a pause, on reopen only] }
+  - { id: c48-presence, label: Live cursors and presence, options: [ephemeral with expiry, stale until reopened, none shown] }
+  - { id: c48-history, label: Version history, options: [timed versions with restore, named versions only, undo only, none found] }
+  - { id: c48-attachment, label: Attachment added offline, options: [queued and text syncs first, queued and note waits, refused offline, lost] }
+  - { id: c48-search, label: Search, options: [on-device over all notes, on-device over opened notes, titles on device and bodies on backend, backend only] }
+  - { id: c48-revoke, label: Removed access on an offline replica, options: [removed and offline edit refused, removed and offline edit kept as a copy, offline edit accepted after removal, stays readable] }
+  - { id: c48-first-sync, label: First sync on a new device, options: [all bodies at once, list first and bodies later, recent first then backfill] }
+  - { id: c48-notes, label: Notes and open questions }

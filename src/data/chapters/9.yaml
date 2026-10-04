@@ -1,0 +1,239 @@
+chapter: 9
+title: State and UI data flow
+link: /part-2-concerns/9-state-and-ui-data-flow/
+
+probes:
+  - id: P9.1
+    name: Change and go back
+    do:
+      - Open a list, then open one item's detail screen.
+      - Change something on the detail screen that the list row also shows, such as a favorite mark, a title or a status.
+      - Wait a few seconds so the change is confirmed, then go back to the list without refreshing it.
+      - Repeat with a different item, and this time turn on airplane mode after the change is confirmed and before you go back.
+    watch: Whether the list row shows the new value in each run, and whether the list shows a loading indicator, flickers or loses its scroll position as it reappears.
+    outcomes:
+      - label: The row shows the change in both runs
+        reading: "The list and the detail screen read one copy, or the list was told about the change inside the client. A shared store or change events."
+        confidence: Inferred
+        fills: { c9-back-consistency: already updated }
+      - label: The row shows the change online, and the old value in airplane mode
+        reading: "The list holds its own copy and fetches again each time it appears. Screen-owned data with refetch on appear."
+        confidence: Inferred
+        fills: { c9-back-consistency: reloads on return, c9-owner: screen-owned copy }
+      - label: The row shows the old value in both runs until you refresh
+        reading: "Each screen owns its copy and nothing links them."
+        confidence: Observed
+        fills: { c9-back-consistency: stale until refresh, c9-owner: screen-owned copy }
+
+  - id: P9.2
+    name: Every surface
+    do:
+      - Pick an item that appears in at least three places, for example a list, search results, another tab and a profile or history screen.
+      - Visit each place first, so that every surface has loaded the item.
+      - Change the item on one of them.
+      - Visit each of the other places without refreshing. Note which show the change.
+      - Refresh any surface that is stale and look again.
+    watch: Which surfaces are current at once, which become current after a refresh, and which stay stale after a refresh.
+    outcomes:
+      - label: Every surface shows the change at once
+        reading: "One copy of the item on the client, observed by every screen. A shared store, in memory or on disk."
+        confidence: Inferred
+        fills: { c9-cross-surface: all agree }
+      - label: Some surfaces are stale until refreshed
+        reading: "Those surfaces hold their own copies. Change events reach some screens and not others, or there are none."
+        confidence: Inferred
+        fills: { c9-cross-surface: some stale until refresh }
+      - label: A surface is stale even after a refresh
+        reading: "That surface is fed by a separate backend source, such as a search index, that is updated on its own schedule. This is backend evidence, not client evidence."
+        confidence: Inferred
+        fills: { c9-cross-surface: some stale after refresh }
+
+  - id: P9.3
+    name: Badge against content
+    do:
+      - Find a count that summarizes content, such as an unread badge on a tab, a cart badge or a "selected" counter.
+      - Count the matching items by hand and compare.
+      - Change the content by one, for example read one item or remove one from the cart, and watch the count.
+      - Compare the badge inside the app with the badge on the app icon, if both exist.
+    watch: Whether the count matches the content, and whether it changes in the same instant as the content or after a delay.
+    outcomes:
+      - label: The count matches and changes in the same instant
+        reading: "The count is derived on the client from the same data the content is drawn from."
+        confidence: Inferred
+        fills: { c9-derived: derived from the same data }
+      - label: The count matches but changes after a delay or a refresh
+        reading: "The count is a separate value, fetched from the backend or adjusted by hand on the client."
+        confidence: Inferred
+        fills: { c9-derived: separate value that lags }
+      - label: The count disagrees with the content
+        reading: "The count and the content come from two sources that are not reconciled."
+        confidence: Observed
+        fills: { c9-derived: disagrees with content }
+
+  - id: P9.4
+    name: Tap on a weak connection
+    do:
+      - Find a weak connection, for example the edge of wireless coverage.
+      - Tap a small reversible action such as a favorite mark, a reaction or a checkbox.
+      - Look at the control, at any count next to it, and then at another screen that shows the same item.
+    watch: Whether the control changes before the network could have answered, whether a pending indicator appears, and how far the change reaches.
+    outcomes:
+      - label: The control waits, with a spinner or a disabled state
+        reading: "No optimistic update. The UI changes only after the backend confirms."
+        confidence: Observed
+        fills: { c9-optimistic: waits for backend }
+      - label: The control changes at once, and nothing else does
+        reading: "An optimistic update held in the control or in that screen's state."
+        confidence: Inferred
+        fills: { c9-optimistic: optimistic in the control or screen }
+      - label: The control, its count and other screens all change at once
+        reading: "An optimistic update written to a shared store, so every observer shows it."
+        confidence: Inferred
+        fills: { c9-optimistic: optimistic in the shared store }
+
+  - id: P9.5
+    name: Failed refresh
+    do:
+      - Open a screen and let its content load.
+      - Turn on airplane mode.
+      - Refresh the screen with its refresh gesture or control.
+    watch: What happens to the content that was already on screen.
+    outcomes:
+      - label: The content stays, and a message reports the failure
+        reading: "Content and request activity are held separately. The content comes from a store, and the request only updates it."
+        confidence: Inferred
+        fills: { c9-refresh-failure: content kept with a message }
+      - label: The content is replaced by a full-screen error
+        reading: "The screen has one status at a time, and the failed request replaced the content."
+        confidence: Observed
+        fills: { c9-refresh-failure: content replaced by an error }
+      - label: The content stays, and nothing reports the failure
+        reading: "Content and activity are separate, and the error is discarded. You cannot tell from this whether a store stands behind the screen."
+        confidence: Speculative
+        fills: { c9-refresh-failure: content kept silently }
+
+  - id: P9.6
+    name: Rotate or resize mid-task
+    do:
+      - Scroll well into a list, open a filter or an expanded section, and type a few words into a field without submitting.
+      - Rotate the device. If rotation is locked or the app does not rotate, put the app in a split-screen or resized window instead.
+      - Rotate or resize back.
+    watch: Whether the typed text, the scroll position and the open sections are kept, and whether the content reloads.
+    outcomes:
+      - label: Everything is kept and nothing reloads
+        reading: "Screen state is held outside the visual tree and survives it being rebuilt."
+        confidence: Inferred
+        fills: { c9-config-change: kept without reload }
+      - label: Input and position are kept, and the content reloads
+        reading: "Transient screen state is saved, and loaded content is not. The screen fetches again when it is rebuilt."
+        confidence: Inferred
+        fills: { c9-config-change: kept with reload }
+      - label: Typed text or scroll position is lost
+        reading: "That state was held in the control or the visual tree only."
+        confidence: Observed
+        fills: { c9-config-change: lost }
+
+  - id: P9.7
+    name: Act from outside the app
+    do:
+      - Open the app on a screen that shows an item, then leave the app without closing it.
+      - Change that item from outside the app. Use an action button on a notification, a control on a home-screen widget, or the web version.
+      - Return to the app and look at the screen you left.
+    watch: Whether the screen already shows the change, corrects itself after a moment, or keeps the old value.
+    outcomes:
+      - label: The screen already shows the change
+        reading: "The outside surface and the app share storage that the screen observes, or the change reached the app in the background."
+        confidence: Inferred
+        fills: { c9-outside-entry: current on return }
+      - label: The old value shows, then corrects itself
+        reading: "The app refreshes when it returns to the foreground. The outside action went to the backend and came back as a fetch."
+        confidence: Inferred
+        fills: { c9-outside-entry: corrects after return }
+      - label: The old value stays until you refresh
+        reading: "The screen holds its own copy, and nothing tells it about changes made outside the app."
+        confidence: Observed
+        fills: { c9-outside-entry: stale until refresh }
+
+  - id: P9.8
+    name: Long background
+    do:
+      - Go three or four screens deep, scroll into a list and type a few words into a field without submitting.
+      - Leave the app with the home gesture. Do not force-quit it.
+      - Use several heavy apps, such as the camera, a game and a browser with many tabs, and wait an hour or more.
+      - Return to the app from the app switcher.
+    watch: Whether you see a splash screen, which screen you land on, whether the typed text is there, and whether content is present at once or loads.
+    outcomes:
+      - label: No splash screen, and everything is as you left it
+        reading: "The process survived. This run says nothing about persistence. Repeat with a longer wait."
+        confidence: Observed
+      - label: The same screen with your text, and content present at once
+        reading: "The process died. Navigation and input were saved for restoration, and content came from a local store."
+        confidence: Inferred
+        fills: { c9-process-death: screen and input restored, c9-owner: local store observed }
+      - label: The same screen, with the text gone or the content loading again
+        reading: "The process died. Navigation was restored, and the rest was held in memory only."
+        confidence: Inferred
+        fills: { c9-process-death: screen restored without input }
+      - label: The app starts again at its first screen
+        reading: "The process died and nothing was saved for restoration."
+        confidence: Observed
+        fills: { c9-process-death: restarts at the first screen }
+
+  - id: P9.9
+    name: Two devices side by side
+    do:
+      - Sign in to the same account on two devices, A and B, and open the same screen on both.
+      - Change an item on B.
+      - Watch A for a minute without touching it.
+      - If nothing changes, go to another screen on A and come back. If still nothing changes, refresh A.
+    watch: The first moment at which A shows the change.
+    outcomes:
+      - label: A changes while you watch
+        reading: "Remote changes are delivered to the open app and reach the screen without any action. The screen observes a store that async delivery writes to, or listens to the connection itself."
+        confidence: Inferred
+        fills: { c9-live: while watching }
+      - label: A changes when you leave the screen and return
+        reading: "The screen fetches on appear. No remote change is delivered to it."
+        confidence: Inferred
+        fills: { c9-live: on return to the screen }
+      - label: A changes only on manual refresh
+        reading: "The screen owns its copy and updates only when asked."
+        confidence: Observed
+        fills: { c9-live: on manual refresh }
+
+signals:
+  - { signal: A change made on a detail screen is already in the list when you go back, design: "One shared copy, or change events inside the client", confidence: Inferred }
+  - { signal: The list shows the old value for a moment on return and then changes, design: Screen-owned copy with refetch on appear, confidence: Inferred }
+  - { signal: The list shows the old value until you refresh it, design: Screen-owned copies with nothing linking them, confidence: Observed }
+  - { signal: Nearby screens show a change and distant ones do not, design: Change events with missing listeners, confidence: Inferred }
+  - { signal: A surface stays stale after a refresh, design: "A separate backend source for that surface, such as a search index", confidence: Inferred }
+  - { signal: A badge changes in the same instant as the content it counts, design: Count derived on the client from the same data, confidence: Inferred }
+  - { signal: A badge shows a count with no matching content, design: Count held as a separate value from another source, confidence: Observed }
+  - { signal: The icon badge and the badge inside the app disagree, design: "Two sources. The icon badge is set by a notification or by the backend", confidence: Observed }
+  - { signal: A tapped control changes and the count beside it does not, design: Optimistic update held in the control, confidence: Inferred }
+  - { signal: A tapped control flickers to the old value and back, design: A response fetched before the tap overwrote the optimistic value, confidence: Speculative }
+  - { signal: A toggle bounces back a moment after the tap, design: Rollback after a rejected or failed mutation, confidence: Inferred }
+  - { signal: A failed refresh leaves the content in place, design: Content read from a store with the request held as separate activity, confidence: Inferred }
+  - { signal: A failed refresh replaces the content with an error, design: Screen state with one status at a time, confidence: Observed }
+  - { signal: An empty state flashes before content appears, design: "Loading and empty are the same value in the screen state", confidence: Inferred }
+  - { signal: Typed text is lost on rotation, design: Input held in the control and not in screen state, confidence: Observed }
+  - { signal: Content is present at once after the process was ended in the background, design: UI reads from a local store, confidence: Inferred }
+  - { signal: An open screen changes when a second device changes the data, design: Remote changes delivered into a store the screen observes, confidence: Inferred }
+  - { signal: A list jumps to the top when one item changes, design: "The list is replaced as a whole. Items have no stable identity in the UI", confidence: Speculative }
+
+worksheet:
+  - { id: c9-owner, label: Where the feature's data lives, options: [screen-owned copy, screen-owned with change events, shared in-memory store, local store observed, unknown] }
+  - { id: c9-back-consistency, label: List after a change on the detail screen, options: [already updated, reloads on return, stale until refresh] }
+  - { id: c9-cross-surface, label: Other surfaces after a change, options: [all agree, some stale until refresh, some stale after refresh] }
+  - { id: c9-stale-surfaces, label: Surfaces found stale }
+  - { id: c9-update-trigger, label: What makes the screen update, options: [manual refresh, refetch on appear, change event, observed query, remote change] }
+  - { id: c9-optimistic, label: Optimistic update, options: [waits for backend, optimistic in the control or screen, optimistic in the shared store] }
+  - { id: c9-derived, label: Badges and counts, options: [derived from the same data, separate value that lags, disagrees with content] }
+  - { id: c9-refresh-failure, label: Failed refresh over content, options: [content kept with a message, content replaced by an error, content kept silently] }
+  - { id: c9-states, label: "Loading, empty, error and partial states seen" }
+  - { id: c9-config-change, label: Rotation or resize, options: [kept without reload, kept with reload, lost] }
+  - { id: c9-process-death, label: After process death, options: [screen and input restored, screen restored without input, restarts at the first screen, not reproduced] }
+  - { id: c9-outside-entry, label: Change made from outside the app, options: [current on return, corrects after return, stale until refresh, not available] }
+  - { id: c9-live, label: Change from a second device reaches an open screen, options: [while watching, on return to the screen, on manual refresh] }
+  - { id: c9-backend, label: Backend components implied }
+  - { id: c9-failures, label: Failure modes seen }

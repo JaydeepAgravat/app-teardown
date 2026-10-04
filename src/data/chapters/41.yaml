@@ -1,0 +1,233 @@
+chapter: 41
+title: Video and short-video streaming
+link: /part-3-archetypes/41-video-and-short-video-streaming/
+
+probes:
+  - id: P41.1
+    name: Swipe depth offline
+    do:
+      - Run this on a swipe feed of short clips, on an unmetered network.
+      - Open the feed and watch the first clip for thirty seconds without swiping.
+      - Turn on airplane mode.
+      - Swipe to the next clip, let it play for a few seconds, and swipe again. Continue until a clip fails to start.
+      - Count the clips that started, and note whether each one played to its end or stopped part way.
+    watch: How many clips start with no network, and how much of each one plays.
+    outcomes:
+      - label: No further clip starts
+        reading: "No media is preloaded for the next item. A poster image alone does not count."
+        confidence: Observed
+        fills: { c41-preload-depth: none }
+      - label: One or two clips start
+        reading: "A short preload window. The client fetches the start of the next one or two items while the current one plays."
+        confidence: Inferred
+        fills: { c41-preload-depth: one or two items }
+      - label: Three or more clips start
+        reading: "A deep preload window. The client trades data for the certainty that a run of fast swipes never meets a wait."
+        confidence: Inferred
+        fills: { c41-preload-depth: three or more items }
+
+  - id: P41.2
+    name: Swipe depth on cellular
+    caution: This probe turns on the device's data-saver mode, which affects every app, and uses mobile data. Turn the mode off again afterwards.
+    do:
+      - Run P41.1 first and note the count on an unmetered network.
+      - Look in the app's settings for a data-saver control and note its position.
+      - Turn wireless off so that the device uses cellular data, force-quit the app, and run P41.1 again.
+      - Turn on the device's data-saver mode, force-quit the app, and run P41.1 a third time.
+    watch: Whether the count of clips that start offline is lower on cellular data, and lower again under data-saver mode.
+    outcomes:
+      - label: The same count in all three runs
+        reading: "The preload window is not conditioned on the network type or on data-saver mode."
+        confidence: Inferred
+        fills: { c41-preload-metered: same depth }
+      - label: A lower count on cellular or under data-saver mode, and still at least one
+        reading: "An adaptation policy shrinks the preload window on a metered network. The client reads the network type from platform services."
+        confidence: Inferred
+        fills: { c41-preload-metered: reduced }
+      - label: No clip starts on cellular or under data-saver mode
+        reading: "Preloading is turned off on a metered network or under data-saver mode."
+        confidence: Inferred
+        fills: { c41-preload-metered: none on metered }
+      - label: Only the app's own setting changes the count
+        reading: "The team treats preload data cost as a choice inside the app. Test each position of the setting."
+        confidence: Observed
+        fills: { c41-preload-metered: app setting only }
+
+  - id: P41.3
+    name: The cost of skipping
+    caution: This probe uses about as much mobile data as ten minutes of video. Run it only if your plan has that allowance to spare. If the device reports data use per app on wireless networks, use that figure and stay on wireless.
+    do:
+      - Note the app's figure on the device's data usage screen.
+      - Open the swipe feed and swipe through forty clips, staying about two seconds on each.
+      - Note the figure again. The difference is the cost of skipping.
+      - On another occasion, watch clips to the end for the same total time that the skipping run took, and note the difference again.
+    watch: The data used per minute while skipping, compared with the data used per minute while watching.
+    outcomes:
+      - label: Skipping uses several times more data per minute than watching
+        reading: "Whole clips, or most of each clip, are fetched before the user reaches them. Every skipped clip was paid for in full."
+        confidence: Inferred
+        fills: { c41-skip-cost: far more than watching }
+      - label: Skipping uses somewhat more data per minute than watching
+        reading: "The start of each upcoming clip is preloaded, and fetching stops when the user swipes past. The waste is bounded per clip."
+        confidence: Inferred
+        fills: { c41-skip-cost: somewhat more than watching }
+      - label: Skipping uses about the same or less
+        reading: "Little is fetched ahead on this network. Compare with the outcome of P41.2."
+        confidence: Inferred
+        fills: { c41-skip-cost: same or less }
+
+  - id: P41.4
+    name: First second on two networks
+    do:
+      - On a strong unmetered network, start five items you have never played. For each, note how sharp the first second is and how long the start delay is.
+      - Move to a weak connection or to cellular data with poor signal, and force-quit the app.
+      - Start five more unseen items and note the same two things.
+      - If the player has a quality menu, open it during the first seconds and read the level it reports.
+    watch: Whether the first second is soft or sharp on each network, and whether a sharp start on the weak network is followed by a stall.
+    outcomes:
+      - label: A soft first second on both networks, then sharper
+        reading: "A fixed low starting quality level. The player buys a short start delay on every network and measures before it climbs."
+        confidence: Inferred
+        fills: { c41-start-quality: low on every network }
+      - label: Sharp on the strong network and soft on the weak one, from the first item
+        reading: "The starting quality level is chosen by network class, from the network type or from throughput measured before the first play."
+        confidence: Inferred
+        fills: { c41-start-quality: chosen by network class }
+      - label: Sharp on both, with a longer start delay or a stall on the weak network
+        reading: "A high starting level, fixed or carried over from the last measurement. The player has not yet learned that the network changed."
+        confidence: Inferred
+        fills: { c41-start-quality: high or carried over }
+
+  - id: P41.5
+    name: Download time limits
+    do:
+      - Find an item the app lets you download, and download it on an unmetered network.
+      - Open the list of downloads and note everything it states about the item, such as size, quality and any date or time limit.
+      - Turn on airplane mode and play the download for one minute.
+      - Return to the list of downloads and read the stated limit again.
+      - A week later, without having deleted it, read the list once more and try to play the item in airplane mode.
+    watch: Whether the app states a limit, whether the limit shortens once playback has started, and whether the item still plays after a week.
+    outcomes:
+      - label: A limit is stated, and it becomes shorter after the first play
+        reading: "Protected content with an offline license that carries two limits, one from the download and a shorter one from the first play."
+        confidence: Inferred
+        fills: { c41-download-limits: two limits }
+      - label: A limit is stated, and playing does not change it
+        reading: "A single limit per download, or a requirement to come online at intervals. A license or a client rule both fit."
+        confidence: Inferred
+        fills: { c41-download-limits: one limit }
+      - label: No limit is stated, and the item plays offline a week later
+        reading: "No time limit was seen. The file is unprotected, or its limit is longer than a week."
+        confidence: Observed
+        fills: { c41-download-limits: none seen }
+      - label: The app offers no downloads for this content
+        reading: "No offline playback. This is typical of a swipe feed of short clips."
+        confidence: Observed
+        fills: { c41-download-limits: no downloads }
+
+  - id: P41.6
+    name: Position reported from offline
+    do:
+      - Sign in with the same account on two devices, A and B. On A, download a long item, or use one that is fully buffered.
+      - On B, open the item's detail screen and note the position it offers. Leave B online.
+      - Put A in airplane mode and watch the item on A for five minutes. Pause, note the time, and send the app to the background.
+      - Turn the network back on at A. Do not open the app. Wait two minutes.
+      - On B, reopen the item's detail screen and note the position. If it is unchanged, open the app on A, wait a minute, and check B again.
+    watch: Whether B learns the position that A reached offline, and whether A had to be opened for that to happen.
+    outcomes:
+      - label: B shows the new position before the app on A is opened
+        reading: "The playback position is a queued mutation in a durable outbox, and a background worker sends it when the network returns."
+        confidence: Inferred
+        fills: { c41-offline-position: sent in the background }
+      - label: B shows the new position only after the app on A is opened
+        reading: "The position is stored durably on A and reported when the app next runs in the foreground."
+        confidence: Inferred
+        fills: { c41-offline-position: sent on next open }
+      - label: B never shows the new position
+        reading: "Positions reached offline are not reported, or the position is not synced at all. P17.8 separates the two."
+        confidence: Inferred
+        fills: { c41-offline-position: not reported }
+
+  - id: P41.7
+    name: Upload to availability
+    caution: This probe publishes a video. Set its visibility to private or unlisted, use footage of your own, and delete it afterwards.
+    do:
+      - Run this only if the app lets any account publish video.
+      - Publish a video of two to three minutes, recorded at the device's highest resolution, and note the moment the upload completes.
+      - Open the video from a second device or account that is allowed to see it. Note whether it plays, or shows a processing state.
+      - When it plays, open the quality menu if there is one and note the levels offered. Otherwise note how sharp it is on a strong network.
+      - Check again after ten minutes and after an hour.
+    watch: The delay between the end of the upload and the first playback, and whether the highest quality level arrives later than the first.
+    outcomes:
+      - label: A processing state, then playable at low quality, with higher levels appearing later
+        reading: "A backend encoding pipeline that publishes quality levels in stages. The lowest level is released first so that the item becomes available early."
+        confidence: Inferred
+        fills: { c41-processing: quality levels in stages }
+      - label: A processing state, then every quality level at once
+        reading: "A backend encoding pipeline that publishes an item only when all of its quality levels are ready."
+        confidence: Inferred
+        fills: { c41-processing: all levels after processing }
+      - label: Playable the moment the upload completes
+        reading: "The uploaded file is served as it is, at least at first, or processing is too fast to see at this length. Repeat with a longer video."
+        confidence: Speculative
+        fills: { c41-processing: available at once }
+
+  - id: P41.8
+    name: Reopen the swipe feed
+    do:
+      - Open the swipe feed and note the first clip. Swipe through five clips and note each one in a few words.
+      - Force-quit the app and open it again at once. Note the first clip and the four that follow.
+      - Force-quit again, turn on airplane mode, open the app and note what the feed shows.
+    watch: Whether the feed starts where you left it, starts with clips you have not seen, or repeats the clips you already watched.
+    outcomes:
+      - label: New clips online with none of the five returning, and nothing plays in the offline launch
+        reading: "Each launch requests a new ranking, and the backend holds back what was shown. Your views reached the backend before the force-quit."
+        confidence: Inferred
+        fills: { c41-feed-reopen: new clips each launch }
+      - label: The feed starts at the clip you left, online and offline
+        reading: "The loaded items and the position in them are kept in the local store and restored."
+        confidence: Inferred
+        fills: { c41-feed-reopen: resumes where left }
+      - label: The same five clips come back from the first one
+        reading: "A cached page or a stored ranking is served again. Views were not recorded in time, or shown items are not held back."
+        confidence: Inferred
+        fills: { c41-feed-reopen: repeats seen clips }
+      - label: New clips online, and clips play in the offline launch as well
+        reading: "A new ranking per launch, with a set of clips stored on the device for a launch without a network."
+        confidence: Inferred
+        fills: { c41-feed-reopen: new clips with an offline reserve }
+
+signals:
+  - { signal: The first second of an item is soft and the picture sharpens a moment later, design: Adaptive streaming that starts at a low quality level, confidence: Inferred }
+  - { signal: Every swipe to the next clip starts at once, design: The start of the next items is preloaded while the current one plays, confidence: Inferred }
+  - { signal: Several clips start in airplane mode without having been reached before, design: A preload window of several items, confidence: Inferred }
+  - { signal: Skipping through clips uses more data per minute than watching them, design: "Preloaded media for clips the user swiped past. The size of the difference estimates how much of each clip is fetched", confidence: Inferred }
+  - { signal: Fewer clips are ready ahead on cellular data or under data-saver mode, design: An adaptation policy that sets the preload window by network class, confidence: Inferred }
+  - { signal: A swipe back to the previous clip plays at once from where it stopped, design: The previous item's player and buffer are kept, confidence: Inferred }
+  - { signal: The device grows warm and the app slows after a long session of swiping, design: "Several players and decoders held at once, with no response to the thermal state", confidence: Speculative }
+  - { signal: The list of downloads states a date after which an item will no longer play, design: Protected content with an offline license, confidence: Inferred }
+  - { signal: A download refuses to play after a long time offline and asks for a connection, design: A license that must be renewed by the backend, confidence: Inferred }
+  - { signal: A second device offers to continue an item at the point the first one reached, design: Playback position synced through a position store on the backend, confidence: Inferred }
+  - { signal: A position reached offline shows on another device once the first is back online, design: Position reports queued in a durable outbox, confidence: Inferred }
+  - { signal: A newly published video shows a processing state before anyone can play it, design: Backend encoding into quality levels after upload, confidence: Inferred }
+  - { signal: A newly published video plays only at low quality for its first minutes, design: Quality levels published in stages by the encoding pipeline, confidence: Inferred }
+  - { signal: The swipe feed changes subject within a few swipes of your lingering on a topic, design: "Ranking per page with recent interaction events as model inputs", confidence: Inferred }
+  - { signal: A clip you watched never returns after a restart of the app, design: The backend records what each user was shown and holds it back, confidence: Inferred }
+  - { signal: A live stream runs many seconds behind an event you can watch directly, design: Segmented delivery through media delivery, confidence: Inferred }
+  - { signal: The picture is black in the app switcher preview or on a mirrored screen, design: Protected content decoded in a protected part of the device, confidence: Inferred }
+  - { signal: Seeking shows small preview pictures along the bar before playback moves, design: Preview thumbnails produced by the encoding pipeline and listed with the item, confidence: Inferred }
+
+worksheet:
+  - { id: c41-form, label: Form of the product, options: [long-form library, short-form swipe feed, both] }
+  - { id: c41-content, label: Where the video comes from, options: [licensed catalog, creator uploads, both] }
+  - { id: c41-preload-depth, label: Clips ready ahead in the swipe feed, options: [none, one or two items, three or more items] }
+  - { id: c41-preload-metered, label: Preloading on a metered network, options: [same depth, reduced, none on metered, app setting only] }
+  - { id: c41-skip-cost, label: Data cost of skipping against watching, options: [far more than watching, somewhat more than watching, same or less] }
+  - { id: c41-start-quality, label: Starting quality level, options: [low on every network, chosen by network class, high or carried over] }
+  - { id: c41-download-limits, label: Time limits on downloads, options: [two limits, one limit, none seen, no downloads] }
+  - { id: c41-offline-position, label: Position reached offline, options: [sent in the background, sent on next open, not reported] }
+  - { id: c41-processing, label: After a creator upload, options: [quality levels in stages, all levels after processing, available at once] }
+  - { id: c41-feed-reopen, label: Swipe feed after a restart, options: [new clips each launch, resumes where left, repeats seen clips, new clips with an offline reserve] }
+  - { id: c41-live, label: "Live streams: measured delay and behavior after falling behind" }
+  - { id: c41-measurements, label: "Measured start delays, data figures and the network of each run" }
+  - { id: c41-notes, label: Notes and open questions }

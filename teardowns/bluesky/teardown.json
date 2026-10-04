@@ -1,0 +1,85 @@
+{
+  "name": "Bluesky",
+  "probes": {
+    "P7.1": 0,
+    "P7.2": 1,
+    "P7.3": 1,
+    "P11.1": 1,
+    "P12.1": 1,
+    "P11.6": 1,
+    "P13.2": 0,
+    "P9.5": 2,
+    "P15.5": 2,
+    "P8.1": 0,
+    "P8.3": 3,
+    "P7.4": 0,
+    "P8.7": 0,
+    "P8.5": 0,
+    "P8.6": 0,
+    "P32.2": 0,
+    "P32.1": 3,
+    "P4.1": 1,
+    "P11.5": 1,
+    "P38.1": 2
+  },
+  "fields": {
+    "c7-cold-warm": "cold clearly slower",
+    "c7-first-screen": "skeleton placeholders",
+    "c7-offline-launch": "shell with error",
+    "c7-session-check": "local then lazy",
+    "c11-cache-tier": "memory only",
+    "c12-read-scope": "visited",
+    "c11-detail-source": "seeded from list",
+    "c13-recovery": "automatic",
+    "c9-refresh-failure": "content kept silently",
+    "c15-rank-stability": "new items each time",
+    "c8-tabs": "independent histories",
+    "c8-restore": "none",
+    "c7-landing": "always home",
+    "c8-link-running": "presented over current place",
+    "c8-link-signed-in": "opens the item",
+    "c8-link-back": "synthesized back stack",
+    "c32-text-size": "all screens scale",
+    "c32-text-selection": "none",
+    "c4-footprint": "grows with use",
+    "c11-clear-control": "cache only",
+    "c38-licenses": "not found"
+  },
+  "notes": {
+    "P7.1": "Three cold starts drew a first frame after 1.1, 3.0 and 2.9 seconds. A return to the running app took 0.6 seconds.",
+    "P7.2": "A splash with the logo, a blank frame, then the home layout with gray placeholder rows, then posts. The first placeholder frame came about 7 seconds after launch on this emulator.",
+    "P7.3": "Airplane mode, force-quit, relaunch. The app opened signed in and drew the home layout with placeholder rows. No posts, no error and no offline message appeared in 30 seconds.",
+    "P11.1": "Offline, the feed and an opened thread were still shown while the app stayed alive. After a force-quit and an offline relaunch the feed was placeholders only.",
+    "P12.1": "Visited screens showed their content offline while the process lived. Tabs never opened (Explore, Notifications) drew their layout with placeholders. Nothing survived a force-quit, so this is Level 1 within one run of the app and Level 0 across launches.",
+    "P11.6": "Offline, a post never opened showed its full thread header at once, with its image, exact time and counts, and no error. Everything shown is data the feed row already carried. The post had no replies, so a failed reply fetch would not be visible.",
+    "P13.2": "With the feed stuck on placeholders, airplane mode was turned off and the app was not touched. Posts appeared between 6 and 12 seconds later.",
+    "P9.5": "Offline, a pull to refresh on the loaded feed left the posts in place. No error, banner or retry control was on screen 2, 8 and 22 seconds later. A message shown briefly between those samples would have been missed.",
+    "P15.5": "Three pulls to refresh on the Discover feed, about 7 seconds apart. The leading posts were from different accounts after the second and the third pull.",
+    "P8.1": "Deep in the Home feed, a switch to the Search tab and back, an opened post and back, and 20 seconds in the background each returned to the same posts at the same pixel positions.",
+    "P8.3": "A post thread was open. The tool sent the app to the background and ended its process the way the system does under memory pressure, which keeps the system's saved state. On reopening, the app cold-started and showed the Home feed, not the thread. The wait was simulated, not real.",
+    "P7.4": "Force-quit from the Explore tab reopened on Home. A system-style process death from a post thread also reopened on Home. The next-day case was not waited for.",
+    "P8.7": "With the app open on the Home feed, a link to the bsky.app profile was opened from outside. The profile was pushed on top of the feed in the running app, and back returned to the feed.",
+    "P8.5": "With the app closed, a link to the bsky.app profile cold-started the app directly on that profile.",
+    "P8.6": "Back from the profile reached by link led to the Home feed inside the app, not out of the app.",
+    "P32.2": "System text size raised from 1.0 to 1.5 while the app was open. The Discover tab label grew from 192 by 60 to 290 by 78 pixels at once, with no relaunch, and rows moved down to fit. Only the Home screen was measured. The growth was about 1.3 times, which suggests the app caps scaling.",
+    "P32.1": "A long press on post text in the feed and on the Discover tab label produced no selection handles and no copy menu. Thread and profile screens were not tried.",
+    "P4.1": "Device settings showed 130 MB app, 6.3 MB user data and 10.2 MB cache at the start. After about 20 minutes of browsing: 7.2 MB user data and 29.5 MB cache. Almost all growth was in the area the system counts as cache.",
+    "P11.5": "Settings, About has a Clear image cache control. Using it dropped the system's cache figure from 29.5 MB to 7.2 MB. User data stayed at 7.2 MB and the account stayed signed in.",
+    "P38.1": "No open-source licenses screen was found under Settings, About, which lists Terms of Service, Privacy Policy, Status Page, System log, Clear image cache, Send error report and the version. Other settings pages were not searched."
+  },
+  "evidence": {
+    "P7.2": [
+      "evidence/p7-2-start-5.png"
+    ],
+    "P7.3": [
+      "evidence/p7-3-offline-launch.png"
+    ],
+    "P12.1": [
+      "evidence/p12-1-notifications-offline.png"
+    ]
+  },
+  "app": "xyz.blueskyweb.app",
+  "version": "1.133.0",
+  "device": "Android 15 emulator, sdk_gphone64_arm64",
+  "date": "2026-10-04"
+}

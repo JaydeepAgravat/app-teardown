@@ -1,0 +1,224 @@
+chapter: 43
+title: Marketplace and e-commerce
+link: /part-3-archetypes/43-marketplace-and-e-commerce/
+
+probes:
+  - id: P43.1
+    name: Guest cart at sign-in
+    do:
+      - On a device where you are signed in, put one item in the cart. Call it the account item.
+      - On a second device, or after a fresh install, open the app without signing in.
+      - Put two different items in the cart there. Call them the guest items.
+      - Sign in to your account on that device.
+      - Open the cart on both devices.
+    watch: Which of the three items the cart holds after sign-in, and whether the app asks you anything.
+    outcomes:
+      - label: The cart holds the account item and both guest items
+        reading: "A cart merge. The guest cart is sent to the backend at sign-in and joined with the account's cart, item by item."
+        confidence: Inferred
+        fills: { c43-guest-cart: merged with the account cart }
+      - label: The cart holds only the account item
+        reading: "The guest cart is dropped at sign-in. The account's cart on the backend replaces whatever the device held."
+        confidence: Inferred
+        fills: { c43-guest-cart: discarded }
+      - label: The cart holds only the guest items, on both devices
+        reading: "The device's cart overwrote the account's cart. The newest cart wins as a whole."
+        confidence: Inferred
+        fills: { c43-guest-cart: replaces the account cart }
+      - label: The app demands sign-in before anything can be added
+        reading: "There is no guest cart. Every cart belongs to an account from its first item."
+        confidence: Observed
+        fills: { c43-guest-cart: no guest cart }
+
+  - id: P43.2
+    name: Cart on a second device
+    do:
+      - Sign in to one account on two devices, A and B.
+      - Open the cart screen on B and leave it on screen.
+      - On A, add an item you have not had in the cart before.
+      - Watch B for thirty seconds without touching it.
+      - If nothing changes, leave the cart screen on B and open it again.
+    watch: Whether the item reaches B, and whether it arrives untouched or only when the cart screen is opened again.
+    outcomes:
+      - label: The item appears on B while you watch
+        reading: "The cart is stored on the backend against the account, and a change reaches an open screen through real-time delivery or a short poll."
+        confidence: Inferred
+        fills: { c43-cart-home: backend against the account }
+      - label: The item appears when the cart screen on B is opened again
+        reading: "The cart is stored on the backend against the account, and the screen fetches it on appear."
+        confidence: Inferred
+        fills: { c43-cart-home: backend against the account }
+      - label: The item never appears on B
+        reading: "The cart is kept in the local store of each device. The backend first sees it at checkout."
+        confidence: Inferred
+        fills: { c43-cart-home: device only }
+
+  - id: P43.3
+    name: Cart in airplane mode
+    do:
+      - Online, put two items in the cart and open one more product page that you do not add.
+      - Turn on airplane mode.
+      - Open the cart and note whether it draws, and with which prices.
+      - Raise the quantity of one item.
+      - Go back to the product page you opened and try to add that item.
+      - Force-quit the app, turn the network back on, and open the cart.
+    watch: Whether the cart draws offline, whether each change is refused or accepted, and whether an accepted change is still there after the force-quit.
+    outcomes:
+      - label: The cart draws, and both changes are refused or disabled
+        reading: "The cart is cached for reading. Every cart mutation needs the backend, because the backend prices and checks each one."
+        confidence: Inferred
+        fills: { c43-cart-offline: read only }
+      - label: The changes are accepted and are still there after the force-quit
+        reading: "Cart mutations are applied to the local store and queued. The backend reprices the cart when the outbox drains."
+        confidence: Inferred
+        fills: { c43-cart-offline: queued and sent later }
+      - label: The changes are accepted and are gone after the force-quit
+        reading: "An optimistic update held in memory. Nothing durable stands behind it."
+        confidence: Inferred
+        fills: { c43-cart-offline: accepted in memory only }
+      - label: The cart does not draw at all
+        reading: "The cart is fetched from the backend on every visit and is not cached."
+        confidence: Inferred
+        fills: { c43-cart-offline: cart needs the network }
+
+  - id: P43.4
+    name: Cart total on a weak connection
+    do:
+      - Put one item in the cart and note the line price and the order total.
+      - Move to a weak connection, or to a place where the app is clearly slow.
+      - Raise the quantity by one.
+      - Watch the quantity, the line price and the order total separately.
+      - Lower the quantity again when you are done.
+    watch: Which of the three numbers changes at once, and which waits for the network.
+    outcomes:
+      - label: The quantity changes at once, and the totals show a loading state before they change
+        reading: "The backend computes every total. The client shows the quantity as an optimistic update and waits for the priced cart."
+        confidence: Inferred
+        fills: { c43-totals: computed by the backend }
+      - label: All three numbers change at once and stay as they are
+        reading: "The client multiplies and adds for display. Whether the backend recomputes afterwards cannot be seen here, since both produce the same number for a plain item."
+        confidence: Speculative
+        fills: { c43-totals: estimated on the device }
+      - label: All three change at once, and a total is corrected a moment later
+        reading: "The client estimates, and the backend's priced cart replaces the estimate. The correction is a discount, a fee or a tax that only the backend knows."
+        confidence: Inferred
+        fills: { c43-totals: estimated on the device then corrected }
+      - label: The quantity control itself waits, with a spinner or a disabled state
+        reading: "No optimistic update. The cart on screen is always the last cart the backend returned."
+        confidence: Inferred
+        fills: { c43-totals: computed by the backend }
+
+  - id: P43.5
+    name: Quantity above stock
+    caution: Some apps reserve stock for a cart. Use an item that is not scarce in practice, do not go past the checkout summary, and set the quantity back when you are done.
+    do:
+      - Find an item whose page states a small remaining count, such as "only 3 left".
+      - Add it to the cart and raise the quantity one step at a time.
+      - Note what happens at the stated count and one step past it.
+      - If the cart accepts a larger quantity, open the checkout summary and stop there. Do not confirm.
+      - Set the quantity back to one, or remove the item.
+    watch: Where the limit is enforced. In the quantity control, in a message after a wait, or only at the checkout summary.
+    outcomes:
+      - label: The control stops at the stated count with no wait
+        reading: "The backend sent the stock count, or a purchase limit, with the product, and the client applies it as a client check."
+        confidence: Inferred
+        fills: { c43-stock-check: limit sent to the client }
+      - label: A message appears after a short wait and the quantity returns
+        reading: "Each cart mutation is checked against stock on the backend."
+        confidence: Inferred
+        fills: { c43-stock-check: backend on each cart change }
+      - label: The cart accepts the quantity, and the checkout summary reduces or refuses it
+        reading: "The cart is a wish list with prices. Stock is checked when the order is built."
+        confidence: Inferred
+        fills: { c43-stock-check: backend at checkout only }
+      - label: Neither the cart nor the checkout summary objects
+        reading: "The check happens when the order is placed, which this probe does not reach, or the stated count is a selling message and not the stock."
+        confidence: Speculative
+        fills: { c43-stock-check: not seen before payment }
+
+  - id: P43.6
+    name: Stale cart
+    caution: This probe opens the checkout summary. Stop there. Do not confirm an order.
+    do:
+      - Put three or four items in the cart. Prefer items in a sale that states its end, and items marked as low in stock.
+      - Write down each price and the order total.
+      - Leave the cart alone until the sale has ended, or for a week.
+      - Open the cart and compare each line with your notes.
+      - Open the checkout summary and compare again. Then leave checkout.
+    watch: Whether a price or an availability differs from your notes, where the difference first shows, and whether the app points it out.
+    outcomes:
+      - label: The cart shows a notice that names what changed
+        reading: "The backend reprices the cart on every read and compares it with what the buyer last saw. The cart stores item references and the last shown price."
+        confidence: Inferred
+        fills: { c43-price-refresh: rechecked on open with a notice }
+      - label: The cart shows new values with no notice
+        reading: "The backend reprices the cart on every read. The cart stores references and no remembered price."
+        confidence: Inferred
+        fills: { c43-price-refresh: rechecked on open silently }
+      - label: The cart shows the old values, and the checkout summary shows new ones
+        reading: "The cart screen shows a cached or device-held copy. The backend prices the order only when checkout begins."
+        confidence: Inferred
+        fills: { c43-price-refresh: rechecked only at checkout }
+      - label: Nothing differs anywhere
+        reading: "No price or stock changed for these items in the period. The probe gives no information. Repeat it across the end of a sale."
+        confidence: Observed
+        fills: { c43-price-refresh: not observed }
+
+  - id: P43.7
+    name: Interrupted checkout
+    caution: This probe goes as far as the last step before payment. Do not confirm the order. Leave checkout when you are done.
+    do:
+      - Start checkout with a small cart.
+      - Choose a delivery address that is not your default, and a delivery option that is not preselected.
+      - Advance to the last step before payment and stop.
+      - Force-quit the app.
+      - Open the app and return to checkout.
+    watch: Which step you land on, and whether the address and delivery option you chose are still selected.
+    outcomes:
+      - label: Checkout opens with your choices, at or near the step you left
+        reading: "The checkout in progress is stored, on the backend or durably on the device. P8.10 on a second device tells the two apart."
+        confidence: Inferred
+        fills: { c43-checkout-state: choices kept after a force-quit }
+      - label: Checkout starts at its first step with the defaults, and the cart is intact
+        reading: "The cart is stored, and the checkout choices were held in the memory of the flow's screens."
+        confidence: Inferred
+        fills: { c43-checkout-state: cart kept and choices lost }
+      - label: The cart is empty
+        reading: "The cart itself was held in memory, or checkout moved the items into an order that the app does not show. Look at the order list before concluding."
+        confidence: Inferred
+        fills: { c43-checkout-state: cart lost }
+
+signals:
+  - { signal: Home screen sections reorder or come and go between visits with no app update, design: Backend-ordered sections or a component list assembled by a screen composer, confidence: Inferred }
+  - { signal: A campaign page appears overnight with a layout the app has not shown before, design: "A component list, a layout description or embedded web content. P31.7 separates the last from the rest", confidence: Inferred }
+  - { signal: "A list shows one price and the product page shows another, until the list is refreshed", design: Lists are served from a cache or a search index that lags the price service, confidence: Inferred }
+  - { signal: An item found by search turns out to be unavailable on its product page, design: Stock in the search index is updated asynchronously and the product page reads the current value, confidence: Inferred }
+  - { signal: Filter counts change with every filter choice, design: A faceted query on the backend search index, confidence: Inferred }
+  - { signal: The cart follows the account to a second device, design: The cart is stored on the backend against the account, confidence: Inferred }
+  - { signal: Items added before sign-in are still in the cart after sign-in, design: A guest cart joined with the account cart by a cart merge, confidence: Inferred }
+  - { signal: The cart reports that a price changed since the item was added, design: The cart stores references and the last shown price and is repriced on every read, confidence: Inferred }
+  - { signal: The order total waits for the network after a quantity change, design: The backend computes totals and the client displays them, confidence: Inferred }
+  - { signal: Checkout returns to the same step with the same choices after a force-quit, design: Checkout state is stored outside the flow's screens, confidence: Inferred }
+  - { signal: The order list shows an unpaid or awaiting-payment order after an abandoned payment, design: The order is created on the backend before the payment surface opens, confidence: Inferred }
+  - { signal: After paying the screen says the payment is being confirmed and then changes by itself, design: The backend waits for the provider callback and the client learns of the result by a push hint or polling, confidence: Inferred }
+  - { signal: An order status changes on the open order screen with no gesture, design: Real-time delivery of order events to the foreground app, confidence: Inferred }
+  - { signal: A notification announces a delivery step and the order screen already shows it offline, design: A push hint woke the client and it pulled the order into its local store, confidence: Inferred }
+  - { signal: Two accounts see different banners or a different checkout layout on the same version, design: "An experiment or targeting. A difference in price alone has other explanations, such as region or membership", confidence: Speculative }
+  - { signal: Each listing names a seller and the order splits into several shipments with separate statuses, design: A two-sided marketplace in which one payment covers several seller orders, confidence: Inferred }
+  - { signal: A review you post is visible to you at once and to another account only later, design: Reviews pass through moderation or an asynchronous index before they are public, confidence: Inferred }
+  - { signal: Product photos sharpen in steps and zoom loads a larger image, design: Image variants per size served by media delivery, confidence: Inferred }
+
+worksheet:
+  - { id: c43-variant, label: Seller model, options: [single seller, two-sided marketplace, mixed] }
+  - { id: c43-home, label: Home and campaign screens, options: [fixed screen, backend-ordered sections, component list, embedded web content, mixed, unknown] }
+  - { id: c43-cart-home, label: Where the cart lives, options: [device only, backend against the account, device for guests and backend after sign-in] }
+  - { id: c43-guest-cart, label: Guest cart at sign-in, options: [merged with the account cart, replaces the account cart, discarded, no guest cart] }
+  - { id: c43-cart-offline, label: Cart changes offline, options: [read only, queued and sent later, accepted in memory only, cart needs the network] }
+  - { id: c43-totals, label: Cart totals, options: [computed by the backend, estimated on the device, estimated on the device then corrected] }
+  - { id: c43-stock-check, label: Where stock is checked, options: [limit sent to the client, backend on each cart change, backend at checkout only, not seen before payment] }
+  - { id: c43-price-refresh, label: Price and stock in an old cart, options: [rechecked on open with a notice, rechecked on open silently, rechecked only at checkout, not observed] }
+  - { id: c43-checkout-state, label: Checkout after a force-quit, options: [choices kept after a force-quit, cart kept and choices lost, cart lost] }
+  - { id: c43-order-updates, label: How an order status change arrives, options: [live on the open screen, on return to the screen, on manual refresh, not observed] }
+  - { id: c43-promotions, label: "Promotions seen: banners, codes, timed sales, and how each arrived" }
+  - { id: c43-reviews, label: "Reviews and images: when a new review becomes public, image loading" }
+  - { id: c43-notes, label: Notes and open questions }

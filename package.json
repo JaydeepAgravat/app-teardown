@@ -1,0 +1,29 @@
+{
+  "name": "app-teardown",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "teardown": "node bin/teardown.mjs start",
+    "new-app": "node bin/plan.mjs new",
+    "rebuild-app": "node bin/plan.mjs rebuild",
+    "feature": "node bin/plan.mjs feature"
+  },
+  "dependencies": {
+    "@astrojs/markdown-remark": "^7.3.1",
+    "@astrojs/starlight": "^0.42.5",
+    "astro": "^7.3.5",
+    "mermaid": "^12.1.0",
+    "sharp": "^0.35.5",
+    "unist-util-visit": "^5.1.0",
+    "unist-util-visit-parents": "^6.0.2",
+    "yaml": "^2.9.1"
+  },
+  "bin": {
+    "app-teardown": "bin/teardown.mjs",
+    "app-plan": "bin/plan.mjs"
+  }
+}

@@ -1,0 +1,242 @@
+chapter: 36
+title: Constrained devices and networks
+link: /part-2-concerns/36-constrained-devices-and-networks/
+
+probes:
+  - id: P36.1
+    name: Look for a small variant
+    do:
+      - Open the store and search for the app by name.
+      - Look at the other apps published by the same maker.
+      - Look for a second app with the same purpose whose name or description says it is smaller, lighter or made for slow networks.
+      - Check the maker's name on the listing so that you do not mistake a copy by someone else for a variant.
+    watch: Whether the same maker publishes a second, smaller app for the same product. Some variants are listed only in certain regions, so absence in your store is weak evidence.
+    outcomes:
+      - label: The maker lists a separate small variant
+        reading: "The maker chose a second client for constrained devices. Install size was the barrier that adaptation could not remove."
+        confidence: Observed
+        fills: { c36-variant: separate small variant }
+      - label: Only one app is listed
+        reading: "Either one app serves every device, or a variant exists in other regions. The remaining probes show whether the one app adapts."
+        confidence: Speculative
+        fills: { c36-variant: one app only }
+
+  - id: P36.2
+    name: Compare the variant with the full app
+    do:
+      - Run this only if P36.1 found a small variant.
+      - "Read both store listings and note for each: download size, minimum operating system version, date of the last update and the features described."
+      - If you have room, install both and sign in to each with the same account.
+      - Open the same content in both and note what the variant lacks.
+      - Pick one feature both have that transforms something, such as a filter, a translation or a search. Try it in each app in airplane mode, then turn airplane mode off.
+    watch: The size ratio, which features are missing, whether your data appears in both, and whether the chosen feature works offline in one and not the other.
+    outcomes:
+      - label: Same data, fewer features, and shared features behave alike offline
+        reading: "A separate client on the same backend that removes features and resources. The remaining work still runs on the device."
+        confidence: Inferred
+        fills: { c36-variant-design: fewer features on the device }
+      - label: The feature works offline in the full app and needs the network in the variant
+        reading: "The variant moved that processing to the backend."
+        confidence: Inferred
+        fills: { c36-variant-design: work moved to the backend }
+      - label: The variant shows nothing at all offline and its screens look like web pages
+        reading: "A thin shell whose screens are rendered on the backend or delivered as web content (Chapter 32)."
+        confidence: Speculative
+        fills: { c36-variant-design: thin shell }
+
+  - id: P36.3
+    name: In-app data controls
+    do:
+      - Open the app's settings.
+      - Look for controls on data use, media quality, autoplay, automatic downloads or a data-saver switch.
+      - Note whether choices differ by network type or by media type, and whether a screen reports data the app has used.
+    watch: How many separate controls exist and how fine their choices are.
+    outcomes:
+      - label: Fine controls by media type or network type
+        reading: "The adaptation policy reasons by media type and by network cost. The team designed for users who count data."
+        confidence: Inferred
+        fills: { c36-data-controls: fine controls }
+      - label: A single data-saver switch or one quality setting
+        reading: "One flag feeds the policy. An in-app data saver exists and is coarse."
+        confidence: Observed
+        fills: { c36-data-controls: one switch }
+      - label: No data controls
+        reading: "The app offers no setting of its own. It may still respect the device's data-saver mode, which P36.4 tests."
+        confidence: Observed
+        fills: { c36-data-controls: none }
+
+  - id: P36.4
+    name: Device data-saver mode
+    caution: This probe changes a device-wide setting that affects every app. Turn the mode off when you finish.
+    do:
+      - On a cellular connection with the mode off, open a media-heavy screen and note image sharpness, autoplay and whether items open at once.
+      - Turn on the device's data-saver mode.
+      - Force-quit the app, open it and visit a similar screen with content you have not seen.
+    watch: Whether images are lower in resolution or wait for a tap, whether autoplay stops, and whether the app mentions the mode.
+    outcomes:
+      - label: Media is reduced or waits for a tap
+        reading: "The app reads the device setting and feeds it to its adaptation policy. Lower renditions exist on the backend."
+        confidence: Observed
+        fills: { c36-device-saver: reduces media }
+      - label: The app shows a notice or offers its own setting, and media is unchanged
+        reading: "The app detects the mode and leaves the choice to its own control."
+        confidence: Observed
+        fills: { c36-device-saver: notice only }
+      - label: No difference
+        reading: "The app ignores the device setting. Only the operating system's own limits on background data apply."
+        confidence: Inferred
+        fills: { c36-device-saver: no change }
+
+  - id: P36.5
+    name: Weak connection
+    do:
+      - Find a place where the connection is weak but present, such as the edge of wireless coverage or a spot with one bar of cellular signal.
+      - Force-quit the app and open it.
+      - Open a content screen you have not visited, with text and images.
+      - Watch the order in which things appear. Repeat on two or three screens.
+    watch: Whether text appears before media, whether images arrive blurred and then sharpen, and whether the app says anything about the connection.
+    outcomes:
+      - label: Text first, then blurred or low-resolution images that sharpen
+        reading: "Text-first ordering with staged media. The request queue ranks text above media and the backend serves small renditions."
+        confidence: Inferred
+        fills: { c36-weak-network: text first with staged media }
+      - label: Text first, and media waits for a tap or stays as placeholders
+        reading: "The network class was measured as poor and media loading was held back."
+        confidence: Inferred
+        fills: { c36-weak-network: text first and media on tap }
+      - label: Nothing until everything arrives
+        reading: "No ordering by importance. The screen waits on one response or on its media."
+        confidence: Observed
+        fills: { c36-weak-network: all at once }
+      - label: An error or an endless spinner
+        reading: "No adaptation to a poor network. The timeouts were set for a fast one (Chapter 13)."
+        confidence: Observed
+        fills: { c36-weak-network: fails }
+
+  - id: P36.6
+    name: Storage controls
+    caution: Do not fill your device to test this. A full device can lose data in other apps. Read the controls only, and do not remove anything you want to keep.
+    do:
+      - Open the app's settings and look for a storage, downloads or data management screen.
+      - Note whether it lists what is kept by kind and size, and which controls it offers.
+      - If your device is already low on storage and has shown a system warning, also note how the app behaves when you save or download something small.
+    watch: Whether the app accounts for its own storage, and, only if the device is already low, whether a save fails cleanly.
+    outcomes:
+      - label: A storage screen with sizes by kind and controls to remove each
+        reading: "The app meters its own storage and expects users to run short. Caches are tracked by kind."
+        confidence: Observed
+        fills: { c36-storage-controls: detailed screen }
+      - label: Only a single clear-cache or delete-downloads control
+        reading: "The app separates rebuildable data from the rest and gives one coarse control."
+        confidence: Observed
+        fills: { c36-storage-controls: one control }
+      - label: No storage controls
+        reading: "Storage is left to the operating system. Low storage was not a design input."
+        confidence: Inferred
+        fills: { c36-storage-controls: none }
+
+  - id: P36.7
+    name: Fallback channels
+    do:
+      - Open the app's notification and security settings.
+      - Look for options to receive alerts, codes or receipts by text message or by a call.
+      - Read the help pages for what to do without a data connection or without the app.
+      - Think back over past use. Note any text message from the maker that repeated a notification, and how long after the event it came.
+    watch: Which tasks have a channel outside the app, and whether a text message has ever followed or replaced a notification.
+    outcomes:
+      - label: A text message has arrived in place of a notification, some time after the event
+        reading: "The backend falls back from platform push to a text message when no acknowledgment arrives."
+        confidence: Inferred
+        fills: { c36-fallback: text after a missed push }
+      - label: Text or call options exist in settings or help
+        reading: "A second delivery channel is offered. Whether it is a fallback or runs in parallel is not shown."
+        confidence: Observed
+        fills: { c36-fallback: offered as an option }
+      - label: No channel outside the app
+        reading: "Everything depends on the app and a data connection."
+        confidence: Inferred
+        fills: { c36-fallback: none found }
+
+  - id: P36.8
+    name: Two classes of device
+    do:
+      - Run this only if you have a second, clearly older or cheaper device at hand.
+      - Sign in to the same account on both devices, on the same wireless network.
+      - Open the same screens on both, side by side.
+      - Compare animations and transitions, image sharpness, autoplay, and the list of features on each main screen.
+    watch: Differences that follow the device and not the account or the network. Ignore plain slowness. Look for things that are absent or simplified.
+    outcomes:
+      - label: Features or effects are absent or simplified on the older device
+        reading: "The app assigns a device class and turns features down by class."
+        confidence: Inferred
+        fills: { c36-device-class: differs by device }
+      - label: Identical apart from speed
+        reading: "No adaptation by device class. The older device runs the full app more slowly."
+        confidence: Inferred
+        fills: { c36-device-class: same on both }
+      - label: The older device has a different version of the app
+        reading: "The comparison is between versions, not classes. See P36.9."
+        confidence: Observed
+        fills: { c36-device-class: different versions }
+
+  - id: P36.9
+    name: Old operating system
+    do:
+      - Read the minimum operating system version on the app's store listing and write it down.
+      - If you have a device on an old operating system version, open the store on it and find the app.
+      - Note what the store offers. Install only if you are happy to have the app on that device.
+    watch: Whether the store offers the current version, an older version, a small variant, or nothing.
+    outcomes:
+      - label: The current version installs
+        reading: "A low minimum. The app guards newer platform capabilities with fallbacks."
+        confidence: Observed
+        fills: { c36-old-os: current version installs }
+      - label: The store offers an older, last compatible version
+        reading: "The minimum was raised, and users on old devices are left on a version the backend must keep serving."
+        confidence: Observed
+        fills: { c36-old-os: last compatible version }
+      - label: Only the small variant is offered
+        reading: "The variant has a lower minimum than the full app and is the route for old devices."
+        confidence: Observed
+        fills: { c36-old-os: small variant only }
+      - label: The app is not offered or is marked incompatible
+        reading: "A high minimum. The team does not support this device."
+        confidence: Observed
+        fills: { c36-old-os: not offered }
+
+signals:
+  - { signal: The same maker lists a second smaller app for the same product, design: A separate small variant on a shared backend, confidence: Observed }
+  - { signal: One account shows the same data in the variant and the full app, design: One API serving two clients, confidence: Inferred }
+  - { signal: A feature works offline in the full app and needs the network in the variant, design: The variant moves that processing to the backend, confidence: Inferred }
+  - { signal: The variant has a lower minimum operating system version than the full app, design: The variant is the route for old devices, confidence: Inferred }
+  - { signal: Settings offer media and download choices by network type, design: An adaptation policy that separates network cost from speed, confidence: Inferred }
+  - { signal: A screen in the app reports data it has used, design: The network client meters its own traffic, confidence: Inferred }
+  - { signal: Media is reduced when the device data-saver mode is on, design: The app feeds the device setting into its adaptation policy, confidence: Observed }
+  - { signal: Text appears before media on a weak connection, design: Text-first ordering with media ranked lower in the request queue, confidence: Inferred }
+  - { signal: Images arrive blurred and then sharpen, design: "Staged media with a tiny preview, then a rendition sized to the display", confidence: Inferred }
+  - { signal: Download controls or videos are labeled with their size, design: The cost is shown before it is spent, confidence: Observed }
+  - { signal: Quality follows the network type and not its real speed, design: Network class taken from type instead of measurement, confidence: Inferred }
+  - { signal: Quality flips every few seconds at the edge of coverage, design: A network estimator with no damping, confidence: Inferred }
+  - { signal: Effects or features are missing on an older device with the same account, design: Device class with features set by class, confidence: Inferred }
+  - { signal: The app has a storage screen listing sizes by kind, design: The app meters its own storage and bounds it per kind, confidence: Observed }
+  - { signal: A text message repeats a notification some time after the event, design: Fallback from platform push on a missing acknowledgment, confidence: Inferred }
+  - { signal: A notification and a text message arrive together, design: "Both channels sent without checking for an acknowledgment", confidence: Speculative }
+  - { signal: The store offers an older version of the app on an old device, design: Minimum operating system version raised and old clients left in service, confidence: Observed }
+  - { signal: Text jumps as images load on a slow connection, design: Layout does not reserve space because responses carry no image dimensions, confidence: Inferred }
+
+worksheet:
+  - { id: c36-variant, label: Small variant, options: [separate small variant, one app only] }
+  - { id: c36-sizes, label: "Download sizes, variant and full app" }
+  - { id: c36-variant-design, label: Variant design, options: [fewer features on the device, work moved to the backend, thin shell, not applicable] }
+  - { id: c36-data-controls, label: In-app data controls, options: [fine controls, one switch, none] }
+  - { id: c36-device-saver, label: Device data-saver mode, options: [reduces media, notice only, no change] }
+  - { id: c36-weak-network, label: Weak connection, options: [text first with staged media, text first and media on tap, all at once, fails] }
+  - { id: c36-storage-controls, label: Storage controls, options: [detailed screen, one control, none] }
+  - { id: c36-low-storage, label: "Low-storage behavior, only if seen naturally" }
+  - { id: c36-fallback, label: Fallback outside the app, options: [text after a missed push, offered as an option, none found] }
+  - { id: c36-device-class, label: Two classes of device, options: [differs by device, same on both, different versions, not tested] }
+  - { id: c36-min-os, label: Minimum operating system version on the listing }
+  - { id: c36-old-os, label: Old operating system, options: [current version installs, last compatible version, small variant only, not offered, not tested] }
+  - { id: c36-approach, label: Approaches in use, options: [0 No adaptation, 1 One adaptive app, 2 Small variant, 3 Backend does the work, 4 Fallback outside the app] }
+  - { id: c36-devices, label: Devices and networks tested on }
+  - { id: c36-failures, label: Failure modes seen }

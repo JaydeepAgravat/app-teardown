@@ -1,0 +1,222 @@
+chapter: 25
+title: "Platform surfaces: widgets, wearables and extensions"
+link: /part-2-concerns/25-platform-surfaces-widgets-wearables-and-extensions/
+
+probes:
+  - id: P25.1
+    name: Widget after a change in the app
+    do:
+      - Add the app's widget to the home screen and note what it shows.
+      - Open the app and change the data the widget shows, for example complete a task or add an item.
+      - Go to the home screen at once and start a stopwatch.
+      - Do not tap the widget. Stop when it shows the change, or after ten minutes.
+    watch: How long the widget takes to show a change made in the app on the same device.
+    outcomes:
+      - label: Already updated when the home screen appears
+        reading: "The main app writes to a shared storage area and requests a widget reload as soon as its data changes."
+        confidence: Inferred
+        fills: { c25-widget-local: immediate }
+      - label: Updated after some minutes
+        reading: "The widget is rebuilt on its own schedule. The main app does not request a reload on change."
+        confidence: Inferred
+        fills: { c25-widget-local: within minutes }
+      - label: Not updated after ten minutes
+        reading: "The widget refreshes rarely, or keeps its own copy of the data that the main app does not write to."
+        confidence: Speculative
+        fills: { c25-widget-local: later or never }
+
+  - id: P25.2
+    name: Widget after a change elsewhere
+    do:
+      - Keep the widget on device A and leave the app on A unopened in the background.
+      - On a second device or on the web, signed in to the same account, change the data the widget shows.
+      - Watch the widget on A for five minutes without opening the app. Check again after an hour.
+      - If it has still not changed, open the app on A, go back to the home screen and look again.
+    watch: Whether the widget on A shows the change without the app being opened, and after how long.
+    outcomes:
+      - label: Updated within about a minute
+        reading: "A push follows the change and leads to a widget reload. Whether the main app was woken or the widget fetched for itself cannot be told from outside."
+        confidence: Inferred
+        fills: { c25-widget-remote: about a minute }
+      - label: Updated within the hour without opening the app
+        reading: "The widget reloads on a budgeted schedule and gets fresh data, by its own request or by a background refresh of the main app."
+        confidence: Inferred
+        fills: { c25-widget-remote: budgeted refresh }
+      - label: Updated only after the app was opened
+        reading: "The widget is fed only by the main app through a shared storage area. It is as stale as the main app's last run."
+        confidence: Inferred
+        fills: { c25-widget-remote: only after opening the app }
+
+  - id: P25.3
+    name: Action without the app
+    do:
+      - Look for the app's actions in the device's shortcut or automation tool, or in what the voice assistant offers for the app.
+      - Force-quit the app.
+      - Run one action that changes something, by voice or from the shortcut tool.
+      - Check the result on a second device or on the web.
+    watch: Whether the action completes without the app appearing, and whether its result reaches the backend.
+    outcomes:
+      - label: It completes without the app opening and the result is on the second device
+        reading: "The action runs app code in the background with a session available to it, and sends a mutation."
+        confidence: Inferred
+        fills: { c25-actions: complete in background }
+      - label: It opens the app at a screen
+        reading: "The action is a deep link. No background path exists for it."
+        confidence: Observed
+        fills: { c25-actions: open the app }
+      - label: The app offers no actions
+        reading: "The app declares nothing to the assistant or the shortcut tool."
+        confidence: Observed
+        fills: { c25-actions: none }
+
+  - id: P25.4
+    name: Share while force-quit
+    do:
+      - Force-quit the app. Keep a second device or the web open on the same account.
+      - In another app, such as the photo library or a browser, share one small item to the app through the system's share sheet.
+      - Confirm in the view that appears, and note whether the main app comes to the screen.
+      - Watch the second device for two minutes. If nothing arrives, open the app on the first device and watch again.
+    watch: Whether the main app opens, and whether the shared item reaches the second device before the main app is opened.
+    outcomes:
+      - label: The item reaches the second device and the main app never opened
+        reading: "The extension holds a session and sends the item itself, directly or as a transfer handed to the operating system."
+        confidence: Inferred
+        fills: { c25-share: completes in the extension }
+      - label: The item reaches the second device only after the main app is opened
+        reading: "The extension writes to an outbox in the shared storage area and the main app sends it."
+        confidence: Inferred
+        fills: { c25-share: queued for the main app }
+      - label: Confirming opens the main app to finish
+        reading: "The extension hands the item to the main app through a deep link."
+        confidence: Observed
+        fills: { c25-share: opens the main app }
+      - label: The app is not in the share sheet
+        reading: "The app has no share target."
+        confidence: Observed
+        fills: { c25-share: no share target }
+
+  - id: P25.5
+    name: Live status after a force-quit
+    do:
+      - Start an activity in the app that shows a live status on the lock screen and that changes because of events elsewhere, such as an order in progress. A timer you set yourself is not suitable.
+      - Confirm that the live status appears, then force-quit the app.
+      - Lock the device and wait for the activity to move to its next stage.
+      - Compare the live status with the state shown on a second device or on the web.
+    watch: Whether the live status keeps following the activity after the app is force-quit.
+    outcomes:
+      - label: It keeps updating and matches the second device
+        reading: "A dedicated push carries each update and the system draws it with no app code."
+        confidence: Inferred
+        fills: { c25-live-status: updated by push }
+      - label: It freezes or disappears after the force-quit
+        reading: "The app's own process updates the live status."
+        confidence: Inferred
+        fills: { c25-live-status: updated by the app }
+      - label: The app shows no live status for any activity
+        reading: "The app does not use this surface."
+        confidence: Observed
+        fills: { c25-live-status: none }
+
+  - id: P25.6
+    name: Sign out, then check every surface
+    do:
+      - With widgets placed and any watch app installed, confirm that each surface shows your data.
+      - Sign out in the main app.
+      - Go to the home screen and the lock screen at once and look at each widget. Check again after five minutes.
+      - Open the share sheet from another app and choose this app. Then check the watch app, if there is one. Sign in again when you finish.
+    watch: Which surfaces still show the account's data or still act as signed in after the sign-out.
+    outcomes:
+      - label: Every surface shows a signed-out state at once
+        reading: "Sign-out clears the shared session and data, reloads the widgets and notifies the other surfaces."
+        confidence: Observed
+        fills: { c25-signout: all cleared }
+      - label: A widget still shows the account's data
+        reading: "The data or session was cleared and the widget was not reloaded. The system is still showing a stored snapshot."
+        confidence: Inferred
+        fills: { c25-signout: widget still shows data }
+      - label: The share extension or the watch still works as signed in
+        reading: "That surface holds its own copy of the session, which sign-out in the main app did not remove or revoke."
+        confidence: Inferred
+        fills: { c25-signout: a surface is still signed in }
+
+  - id: P25.7
+    name: Watch with the phone off
+    caution: This probe switches your phone off. You will miss calls and messages until you switch it back on.
+    do:
+      - Open the watch app with the phone nearby and note what it shows.
+      - On a second device or on the web, change something the watch app shows.
+      - Make sure the watch has a network of its own if it can have one, then switch the phone off completely.
+      - Open the watch app again and try to refresh it.
+    watch: Whether the watch app opens, whether it shows data, and whether it shows the change made after the phone went off.
+    outcomes:
+      - label: It works and shows the new change
+        reading: "The watch app has its own session and calls the backend itself. It is one of the user's independent devices."
+        confidence: Inferred
+        fills: { c25-watch: works alone }
+      - label: It shows earlier data and cannot refresh
+        reading: "A companion with its own cache, filled through the phone."
+        confidence: Inferred
+        fills: { c25-watch: cached data only }
+      - label: It shows a message that it needs the phone
+        reading: "A remote control. Every request is relayed through the phone and nothing is stored on the watch."
+        confidence: Observed
+        fills: { c25-watch: needs the phone }
+
+  - id: P25.8
+    name: Watch write with the phone off
+    caution: This probe switches your phone off. You will miss calls and messages until you switch it back on.
+    do:
+      - With the phone still off after P25.7, make a change in the watch app, such as completing an item or sending a short reply.
+      - Watch a second device or the web for two minutes.
+      - Switch the phone back on, keep it near the watch and do not open the app on the phone.
+      - Watch the second device for another five minutes.
+    watch: When the change made on the watch reaches the second device.
+    outcomes:
+      - label: It arrives while the phone is still off
+        reading: "The watch app sends mutations to the backend itself."
+        confidence: Inferred
+        fills: { c25-watch-write: direct to backend }
+      - label: It arrives after the phone is back on
+        reading: "The watch queues the mutation and relays it through the phone, which sends it from the background."
+        confidence: Inferred
+        fills: { c25-watch-write: relayed through the phone }
+      - label: It never arrives or the watch refuses the action
+        reading: "Writes need the phone to be reachable at that moment. Nothing is queued on the watch."
+        confidence: Inferred
+        fills: { c25-watch-write: lost or refused }
+
+signals:
+  - { signal: A widget shows account data with the app force-quit and the device offline, design: Shared storage area read by the widget process, confidence: Inferred }
+  - { signal: A widget is already updated when you leave the app, design: Main app requests a widget reload on every data change, confidence: Inferred }
+  - { signal: A widget follows a change from another device within a minute, design: Push-driven widget reload, confidence: Inferred }
+  - { signal: A widget changes only after the app is opened, design: Widget fed only by the main app with no requests of its own, confidence: Inferred }
+  - { signal: A widget countdown or agenda advances on time in airplane mode, design: Timeline of snapshots swapped by the system, confidence: Inferred }
+  - { signal: A widget prints the time its data was fetched, design: Data age shown because refreshes are budgeted, confidence: Observed }
+  - { signal: A widget still shows data after sign-out, design: Stored snapshot not reloaded at sign-out, confidence: Inferred }
+  - { signal: A lock-screen widget is blank after a restart until the first unlock, design: Widget data or session held in storage that is closed before first unlock, confidence: Inferred }
+  - { signal: A live status keeps advancing after a force-quit, design: Dedicated push per activity drawn by the system, confidence: Inferred }
+  - { signal: A live status remains long after the activity ended, design: Final update lost and removal left to the platform time limit, confidence: Inferred }
+  - { signal: The watch app asks for the phone, design: Remote control relayed through the phone, confidence: Observed }
+  - { signal: The watch app shows new data with the phone switched off, design: Watch with its own session and backend calls, confidence: Inferred }
+  - { signal: A shared item reaches other devices without the main app opening, design: Share extension with its own session and upload, confidence: Inferred }
+  - { signal: A shared item appears only after the main app is opened, design: Outbox in the shared storage area sent by the main app, confidence: Inferred }
+  - { signal: The share sheet vanishes when sharing a large item, design: Extension loads content into memory and passes its limit, confidence: Inferred }
+  - { signal: The share extension asks for sign-in while the app is signed in, design: Session not placed in shared secure storage, confidence: Inferred }
+  - { signal: Video on a television continues with the phone locked, design: Television fetches the stream from media delivery itself, confidence: Inferred }
+  - { signal: The account settings list the watch or television as a separate device, design: A session or credential per surface, confidence: Inferred }
+
+worksheet:
+  - { id: c25-surfaces, label: Surfaces the app has }
+  - { id: c25-widget-local, label: Widget after a change in the app, options: [immediate, within minutes, later or never] }
+  - { id: c25-widget-remote, label: Widget after a change elsewhere, options: [about a minute, budgeted refresh, only after opening the app] }
+  - { id: c25-widget-age, label: Does the widget show the age of its data }
+  - { id: c25-live-status, label: Live status updates, options: [updated by push, updated by the app, none] }
+  - { id: c25-actions, label: Assistant and shortcut actions, options: [complete in background, open the app, none] }
+  - { id: c25-share, label: Share target, options: [completes in the extension, queued for the main app, opens the main app, no share target] }
+  - { id: c25-watch, label: Watch app with the phone off, options: [works alone, cached data only, needs the phone] }
+  - { id: c25-watch-write, label: Watch writes with the phone off, options: [direct to backend, relayed through the phone, lost or refused] }
+  - { id: c25-signout, label: Surfaces after sign-out, options: [all cleared, widget still shows data, a surface is still signed in] }
+  - { id: c25-sharing, label: How each surface gets data and session }
+  - { id: c25-other, label: "Instant version, car and television surfaces" }
+  - { id: c25-backend, label: Backend components implied }
+  - { id: c25-failures, label: Failure modes seen }

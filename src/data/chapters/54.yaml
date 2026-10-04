@@ -1,0 +1,247 @@
+chapter: 54
+title: Apps with no backend
+link: /part-3-archetypes/54-apps-with-no-backend/
+
+probes:
+  - id: P54.1
+    name: Read the listing and the settings
+    do:
+      - Open the app's page in the store. Read the description, the privacy listing, and the notes on ads and in-app purchases.
+      - Open the app's page in device settings and read the permissions it holds.
+      - Open every settings screen inside the app. Look for an account, a sync switch, a backup or export control and a diagnostics control.
+      - Write down every third party that is named or declared.
+    watch: Whether anything mentions an account or sync, and whose account it is.
+    outcomes:
+      - label: No account and no sync option anywhere
+        reading: "By everything the maker states, your data stays on the device. You have observed the statement and not its truth. P54.2 and P54.3 test it."
+        confidence: Observed
+        fills: { c54-account: none }
+      - label: No app account, and a sync switch that names the platform account
+        reading: "The app moves data between your devices through storage the platform provides. The app's team runs no backend store for it."
+        confidence: Inferred
+        fills: { c54-account: platform account only }
+      - label: An account of the app's own is offered and can be skipped
+        reading: "The app works as a no-backend app until you sign in, and has a backend for those who do. Probe it signed out here, and signed in with Chapter 12."
+        confidence: Inferred
+        fills: { c54-account: optional app account }
+      - label: An account of the app's own is required before anything works
+        reading: "A backend holds identity at least. This is not the archetype of this chapter."
+        confidence: Observed
+        fills: { c54-account: required app account }
+
+  - id: P54.2
+    name: A week without a network
+    caution: This probe keeps one app off the network for days. If the device has no per-app network switch, it uses airplane mode, which interrupts calls and every other app. Turn airplane mode off after each session.
+    do:
+      - If device settings offer a network switch per app, turn off all network access for this app. Otherwise turn on airplane mode before each session, and force-quit the app before you turn airplane mode off.
+      - Use every main feature each day for a week, including any paid feature you already own.
+      - Restart the device once during the week and open the app again.
+      - Note any empty space, any message about a connection and any feature that changes from one day to the next.
+    watch: Whether anything at all degrades as the days pass, and whether the app ever mentions the network.
+    outcomes:
+      - label: Every feature works all week and nothing mentions the network
+        reading: "The app's function needs nothing off the device. All domain logic and data are local, and no check has an expiry within a week."
+        confidence: Inferred
+        fills: { c54-long-offline: works indefinitely }
+      - label: Every feature works, with empty ad slots, old reference data or a remark about being offline
+        reading: "The function is local. A third party or a small remote data source is attached to it, and the app treats its absence as normal."
+        confidence: Inferred
+        fills: { c54-long-offline: works with third-party gaps }
+      - label: A paid feature locks or the app asks to connect after some days
+        reading: "Something off the device decides what you may use, and the client holds its answer with an expiry time. The store or a backend is in the loop."
+        confidence: Inferred
+        fills: { c54-long-offline: degrades after some days }
+      - label: A core feature fails or the app asks you to sign in
+        reading: "The feature depends on a backend. The app is not of this archetype, whatever its listing suggests."
+        confidence: Observed
+        fills: { c54-long-offline: stops working }
+
+  - id: P54.3
+    name: Data used after a week
+    do:
+      - Open the device's data usage screen and note the figure for the app. Note the background figure separately if the device shows one.
+      - Use the app normally, online, for a week.
+      - Read the figures again.
+      - Note whether you saw any ad in that week.
+    watch: Whether the app used the network at all, how much, and whether any of it was in the background.
+    outcomes:
+      - label: Zero, or the app is not listed
+        reading: "The app sent and received nothing. It has no network client and no third party that reports from the device."
+        confidence: Inferred
+        fills: { c54-network-use: none }
+      - label: A small figure, and the app shows ads
+        reading: "An ad component from a third party loads ads. Part of the figure may be analytics, which the figure cannot separate."
+        confidence: Inferred
+        fills: { c54-network-use: small with ads }
+      - label: A small figure, and the app shows no ads
+        reading: "Something reports or fetches. Analytics events, crash reports, remote config and a check with the store all fit, and the figure cannot separate them."
+        confidence: Speculative
+        fills: { c54-network-use: small without ads }
+      - label: A large figure
+        reading: "Content or media moves over the network. Either the app downloads resources or data, or it uploads what you create. Check Chapter 11 and Chapter 18 before recording it as an app with no backend."
+        confidence: Speculative
+        fills: { c54-network-use: large }
+
+  - id: P54.4
+    name: Kill during a write
+    caution: Use a test item only. The probe is designed to interrupt a save, and the item may be lost.
+    do:
+      - Create a new test item and fill in several fields. In a capture tool, take one photo or recording instead.
+      - Do not tap save or done. In a capture tool, act within a second of the capture.
+      - Force-quit the app.
+      - Open the app and look for the item. Open it and check every field.
+    watch: Whether the item exists, how much of what you entered it holds, and whether it opens without an error.
+    outcomes:
+      - label: Everything you entered is there
+        reading: "Each change is committed to the local store as it is made. Process death cannot lose more than the last keystroke."
+        confidence: Inferred
+        fills: { c54-write-durability: written as you go }
+      - label: The item is there as of the last explicit save
+        reading: "Edits are held in screen state and committed on save. Process death loses the open edit and nothing else."
+        confidence: Inferred
+        fills: { c54-write-durability: written on save }
+      - label: The item is missing, or opens damaged
+        reading: "The write was held in memory, or was not atomic. With the local store as the only copy, this is the most serious failure the app can have."
+        confidence: Inferred
+        fills: { c54-write-durability: lost }
+
+  - id: P54.5
+    name: Second device on the same platform account
+    do:
+      - Take a second device that is signed in to the same platform account and has never had the app.
+      - Install the app and open it. Leave both devices online for a few minutes.
+      - If your data is not there, look for a sync switch on both devices and turn it on. Wait again.
+      - If it is still not there, look for an import or transfer control.
+    watch: Whether your data arrives, and what you had to do to bring it.
+    outcomes:
+      - label: Your data appears on its own, or after you turn on a sync switch
+        reading: "Sync through platform-provided storage. The platform account is the only identity, and the platform runs the sync engine."
+        confidence: Inferred
+        fills: { c54-second-device: syncs through platform storage, c54-variant: synced through platform storage }
+      - label: Your data is there only because the device was set up from a backup or a transfer of the first
+        reading: "The local store sits in the area that the device backup includes. There is no sync. The copy is as old as the backup."
+        confidence: Inferred
+        fills: { c54-second-device: device backup or transfer only }
+      - label: Your data arrives only through a file that you export and import
+        reading: "The device holds the only copy, and moving it is the user's job."
+        confidence: Observed
+        fills: { c54-second-device: export and import only }
+      - label: The app starts empty and offers no way to bring data in
+        reading: "The data is bound to the device that created it. A lost device loses it, unless the device backup carries it."
+        confidence: Observed
+        fills: { c54-second-device: no path }
+
+  - id: P54.6
+    name: Export and import round trip
+    caution: Import on a second device if you can. If you delete items to test the import on one device, delete test items only.
+    do:
+      - Create three test items that together use every kind of field the app has, including an attachment if it allows one.
+      - Export them with the app's export control.
+      - Open the exported file with another app, such as a text viewer, and see whether you can read it.
+      - Import the file on a second device, or after deleting the three test items.
+      - Compare each imported item with what you created.
+    watch: Whether a person or another program could read the file, and whether anything is missing after the import.
+    outcomes:
+      - label: The file is readable elsewhere, and the import restores everything
+        reading: "Export is an open format and a full backup. The user can leave the app with their data."
+        confidence: Observed
+        fills: { c54-export: open format round trip }
+      - label: Only the app can read the file, and the import restores everything
+        reading: "Export is a backup in the app's own format. It protects against a lost device and not against the app going away."
+        confidence: Observed
+        fills: { c54-export: own format round trip }
+      - label: The export works, and there is no import or the import loses fields
+        reading: "Export is a report for reading, not a backup. Nothing the user holds can rebuild the local store."
+        confidence: Observed
+        fills: { c54-export: export only }
+      - label: There is no export
+        reading: "The only copies are the local store and whatever the device backup and platform sync hold."
+        confidence: Observed
+        fills: { c54-export: none }
+
+  - id: P54.7
+    name: Two devices edit offline
+    caution: This probe uses airplane mode on two devices, which interrupts calls and other apps. Use a test item, because one edit is meant to lose.
+    do:
+      - Run this only if P54.5 showed sync. Create a test item on device A and wait until it shows on device B.
+      - Turn on airplane mode on both devices.
+      - Change the same field of the item to a different value on each device, A first and then B.
+      - Turn the network back on at A, wait two minutes, then turn it on at B. Open the app on both and wait a few minutes.
+      - Repeat with a new item, turning the network on at B first.
+    watch: Which value each device ends with, whether the two devices agree, and whether an extra copy of the item appears.
+    outcomes:
+      - label: One edit replaces the other on both devices, with no message
+        reading: "LWW. If the later edit wins in both runs, the rule uses the time of the edit. If the later arrival wins, it uses the order of upload."
+        confidence: Inferred
+        fills: { c54-sync-conflict: one edit wins silently }
+      - label: Both versions are kept, as two items or a marked copy
+        reading: "Keep-both resolution. The platform storage reported a conflict, and the app or the platform kept each version."
+        confidence: Observed
+        fills: { c54-sync-conflict: both kept }
+      - label: The two devices still show different values after ten minutes
+        reading: "The copies did not converge. Either sync is slower than the wait, or the app does not handle the conflict the platform storage reported. Check again after an hour."
+        confidence: Speculative
+        fills: { c54-sync-conflict: devices disagree }
+
+  - id: P54.8
+    name: Purchase on a second device
+    caution: Run this only if you already own a purchase in the app. Do not buy anything for the probe. The last steps use airplane mode, which interrupts calls and other apps.
+    do:
+      - On a second device signed in to the same store account, install the app and open a paid feature before you touch any control.
+      - If it is locked, tap restore purchases and try again.
+      - Force-quit the app, turn on airplane mode and open the paid feature again.
+      - Turn airplane mode off.
+    watch: What the app asks for before it unlocks, and whether the unlock holds without a network.
+    outcomes:
+      - label: Unlocked after restore purchases with no app account, and still unlocked offline
+        reading: "The purchase belongs to the store account. The client checks the receipt on the device and keeps a local unlock. No backend verifies anything."
+        confidence: Inferred
+        fills: { c54-entitlement: store account with restore }
+      - label: Unlocked without any step
+        reading: "The client asked the store at launch, or the unlock traveled through platform-provided storage with the rest of your data. The two are not separated by this probe."
+        confidence: Speculative
+        fills: { c54-entitlement: unlocked without a step }
+      - label: Unlocked after restore purchases, and locked again offline
+        reading: "The unlock is not stored. The client asks the store, or a backend, on each launch."
+        confidence: Inferred
+        fills: { c54-entitlement: checked online each launch }
+      - label: The app asks you to create or sign in to an account of its own
+        reading: "A backend holds the entitlement against an app account. The app has a backend for payments, even if its data stays on the device."
+        confidence: Inferred
+        fills: { c54-entitlement: needs an app account }
+
+signals:
+  - { signal: "The first launch opens a working screen with no sign-in, no loading state and no request for a network", design: "All domain logic and data are on the device. A local replica that syncs later is the alternative, and P54.5 separates them", confidence: Speculative }
+  - { signal: The app's figure on the data usage screen stays at zero for weeks, design: No network client and no third party that reports from the device, confidence: Inferred }
+  - { signal: Every feature works in airplane mode while an ad slot stays empty or shows a house ad, design: An ad component from a third party beside a client that has no backend of its own, confidence: Inferred }
+  - { signal: Data usage rises a little on days you did not open the app, design: "A background upload by an SDK, or a config check. The figure cannot say which", confidence: Speculative }
+  - { signal: "Your data is on a second device of the same platform account, and the app has no account of its own", design: Sync through platform-provided storage, confidence: Inferred }
+  - { signal: The platform account's storage screen lists the app with a size, design: The app keeps data in platform-provided storage, confidence: Observed }
+  - { signal: "The app exists on one platform only, or its sync does not cross platforms", design: "Sync depends on platform-provided storage and not on a backend the team runs", confidence: Speculative }
+  - { signal: A second copy of an item appears after two devices changed it, design: "Keep-both resolution of a conflict that the platform storage reported", confidence: Inferred }
+  - { signal: A deleted item returns after a device that was offline comes back, design: Deletions are synced without tombstones, confidence: Inferred }
+  - { signal: Restore purchases works with no app account and the paid feature stays unlocked offline, design: Store billing with a receipt checked on the device and a local unlock, confidence: Inferred }
+  - { signal: A purchase does not carry over to the app on the other platform, design: "The purchase belongs to one store account, and no backend holds an entitlement above the stores", confidence: Inferred }
+  - { signal: Settings offer an export to a file and an import from one, design: The maker treats the local store as the only copy and gives the user the backup path, confidence: Inferred }
+  - { signal: "Your data is present on a new device that was set up from a device backup, with no step inside the app", design: The local store sits in the storage area that the device backup includes, confidence: Inferred }
+  - { signal: "The first launch after an update is long, once, with a message about updating data", design: A migration of the only copy in place, confidence: Inferred }
+  - { signal: The capture screen has its own controls and the app holds the camera permission, design: "An in-app camera. Capture is the product", confidence: Observed }
+  - { signal: "During long use the device warms and the preview drops in quality or frame rate, then recovers", design: The app reads the thermal state and lowers its own load, confidence: Inferred }
+  - { signal: A reminder fires on time in airplane mode, design: A local notification scheduled with the operating system, confidence: Inferred }
+  - { signal: The licenses screen or the privacy listing names advertising or analytics, design: "Third-party SDKs inside an app with no backend of its own. A statement by the maker", confidence: Observed }
+
+worksheet:
+  - { id: c54-variant, label: Variant, options: [pure tool, personal data on the device, synced through platform storage, not this archetype] }
+  - { id: c54-account, label: Account, options: [none, platform account only, optional app account, required app account] }
+  - { id: c54-long-offline, label: A week without a network, options: [works indefinitely, works with third-party gaps, degrades after some days, stops working] }
+  - { id: c54-network-use, label: Network use over a week, options: [none, small with ads, small without ads, large] }
+  - { id: c54-third-parties, label: "Third parties named or declared: ads, analytics, crash reports, store billing" }
+  - { id: c54-write-durability, label: Write interrupted by a force-quit, options: [written as you go, written on save, lost] }
+  - { id: c54-second-device, label: Path to a second device, options: [syncs through platform storage, device backup or transfer only, export and import only, no path] }
+  - { id: c54-export, label: Export and import, options: [open format round trip, own format round trip, export only, none] }
+  - { id: c54-sync-conflict, label: Conflict in platform sync, options: [one edit wins silently, both kept, devices disagree, not synced] }
+  - { id: c54-monetization, label: How the app earns, options: [free, paid download, one-time unlock, subscription, ads, ads with a paid removal] }
+  - { id: c54-entitlement, label: Purchase on a second device, options: [store account with restore, unlocked without a step, checked online each launch, needs an app account, nothing sold in the app] }
+  - { id: c54-hardware, label: "Hardware used, the capture path and the degraded mode without each permission" }
+  - { id: c54-migration, label: First launch after an update with data in place }
+  - { id: c54-notes, label: Notes and open questions }

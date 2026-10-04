@@ -1,0 +1,244 @@
+chapter: 33
+title: Releases and compatibility
+link: /part-2-concerns/33-releases-and-compatibility/
+
+probes:
+  - id: P33.1
+    name: Release cadence
+    do:
+      - Open the app's store listing and find its version history.
+      - Write down the dates of the last ten to fifteen versions.
+      - Work out the gaps between them in days.
+      - Mark any version that follows the previous one by three days or less.
+    watch: Whether the gaps are steady or irregular, how long they are, and whether quick follow-up versions occur.
+    outcomes:
+      - label: Versions arrive at a steady interval of two weeks or less
+        reading: "A release train on a fixed schedule. Unfinished work most likely ships turned off behind feature flags."
+        confidence: Inferred
+        fills: { c33-cadence: steady and short }
+      - label: Versions arrive at a steady interval longer than two weeks
+        reading: "A scheduled release with larger batches. Each version carries more change and more risk."
+        confidence: Inferred
+        fills: { c33-cadence: steady and long }
+      - label: The gaps are irregular
+        reading: "Releases leave when work is finished, not on a schedule. Typical of a small team or of an app in maintenance."
+        confidence: Speculative
+        fills: { c33-cadence: irregular }
+
+  - id: P33.2
+    name: Release notes
+    do:
+      - In the version history, read the notes of the last ten versions.
+      - Note whether the text repeats, and whether it names features.
+      - Look for wording about gradual availability, such as a feature that is rolling out or coming soon to all users.
+      - Look for any statement that older versions will stop working.
+    watch: Whether the notes are the same generic text each time, name specific changes, or say that a feature reaches users gradually. These are statements by the maker.
+    outcomes:
+      - label: The same generic text repeats in every version
+        reading: "The maker does not tie features to versions in public. This fits features released by flags after the binary ships."
+        confidence: Speculative
+        fills: { c33-notes: generic text }
+      - label: The notes name specific features and fixes
+        reading: "The maker states that those changes came with those versions. Features and versions move together, at least in public."
+        confidence: Observed
+        fills: { c33-notes: specific features and fixes }
+      - label: The notes say that a feature reaches users gradually
+        reading: "The maker states that the feature is staged separately from the version. The code ships first and a flag releases it."
+        confidence: Observed
+        fills: { c33-notes: mention gradual availability }
+
+  - id: P33.3
+    name: A second version identifier
+    do:
+      - Open the app's settings, about or help screen and write down every version or build identifier shown.
+      - Write down the version shown in the store listing for the installed app.
+      - Repeat once a week for a month, and also on any day when the app showed a downloading or updating step at launch.
+      - Compare which identifiers changed and when the store installed an update.
+    watch: Whether an identifier in the app changes on a day when the store installed nothing, and whether the app ever shows a download step at launch without a store update.
+    outcomes:
+      - label: An identifier in the app changes between store updates
+        reading: "Part of the app is delivered outside the store. Non-compiled code or a content bundle with its own version."
+        confidence: Inferred
+        fills: { c33-side-channel: second identifier changes }
+      - label: A download step appears at launch without a store update
+        reading: "The app fetches code or content that it needs before it can continue. Which of the two cannot be told from this alone."
+        confidence: Speculative
+        fills: { c33-side-channel: download without a store update }
+      - label: Identifiers change only with store updates
+        reading: "No evidence of code or bundles delivered outside the store. Config and described layout may still change the app."
+        confidence: Speculative
+        fills: { c33-side-channel: none seen }
+
+  - id: P33.4
+    name: When the update is offered
+    do:
+      - Run this only if you have two devices of the same platform with the app installed.
+      - When the version history shows a new version, open the store's update list on both devices on the same day. Do not install yet.
+      - Note on which device the update is offered.
+      - Check again daily until both devices are offered it.
+    watch: Whether both devices are offered the new version on the same day or days apart.
+    outcomes:
+      - label: Both devices are offered the update on the same day
+        reading: "No sign of staging for your devices. A staged rollout may still be running for others."
+        confidence: Speculative
+        fills: { c33-staged: both the same day }
+      - label: One device is offered the update days before the other
+        reading: "A staged rollout of the version by the store, which exposes a share of devices first."
+        confidence: Speculative
+        fills: { c33-staged: days apart }
+
+  - id: P33.5
+    name: Update prompt
+    do:
+      - Turn off automatic updates for this app, or for the store if it has no per-app setting, on one device. See the caution.
+      - Keep using the app while newer versions appear in the version history.
+      - Note any message about updating, where it appears and whether it can be dismissed.
+      - If it can be dismissed, note when it returns.
+    caution: This probe turns off automatic updates, which is a device-wide setting on some platforms. Other apps will also stop updating, including security fixes. Use a spare device if you can, and turn the setting back on when you finish.
+    watch: Whether the app says anything about its own age, whether the message blocks use, and how often it comes back.
+    outcomes:
+      - label: No message, though newer versions exist
+        reading: "This version is above every line the team has drawn. No prompt is configured, or it has not reached this version yet."
+        confidence: Observed
+        fills: { c33-prompt: none while behind }
+      - label: A message that can be dismissed
+        reading: "A soft prompt. The backend or the store marks this version as below the recommended one."
+        confidence: Observed
+        fills: { c33-prompt: dismissible }
+      - label: A screen with one action that cannot be dismissed
+        reading: "A forced-update gate. This version is below the minimum supported version."
+        confidence: Observed
+        fills: { c33-prompt: blocking, c33-policy: minimum supported version enforced }
+
+  - id: P33.6
+    name: Update flow
+    do:
+      - Run this when P33.5 has produced a prompt or a gate.
+      - Accept the prompt and watch what happens next.
+      - Note whether you leave the app, and what the app does once the new version is ready.
+    watch: Whether the prompt sends you to the store listing, or whether the update downloads while you stay in the app and then asks to restart.
+    outcomes:
+      - label: The prompt opens the store listing
+        reading: "The app draws its own prompt and links out. The update itself is the store's ordinary flow."
+        confidence: Observed
+        fills: { c33-update-flow: link to the store }
+      - label: The update downloads inside the app, then asks to restart
+        reading: "The app uses an update flow the platform offers to apps. Still a store release, delivered without leaving the app."
+        confidence: Observed
+        fills: { c33-update-flow: download inside the app }
+      - label: The app restarts changed, and the store version is the same
+        reading: "The new code did not come from the store. Non-compiled code delivered by the team."
+        confidence: Inferred
+        fills: { c33-update-flow: changed without the store }
+
+  - id: P33.7
+    name: First launch after the update
+    do:
+      - Before updating, use the app so that it has recent data. Leave a draft unsent, change one setting from its default, and view some content offline if the app supports it.
+      - Install the update and turn on airplane mode before the first launch. See the caution.
+      - Launch the app and check the session, the draft, the setting and the content.
+      - Turn airplane mode off and watch what loads.
+    caution: This probe uses airplane mode, which cuts the connection of every app on the device. Turn it off when you finish.
+    watch: Whether you are still signed in, whether the draft, the setting and the stored content are there before any network is available, and whether the launch is slow.
+    outcomes:
+      - label: Everything is there at once
+        reading: "Local data was kept and read by the new version, with no migration or a small one."
+        confidence: Inferred
+        fills: { c33-after-update: all intact with no delay }
+      - label: Everything is there after one long launch or an updating message
+        reading: "The local store was migrated in place before the first screen."
+        confidence: Inferred
+        fills: { c33-after-update: all intact after one long launch }
+      - label: Session and settings are there, and content is empty until online
+        reading: "Caches or the local store were discarded on update and are rebuilt from the backend."
+        confidence: Inferred
+        fills: { c33-after-update: content rebuilt from the backend }
+      - label: You are signed out, or the draft or setting is gone
+        reading: "Device-only state did not survive the update. A deliberate reset, or a migration that missed it."
+        confidence: Observed
+        fills: { c33-after-update: signed out or local data lost }
+
+  - id: P33.8
+    name: What an old version can still do
+    do:
+      - Keep the app on a spare device without updating it for several months, or find a device that already holds an old copy. Note its version.
+      - Sign in to your account on it and on a device with the current version.
+      - On the old version, read content, create something, edit it and delete it, and open items created recently on the new version.
+      - Note anything that fails, and exactly what the app says when it does.
+    caution: Keeping an old version means turning off automatic updates, which is a device-wide setting on some platforms. Use a spare device, and do not keep an old version of an app that guards money or sensitive data as your main copy.
+    watch: Whether reading and writing still work, how newer content appears, and whether a failure comes with an explanation.
+    outcomes:
+      - label: Everything works, including content made on the new version
+        reading: "This version is inside the supported range, and the interface has changed only by addition since it shipped."
+        confidence: Inferred
+        fills: { c33-old-version: works fully }
+      - label: It works, with placeholders or gaps for newer content
+        reading: "Supported, with additive change and a client that meets types it does not know."
+        confidence: Inferred
+        fills: { c33-old-version: works with gaps or placeholders }
+      - label: Screens fail with errors and no mention of updating
+        reading: "The backend no longer serves this version, and the version has no gate to say so."
+        confidence: Inferred
+        fills: { c33-old-version: errors with no explanation }
+      - label: A forced-update gate replaces the app
+        reading: "This version is below the minimum supported version, and the retirement was planned."
+        confidence: Observed
+        fills: { c33-old-version: forced-update gate, c33-policy: minimum supported version enforced }
+
+  - id: P33.9
+    name: A new feature on an old version
+    do:
+      - From the release notes, pick a feature that the maker says arrived after the old version on your spare device.
+      - Confirm that the feature is present on a device with the current version, on the same account.
+      - Look for the feature on the old version, in the same place.
+      - If an entry point exists, tap it.
+    watch: Whether the old version has no trace of the feature, shows it with a message about updating, or has it working.
+    outcomes:
+      - label: The feature is absent, with no trace
+        reading: "The code arrived with a later version. The old version has no knowledge that the feature exists."
+        confidence: Inferred
+        fills: { c33-feature-gate: absent }
+      - label: An entry point exists and says to update
+        reading: "The feature is gated by version. The old version or the backend refuses it and explains why."
+        confidence: Inferred
+        fills: { c33-feature-gate: present with an update message }
+      - label: The feature is present and works on the old version
+        reading: "The code was already in the old version, turned off, or the backend builds the feature from parts the old version has. Chapters 30 and 31 separate these."
+        confidence: Inferred
+        fills: { c33-feature-gate: present and working }
+
+signals:
+  - { signal: The version history shows releases at a steady short interval, design: Release train on a fixed schedule, confidence: Inferred }
+  - { signal: Release notes repeat the same generic text, design: Features released by flags and not tied to versions, confidence: Speculative }
+  - { signal: Release notes say a feature reaches users gradually, design: "Staged rollout of a feature by flag, as stated by the maker", confidence: Observed }
+  - { signal: Two versions within two days and the second names only fixes, design: Bad release repaired by shipping forward, confidence: Inferred }
+  - { signal: Two of your devices are offered one update days apart, design: Staged rollout of a version by the store, confidence: Speculative }
+  - { signal: A dismissible message about a newer version, design: Soft prompt driven by a recommended version, confidence: Observed }
+  - { signal: A screen that blocks the app until it is updated, design: Forced-update gate below the minimum supported version, confidence: Observed }
+  - { signal: An update downloads inside the app and then asks to restart, design: Update flow offered by the platform for a store release, confidence: Observed }
+  - { signal: An identifier in the about screen changes between store updates, design: Non-compiled code or content delivered outside the store, confidence: Inferred }
+  - { signal: An old version works and shows placeholders for newer content, design: Additive interface with a client fallback, confidence: Inferred }
+  - { signal: An old version fails everywhere with no mention of updating, design: Support dropped for a version that has no gate, confidence: Inferred }
+  - { signal: One feature on an old version says to update and the rest works, design: Feature gated by version, confidence: Inferred }
+  - { signal: A feature announced later works on an older version, design: "Code shipped earlier and turned on by a flag, or built by the backend from known parts", confidence: Inferred }
+  - { signal: One long launch with an updating message after an update, design: Migration of the local store in place, confidence: Inferred }
+  - { signal: Content loads from scratch after an update while the session survives, design: Local data discarded and rebuilt from the backend, confidence: Inferred }
+  - { signal: The app closes at every launch after an update until reinstalled, design: Failed migration of the local store, confidence: Inferred }
+  - { signal: A gate says to update and the store offers no update, design: Minimum supported version above what the device can install, confidence: Inferred }
+  - { signal: A feature vanishes for days and returns after an update, design: Kill switch followed by a fixed version, confidence: Speculative }
+
+worksheet:
+  - { id: c33-cadence, label: Release cadence, options: [steady and short, steady and long, irregular] }
+  - { id: c33-notes, label: Release notes, options: [generic text, specific features and fixes, mention gradual availability] }
+  - { id: c33-side-channel, label: Updates outside the store, options: [second identifier changes, download without a store update, none seen] }
+  - { id: c33-staged, label: When an update is offered to two devices, options: [both the same day, days apart, not tested] }
+  - { id: c33-prompt, label: Update prompt, options: [none while behind, dismissible, blocking] }
+  - { id: c33-update-flow, label: Update flow, options: [link to the store, download inside the app, changed without the store, not seen] }
+  - { id: c33-after-update, label: First launch after an update, options: [all intact with no delay, all intact after one long launch, content rebuilt from the backend, signed out or local data lost] }
+  - { id: c33-old-version, label: What an old version can do, options: [works fully, works with gaps or placeholders, errors with no explanation, forced-update gate, not tested] }
+  - { id: c33-feature-gate, label: A new feature on an old version, options: [absent, present with an update message, present and working, not tested] }
+  - { id: c33-policy, label: Compatibility policy, options: [supports every version seen, soft prompts only, features gated by version, minimum supported version enforced, unknown] }
+  - { id: c33-oldest, label: Oldest version seen working }
+  - { id: c33-backend, label: Backend components implied }
+  - { id: c33-speculative, label: Claims left Speculative }
+  - { id: c33-failures, label: Failure modes seen }

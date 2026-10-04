@@ -1,0 +1,85 @@
+---
+import { loadChapters } from '../lib/data.mjs';
+
+interface Props {
+  /** Chapter numbers to show. All chapters with worksheet fields when omitted. */
+  chapters?: number[];
+}
+
+const { chapters } = Astro.props;
+const all = loadChapters().filter((c: any) => c.worksheet?.length);
+const shown = chapters ? all.filter((c: any) => chapters.includes(c.chapter)) : all;
+const showLegend = shown.length > 1 || !chapters;
+---
+
+<form class="worksheet not-content" onsubmit="return false">
+  {
+    shown.map((chapter: any) => {
+      const fields = chapter.worksheet.map((field: any) => (
+        <label class="field">
+          <span>{field.label}</span>
+          {field.options ? (
+            <select data-field={field.id}>
+              <option value="">Not recorded</option>
+              {field.options.map((option: string) => (
+                <option value={option}>{option}</option>
+              ))}
+            </select>
+          ) : (
+            <input type="text" data-field={field.id} autocomplete="off" />
+          )}
+        </label>
+      ));
+      // On the full worksheet each chapter is a collapsible group, opened when it has values.
+      return showLegend ? (
+        <details class="worksheet-group">
+          <summary>
+            <a href={chapter.link}>
+              {chapter.chapter}. {chapter.title}
+            </a>
+            <span class="worksheet-filled" />
+          </summary>
+          {fields}
+        </details>
+      ) : (
+        <fieldset>{fields}</fieldset>
+      );
+    })
+  }
+</form>
+
+<script>
+  import { current, save, CHANGE_EVENT } from '../lib/store';
+
+  type Control = HTMLInputElement | HTMLSelectElement;
+  const controls = document.querySelectorAll<Control>('.worksheet [data-field]');
+
+  const paint = () => {
+    const { fields } = current();
+    controls.forEach((control) => {
+      // Do not overwrite a field the reader is typing in.
+      if (control === document.activeElement) return;
+      control.value = fields[control.dataset.field!] ?? '';
+    });
+    document.querySelectorAll<HTMLDetailsElement>('.worksheet-group').forEach((group) => {
+      const all = [...group.querySelectorAll<Control>('[data-field]')];
+      const filled = all.filter((control) => control.value).length;
+      group.querySelector('.worksheet-filled')!.textContent = `${filled} of ${all.length} recorded`;
+      if (filled > 0 && !group.dataset.touched) group.open = true;
+      group.dataset.touched = 'yes';
+    });
+  };
+
+  controls.forEach((control) => {
+    control.addEventListener('input', () => {
+      const { fields } = current();
+      const id = control.dataset.field!;
+      if (control.value) fields[id] = control.value;
+      else delete fields[id];
+      save();
+    });
+  });
+
+  window.addEventListener(CHANGE_EVENT, paint);
+  paint();
+</script>

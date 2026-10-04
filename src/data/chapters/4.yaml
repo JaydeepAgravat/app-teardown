@@ -1,0 +1,173 @@
+chapter: 4
+title: Probes
+link: /part-1-method/4-probes/
+
+probes:
+  - id: P4.1
+    name: Footprint survey
+    do:
+      - In device settings, open the list of storage used per app. Note the size of the app itself and the size of the data it has stored.
+      - Open the lists of mobile data used and battery used per app, and note the app's figures.
+      - Use the app for ten minutes, opening content you have not opened before.
+      - Read the storage figure again.
+    watch: How large the stored data is next to the app itself, and whether it grew during the ten minutes.
+    outcomes:
+      - label: Stored data is negligible and does not grow
+        reading: "The app keeps little on the device and fetches what it shows. P4.2 confirms this. Start with Chapters 10 and 13."
+        confidence: Speculative
+        fills: { c4-footprint: negligible }
+      - label: Stored data is modest and grows as you browse
+        reading: "A cache filled by visits. Chapter 11 covers what it holds and when it is discarded."
+        confidence: Inferred
+        fills: { c4-footprint: grows with use }
+      - label: Stored data is already large, far beyond what one session explains
+        reading: "Either a local replica of your account's content or downloaded media. P4.2 and P4.6 separate the two. Read Chapters 11 and 12."
+        confidence: Speculative
+        fills: { c4-footprint: large from the start }
+
+  - id: P4.2
+    name: Launch in airplane mode
+    caution: This probe changes a device-wide setting. Turn airplane mode off when you finish.
+    do:
+      - Use the app online for a minute, then force-quit it.
+      - Turn on airplane mode.
+      - Open the app.
+      - Try to view content you saw earlier, then try one small change, such as a draft or a reaction on your own content.
+      - Turn airplane mode off.
+    watch: What the first screen shows, whether the app says it is offline, and whether the change is accepted.
+    outcomes:
+      - label: An error, an endless spinner or an empty screen
+        reading: "The first screen needs the network. Either nothing useful is kept on the device, or the app will not show it without a check. Read Chapters 7 and 13."
+        confidence: Observed
+        fills: { c4-offline-launch: blocked }
+      - label: Earlier content appears, and the change is refused
+        reading: "Reads come from a cache or a local store. Writes need the network. Read Chapter 11, then Chapter 12."
+        confidence: Inferred
+        fills: { c4-offline-launch: content shown and writes refused }
+      - label: Earlier content appears, and the change is accepted
+        reading: "An optimistic update on top of stored content. Chapter 12 settles whether an outbox stands behind it."
+        confidence: Inferred
+        fills: { c4-offline-launch: content shown and writes accepted }
+
+  - id: P4.3
+    name: Force-quit and reopen
+    do:
+      - Go at least three screens deep into the app, and scroll partway down a list.
+      - Type some text into an input field and do not submit it.
+      - Force-quit the app.
+      - Open it again from its icon.
+    watch: Which screen opens, whether the scroll position is kept, and whether the typed text is still there when you return to the field.
+    outcomes:
+      - label: The start screen opens, and the text is gone
+        reading: "Screen state and drafts are held in memory only. A cold start builds everything again. Read Chapters 7 and 8."
+        confidence: Observed
+        fills: { c4-restore: start screen and draft lost }
+      - label: The start screen opens, and the text is still in its field
+        reading: "Drafts are written to the local store as you type. Navigation is not restored after a quit by the user. Read Chapters 8 and 9."
+        confidence: Inferred
+        fills: { c4-restore: start screen and draft kept }
+      - label: The app reopens where you were, with the text
+        reading: "Both the navigation position and the draft are stored on the device. Read Chapter 8."
+        confidence: Inferred
+        fills: { c4-restore: same place and draft kept }
+
+  - id: P4.4
+    name: Long background and return
+    do:
+      - Note the screen you are on, your scroll position and the newest item you can see.
+      - Leave the app without quitting it. Use several demanding apps, such as the camera and a game.
+      - Wait at least an hour. Overnight is better.
+      - Return to the app from its icon.
+    watch: Whether a launch screen appears, which screen you land on, and whether the content changes without you asking.
+    outcomes:
+      - label: The same screen and the same content, and nothing changes
+        reading: "The process survived, and the app does not refresh on return. The probe has not yet tested process death. Repeat it with a longer wait."
+        confidence: Inferred
+        fills: { c4-return: resumes unchanged }
+      - label: The same screen, and the content refreshes on its own
+        reading: "The app pulls when it returns to the foreground, or treats its data as stale after a set time. Read Chapters 9 and 11."
+        confidence: Inferred
+        fills: { c4-return: resumes and refreshes }
+      - label: A launch screen, then the start screen
+        reading: "Process death occurred and screen state was not restored. Read Chapter 8."
+        confidence: Observed
+        fills: { c4-return: restarts at start screen }
+      - label: A launch screen, then the screen you left
+        reading: "Process death occurred and the app restored its screen state from storage. Read Chapter 8."
+        confidence: Inferred
+        fills: { c4-return: restarts and restores place }
+
+  - id: P4.5
+    name: Second device
+    do:
+      - Sign in to the same account on a second device, or on the web version if there is one.
+      - Put both in the foreground, side by side, on the same screen.
+      - Make a small change on device A, using content only you can see.
+      - Watch device B for 30 seconds without touching it.
+      - If nothing changes, leave the app on B and return to it. If still nothing changes, refresh by gesture.
+    watch: Whether the change reaches B, how long it takes, and what you had to do to make it appear.
+    outcomes:
+      - label: B updates within a few seconds, untouched
+        reading: "The backend can reach a client in the foreground, by a persistent connection or by frequent polling. Read Chapter 14."
+        confidence: Inferred
+        fills: { c4-second-device: live update }
+      - label: B updates only after you return to it or refresh
+        reading: "The client pulls on a trigger and is not told about changes while it is open. Read Chapters 12 and 15."
+        confidence: Inferred
+        fills: { c4-second-device: update on foreground or refresh }
+      - label: B never shows the change
+        reading: "This data lives on the device that made it. The feature has no backend store, or does not sync it."
+        confidence: Inferred
+        fills: { c4-second-device: no propagation }
+      - label: Signing in on B signed A out
+        reading: "The backend allows one session per account. Multi-device probes need a second account instead. Chapter 20 covers the session design."
+        confidence: Observed
+        fills: { c4-second-device: single device only }
+
+  - id: P4.6
+    name: Fresh install
+    caution: Removing an app deletes its data on that device. Prefer a device that has never had the app. Do not remove the app from your main device unless P4.5 showed that your data reaches a second device.
+    do:
+      - Install the app on a device that has never had it.
+      - Open it and note what you can use before signing in.
+      - Sign in.
+      - Watch what appears, and in what order, without touching anything.
+    watch: Whether your existing content comes back, whether a restore step is needed, and how long the app takes to become usable.
+    outcomes:
+      - label: Your content returns after sign-in, with no extra step
+        reading: "The backend store holds your content and is the source of truth. Chapter 12 covers the order in which it loads."
+        confidence: Inferred
+        fills: { c4-fresh-install: content returns from the backend }
+      - label: Your content returns only after a restore from a backup
+        reading: "The device holds the content, and the backend does not keep it in a form it can serve. A backup stands in for a backend store."
+        confidence: Inferred
+        fills: { c4-fresh-install: content returns from a backup }
+      - label: The app starts empty, or has no sign-in at all
+        reading: "The content exists only on the device that created it. See Chapter 54."
+        confidence: Inferred
+        fills: { c4-fresh-install: starts empty }
+
+signals:
+  - { signal: Stored data far exceeds the size of the app itself, design: "Content is kept on the device as a cache, a local replica or downloads", confidence: Speculative }
+  - { signal: Stored data shrinks on its own when the device runs low on storage, design: A cache that the app or the operating system may discard, confidence: Inferred }
+  - { signal: Mobile data used is high for the time you spend in the app, design: "Media, prefetching or background workers", confidence: Speculative }
+  - { signal: Battery is used on days you did not open the app, design: Background workers or continued use of platform services, confidence: Inferred }
+  - { signal: A notification arrives after a force-quit, design: Async delivery through the platform's push channel, confidence: Inferred }
+  - { signal: The start screen fills at once in airplane mode, design: The UI reads from a cache or a local store, confidence: Inferred }
+  - { signal: A typed draft survives a force-quit, design: Drafts are written to the local store as you type, confidence: Inferred }
+  - { signal: The app returns to its start screen after a long time in the background, design: Screen state is not restored after process death, confidence: Inferred }
+  - { signal: A second device updates while you watch it, design: A real-time delivery path to clients in the foreground, confidence: Inferred }
+  - { signal: Content appears on a new device after sign-in, design: The backend store is the source of truth, confidence: Inferred }
+  - { signal: Signing in on a second device signs the first one out, design: One session per account, confidence: Observed }
+  - { signal: Behavior changes between two launches with no update installed, design: Remote config or server-driven UI, confidence: Speculative }
+
+worksheet:
+  - { id: c4-footprint, label: Stored data on the device, options: [negligible, grows with use, large from the start] }
+  - { id: c4-offline-launch, label: Launch in airplane mode, options: [blocked, content shown and writes refused, content shown and writes accepted] }
+  - { id: c4-restore, label: After a force-quit, options: [start screen and draft lost, start screen and draft kept, same place and draft kept] }
+  - { id: c4-return, label: After a long time in the background, options: [resumes unchanged, resumes and refreshes, restarts at start screen, restarts and restores place] }
+  - { id: c4-second-device, label: Change made on a second device, options: [live update, update on foreground or refresh, no propagation, single device only] }
+  - { id: c4-fresh-install, label: Fresh install, options: [content returns from the backend, content returns from a backup, starts empty] }
+  - { id: c4-usage, label: "Mobile data and battery figures, with the period they cover" }
+  - { id: c4-conditions, label: "Test conditions: devices, network, app version" }
+  - { id: c4-next, label: Chapters to read next }

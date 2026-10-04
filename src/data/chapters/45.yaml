@@ -1,0 +1,255 @@
+chapter: 45
+title: Booking and reservations
+link: /part-3-archetypes/45-booking-and-reservations/
+
+probes:
+  - id: P45.1
+    name: Countdown after a force-quit
+    caution: This probe holds real inventory for a few minutes. Choose a date and an offering with plenty of availability, never a sale that is close to selling out. Do not pay. Leave the flow when you are done, so that the hold is released.
+    do:
+      - Select a seat, room or slot and advance until the app shows a countdown or says the selection is being held.
+      - Note the remaining time and the time on your watch.
+      - Force-quit the app and wait one full minute.
+      - Open the app and return to the booking in progress, through whatever route the app offers.
+      - Compare the remaining time with your note, then cancel or back out of the flow.
+    watch: Whether the booking in progress can be found again, and whether the countdown lost exactly the time that passed.
+    outcomes:
+      - label: The booking is found, and the countdown lost the time that passed
+        reading: "The hold and its deadline are stored on the backend. The client draws the countdown from that deadline."
+        confidence: Inferred
+        fills: { c45-hold: hold with a visible countdown, c45-hold-clock: backend deadline }
+      - label: The booking is found, and the countdown starts again from its full length
+        reading: "The countdown is a timer on the device, or returning created a new hold. Either way the number on screen is not the backend's deadline."
+        confidence: Inferred
+        fills: { c45-hold: hold with a visible countdown, c45-hold-clock: device timer or new hold }
+      - label: The booking in progress is gone, and the flow starts from search
+        reading: "The reference to the hold was kept in the memory of the flow's screens. The hold may still exist on the backend until its deadline, with no client that knows it."
+        confidence: Inferred
+        fills: { c45-hold: hold with a visible countdown, c45-hold-clock: lost with the flow }
+      - label: No countdown or hold message appears before the payment step
+        reading: "No hold is shown before payment. Inventory is taken at payment or at confirmation, or it is held without telling you. P45.2 separates these."
+        confidence: Observed
+        fills: { c45-hold: no hold shown, c45-hold-clock: no countdown }
+
+  - id: P45.2
+    name: Held item seen from a second device
+    caution: This probe holds real inventory. Use an offering with plenty of availability, do not pay, and do not select the same item on the second device beyond a single tap.
+    do:
+      - Choose an offering in which single items can be told apart, such as a seat on a seat map or one time slot.
+      - On device B, signed in to a second account of your own or not signed in, open the same seat map or slot list and leave it on screen.
+      - On device A, select one item and advance until it is held.
+      - Watch B for thirty seconds without touching it. If nothing changes, reload the screen on B.
+      - If B still shows the item as free, tap it once on B and read the response. Then back out on B.
+    watch: Whether B shows the item as taken, when, and what B is told if it tries to select it.
+    outcomes:
+      - label: B shows the item as taken while you watch
+        reading: "The hold is written on the backend at selection, and availability changes are delivered to open screens."
+        confidence: Inferred
+        fills: { c45-hold-start: on selection, c45-availability: live on the open screen }
+      - label: B shows the item as taken after a reload
+        reading: "The hold is written on the backend at selection. Availability is fetched when the screen loads and is not delivered live."
+        confidence: Inferred
+        fills: { c45-hold-start: on selection, c45-availability: fresh on reload }
+      - label: B shows the item as free after a reload, and the tap is refused
+        reading: "The hold exists on the backend. The availability B reads is a cached copy that lags, and the conditional write is what protects the item."
+        confidence: Inferred
+        fills: { c45-hold-start: on selection, c45-availability: cached and lagging }
+      - label: B shows the item as free and the tap is accepted
+        reading: "Nothing is held at selection. Inventory is taken at a later step, and the conflict is settled there."
+        confidence: Inferred
+        fills: { c45-hold-start: at a later step, c45-availability: not reduced by a selection }
+
+  - id: P45.3
+    name: Release on leaving
+    caution: Run this directly after P45.2, with the same held item. Do not pay.
+    do:
+      - With the item held on A and shown as taken on B, note the remaining time on A's countdown.
+      - On A, cancel the booking in progress or back out of the flow to the search screen.
+      - Reload the screen on B every twenty seconds.
+      - Note how long the item takes to become free on B.
+      - If you ended A by force-quit and not by backing out, record that with the result.
+    watch: Whether the item becomes free soon after A leaves, or only when the countdown would have ended.
+    outcomes:
+      - label: The item is free on B within a few seconds
+        reading: "Leaving the flow sends an explicit release. The deadline is the fallback for clients that vanish."
+        confidence: Inferred
+        fills: { c45-hold-release: released at once }
+      - label: The item is free on B only at about the time the countdown would have ended
+        reading: "The hold ends by its deadline only. The client does not release it, or the release did not arrive."
+        confidence: Inferred
+        fills: { c45-hold-release: released at the deadline }
+      - label: The item is still taken well after the countdown would have ended
+        reading: "Holds are cleared by a periodic job and not at their deadline, or the item was taken by someone else in the meantime. Repeat once before recording it."
+        confidence: Speculative
+        fills: { c45-hold-release: released late }
+
+  - id: P45.4
+    name: Booking flow in airplane mode
+    do:
+      - Online, run a search and open one result, so that both screens have been visited.
+      - Go back to the search screen.
+      - Turn on airplane mode.
+      - Note whether the result list is still shown, and whether it is marked as possibly out of date.
+      - Open the result again and try to select a seat, room or slot.
+    watch: How far the flow goes without a network, and at which step it refuses.
+    outcomes:
+      - label: Results stay visible, and selection is refused
+        reading: "Search results are kept for reading. Taking inventory is Level 0, since only the backend can grant a hold."
+        confidence: Inferred
+        fills: { c45-offline-booking: cached results and no selection }
+      - label: The result list is replaced by an error as soon as you return to it
+        reading: "The whole booking flow is Level 0. The app would sooner show nothing than availability it cannot vouch for."
+        confidence: Inferred
+        fills: { c45-offline-booking: nothing without a network }
+      - label: A selection is accepted offline and marked as pending
+        reading: "The client queues a request for inventory. This promises something the backend may refuse, and is rare for scarce inventory."
+        confidence: Observed
+        fills: { c45-offline-booking: selection queued }
+
+  - id: P45.5
+    name: Old search results
+    caution: This probe opens the summary before payment and may start a hold. Do not pay, and leave the flow when you are done.
+    do:
+      - Run a search for a date and an offering with a price that is known to move, such as travel a few weeks ahead.
+      - Note the price of one result. Leave the result list on screen and do not refresh it.
+      - Return after thirty minutes with the app still on that list.
+      - Select the result you noted and advance to the summary before payment.
+      - Compare the price with your note, then leave the flow.
+    watch: Whether the app lets you continue from the old list, and whether the summary price matches the price you noted.
+    outcomes:
+      - label: The app says the results are out of date and searches again
+        reading: "Search results carry a time limit. The client or the backend refuses to start a booking from an old price."
+        confidence: Inferred
+        fills: { c45-price-change: results expire and reload }
+      - label: The summary shows a different price with a notice
+        reading: "The price is confirmed against the inventory source when the item is selected, and a change is announced."
+        confidence: Inferred
+        fills: { c45-price-change: rechecked with a notice }
+      - label: The summary shows a different price with no notice
+        reading: "The price is confirmed at selection, and the client does not compare it with what the list showed."
+        confidence: Inferred
+        fills: { c45-price-change: rechecked silently }
+      - label: The summary shows the same price
+        reading: "The price did not move in thirty minutes, or the search price was honored. The probe cannot tell which. Repeat it with a longer wait."
+        confidence: Speculative
+        fills: { c45-price-change: no change seen }
+
+  - id: P45.6
+    name: Ticket in airplane mode
+    caution: Use a booking you already hold for your own reasons. Do not make a booking for this probe. If you have none, skip P45.6 to P45.8.
+    do:
+      - Sign in on a device where you have never opened this booking's ticket. A second device is best.
+      - Open the list of bookings so that it loads, and do not open the booking itself.
+      - Turn on airplane mode and force-quit the app.
+      - Open the app, open the booking, and open its ticket or code.
+      - Turn the network back on, open the ticket once, and repeat the offline steps.
+    watch: Whether the ticket and its scannable code appear offline before you have ever opened it on this device, and after.
+    outcomes:
+      - label: The ticket and its code appear offline before it was ever opened here
+        reading: "Tickets are synced to the local store ahead of need, when the booking list loads or when a push hint arrives."
+        confidence: Inferred
+        fills: { c45-ticket-offline: stored ahead of need }
+      - label: The ticket appears offline only after it has been opened once online
+        reading: "The ticket is cached by the visit. A traveler who never opened it has nothing at the gate."
+        confidence: Inferred
+        fills: { c45-ticket-offline: cached after a visit }
+      - label: The booking details appear offline, and the code does not
+        reading: "The code is issued by the backend on each view, or is deliberately not stored. Look for a pass in the device wallet as the offline route."
+        confidence: Inferred
+        fills: { c45-ticket-offline: details only }
+      - label: Nothing about the booking appears offline
+        reading: "Bookings are fetched on every visit and not stored. The offline artifact, if any, is an email or a document outside the app."
+        confidence: Inferred
+        fills: { c45-ticket-offline: not available }
+
+  - id: P45.7
+    name: Code over time
+    caution: Use a booking you already hold. Do not post or share a picture of the code.
+    do:
+      - Open the ticket's scannable code online and watch it for three minutes.
+      - Note whether the pattern changes, and whether a timer or an animation accompanies it.
+      - Turn on airplane mode and watch for another three minutes.
+      - Note whether the code is still shown, and whether it still changes.
+      - Take a screenshot if the app allows it, and note whether it is refused or comes out blank.
+    watch: Whether the code is fixed or changes, and whether a changing code keeps changing without a network.
+    outcomes:
+      - label: The code never changes
+        reading: "A static code. It names the booking, and the scanner checks it against a list or against the backend."
+        confidence: Inferred
+        fills: { c45-ticket-code: static code }
+      - label: The code changes online and keeps changing offline
+        reading: "A rotating code derived on the device from a stored secret and the time. A screenshot stops working after a short while."
+        confidence: Inferred
+        fills: { c45-ticket-code: rotating code derived on the device }
+      - label: The code changes online and freezes or disappears offline
+        reading: "A rotating code that the backend issues. The ticket needs a network near the time of entry."
+        confidence: Inferred
+        fills: { c45-ticket-code: rotating code from the backend }
+      - label: The app shows no code and points to a pass, a document or a desk
+        reading: "The ticket artifact lives outside the app, in the device wallet, in a document or with the venue."
+        confidence: Observed
+        fills: { c45-ticket-code: no code in the app }
+
+  - id: P45.8
+    name: Booking on a second device
+    caution: Use a booking you already hold. Change nothing about the booking itself.
+    do:
+      - Sign in to your account on a second device.
+      - Open the list of bookings and note whether the booking is there without any action.
+      - If the booking was made as a guest or on a website, look for a way to add it by its reference.
+      - If the app offers a note, a seat preference or a saved traveler that costs nothing to change, change one on the first device.
+      - Watch the second device for the change without touching it, then reopen the booking there.
+    watch: Whether the booking follows the account, and how a change made on one device reaches the other.
+    outcomes:
+      - label: The booking is there after sign-in, and the change arrives while you watch
+        reading: "Bookings are stored against the account, and changes are delivered to the user's open devices."
+        confidence: Inferred
+        fills: { c45-itinerary-sync: on sign-in with live changes }
+      - label: The booking is there after sign-in, and the change arrives on reopening
+        reading: "Bookings are stored against the account and fetched on appear."
+        confidence: Inferred
+        fills: { c45-itinerary-sync: on sign-in with fetch on appear }
+      - label: The booking appears only after you enter its reference
+        reading: "The booking belongs to a reference and a name, not to the account. The app attaches it on request."
+        confidence: Inferred
+        fills: { c45-itinerary-sync: by booking reference }
+      - label: The booking cannot be brought to the second device
+        reading: "The booking is stored on the device that made it, or is tied to a guest session."
+        confidence: Inferred
+        fills: { c45-itinerary-sync: not carried }
+
+signals:
+  - { signal: A countdown appears as soon as a seat or slot is selected, design: A hold with a deadline granted by the backend at selection, confidence: Inferred }
+  - { signal: The countdown shows the right remaining time after a force-quit and on a second device, design: The countdown is drawn from a backend deadline and not from a timer in memory, confidence: Inferred }
+  - { signal: A seat turns gray on an open seat map while someone else is choosing, design: Availability changes delivered to open screens over a held connection or a fast poll, confidence: Inferred }
+  - { signal: "A seat shown as free is refused when tapped, with a message that it was just taken", design: A conditional write on the backend guards each item and the availability shown is a lagging copy, confidence: Inferred }
+  - { signal: A held item becomes free again seconds after the other buyer backs out, design: The client sends an explicit release and the deadline is only the fallback, confidence: Inferred }
+  - { signal: The search screen says results are out of date and reloads them, design: Search results carry a time limit and booking never starts from an expired price, confidence: Inferred }
+  - { signal: The price on the summary differs from the price in the result list, design: Search reads a cached price and selection confirms it against the inventory source, confidence: Inferred }
+  - { signal: Selecting or paying is refused in airplane mode while past bookings still open, design: Booking is Level 0 and the ticket is stored on the device, confidence: Inferred }
+  - { signal: "Before a popular sale opens the app shows a position in line or an estimated wait", design: A waiting room that admits buyers to the booking flow at a controlled rate, confidence: Inferred }
+  - { signal: The place in line is kept after the app is closed and reopened, design: The queue position is stored on the backend against the account or a queue token, confidence: Inferred }
+  - { signal: After paying the screen says the booking is being confirmed and then changes by itself, design: The backend waits for the provider callback and then converts the hold, confidence: Inferred }
+  - { signal: "A message says the payment arrived too late and will be returned", design: The hold ended before the provider callback and the backend refunds instead of confirming, confidence: Inferred }
+  - { signal: A ticket never opened on this device shows its code in airplane mode, design: Tickets are synced to the local store ahead of need, confidence: Inferred }
+  - { signal: The code on the ticket changes every few seconds and keeps changing offline, design: A rotating code derived on the device from a stored secret and the time, confidence: Inferred }
+  - { signal: A pass in the device wallet shows a new time or gate without the app being opened, design: The backend pushes pass updates through the wallet's own update channel, confidence: Inferred }
+  - { signal: A notification announces a change and the booking already shows it offline, design: A push hint woke the client and it pulled the booking into its local store, confidence: Inferred }
+  - { signal: A booking made on the web appears in the app after sign-in with no action, design: Bookings are stored against the account on the backend, confidence: Inferred }
+  - { signal: "The app says a few are left at this price", design: "A count from the inventory source or a selling message. The two cannot be told apart from outside", confidence: Speculative }
+
+worksheet:
+  - { id: c45-variant, label: What is booked, options: [travel, event with reserved seating, restaurant table, appointment, mixed] }
+  - { id: c45-inventory, label: Inventory form, options: [named items, counted capacity, time slots, mixed] }
+  - { id: c45-hold, label: Hold before payment, options: [hold with a visible countdown, hold without a countdown, no hold shown] }
+  - { id: c45-hold-start, label: When inventory is taken, options: [on selection, at a later step, unknown] }
+  - { id: c45-hold-clock, label: Countdown after a force-quit, options: [backend deadline, device timer or new hold, lost with the flow, no countdown] }
+  - { id: c45-hold-release, label: Hold after leaving the flow, options: [released at once, released at the deadline, released late, not tested] }
+  - { id: c45-availability, label: Availability on another device, options: [live on the open screen, fresh on reload, cached and lagging, not reduced by a selection] }
+  - { id: c45-offline-booking, label: Booking flow offline, options: [cached results and no selection, nothing without a network, selection queued] }
+  - { id: c45-price-change, label: Price between search and summary, options: [results expire and reload, rechecked with a notice, rechecked silently, no change seen] }
+  - { id: c45-queue, label: Waiting room, options: [seen with a position, seen without a position, not seen] }
+  - { id: c45-ticket-offline, label: Ticket offline, options: [stored ahead of need, cached after a visit, details only, not available, not tested] }
+  - { id: c45-ticket-code, label: Ticket code, options: [static code, rotating code derived on the device, rotating code from the backend, no code in the app, not tested] }
+  - { id: c45-itinerary-sync, label: Booking on a second device, options: [on sign-in with live changes, on sign-in with fetch on appear, by booking reference, not carried, not tested] }
+  - { id: c45-notes, label: "Changes, cancellations and open questions" }

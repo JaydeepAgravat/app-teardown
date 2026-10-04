@@ -1,0 +1,88 @@
+---
+import { loadProbe } from '../lib/data.mjs';
+
+interface Props {
+  id: string;
+}
+
+const { id } = Astro.props;
+const probe = loadProbe(id);
+---
+
+<div class="probe not-content" data-probe={id}>
+  <div class="probe-row">
+    <span class="probe-label">Do</span>
+    <ol>{probe.do.map((step: string) => <li>{step}</li>)}</ol>
+  </div>
+  <div class="probe-row">
+    <span class="probe-label">Watch</span>
+    <p>{probe.watch}</p>
+  </div>
+  {
+    probe.caution && (
+      <p class="probe-caution">
+        <strong>Caution.</strong> {probe.caution}
+      </p>
+    )
+  }
+  <div class="probe-row">
+    <span class="probe-label">Read</span>
+    <div class="probe-outcomes" role="group" aria-label={`What you saw in ${id}`}>
+      {
+        probe.outcomes.map((outcome: any, index: number) => (
+          <button
+            type="button"
+            class="outcome"
+            aria-pressed="false"
+            data-index={index}
+            data-fills={JSON.stringify(outcome.fills ?? {})}
+          >
+            <span class="outcome-label">{outcome.label}</span>
+            <span class="outcome-reading">
+              <span class={`conf conf-${outcome.confidence.toLowerCase()}`}>{outcome.confidence}</span>
+              {outcome.reading}
+            </span>
+          </button>
+        ))
+      }
+    </div>
+    <p class="probe-hint">Select what you saw to record it in your worksheet. Select it again to clear it.</p>
+  </div>
+</div>
+
+<script>
+  import { current, save, CHANGE_EVENT } from '../lib/store';
+
+  const probes = document.querySelectorAll<HTMLElement>('.probe[data-probe]');
+
+  const paint = () => {
+    const app = current();
+    probes.forEach((el) => {
+      const chosen = app.probes[el.dataset.probe!];
+      el.classList.toggle('answered', chosen !== undefined);
+      el.querySelectorAll<HTMLButtonElement>('.outcome').forEach((button) => {
+        button.setAttribute('aria-pressed', String(Number(button.dataset.index) === chosen));
+      });
+    });
+  };
+
+  probes.forEach((el) => {
+    el.addEventListener('click', (event) => {
+      const button = (event.target as HTMLElement).closest<HTMLButtonElement>('.outcome');
+      if (!button) return;
+      const app = current();
+      const id = el.dataset.probe!;
+      const index = Number(button.dataset.index);
+      if (app.probes[id] === index) {
+        delete app.probes[id];
+      } else {
+        app.probes[id] = index;
+        Object.assign(app.fields, JSON.parse(button.dataset.fills || '{}'));
+      }
+      save();
+    });
+  });
+
+  window.addEventListener(CHANGE_EVENT, paint);
+  paint();
+</script>

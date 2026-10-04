@@ -1,0 +1,88 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { getCollection } from 'astro:content';
+import { loadOutline } from '../lib/data.mjs';
+
+const outline = loadOutline();
+const docs = await getCollection('docs');
+
+// A chapter is written once a file "<dir>/<number>-<slug>" exists in the docs collection.
+const linkFor = (dir: string, n: number) => {
+  const doc = docs.find((d) => d.id.startsWith(`${dir}/${n}-`));
+  return doc ? `/${doc.id}/` : null;
+};
+
+const total = outline.parts.flatMap((p: any) => p.sections.flatMap((s: any) => s.chapters)).length;
+const written = outline.parts.flatMap((p: any) =>
+  p.sections.flatMap((s: any) => s.chapters.filter((c: any) => linkFor(p.dir, c.n)))
+).length;
+---
+
+<StarlightPage
+  frontmatter={{
+    title: 'Contents',
+    description: 'Every chapter of the handbook and the question it answers.',
+    tableOfContents: false,
+  }}
+>
+  <p>
+    {total} chapters in three parts. {written} written so far. You have read <strong data-read-count>0</strong> of them.
+  </p>
+
+  {
+    outline.parts.map((part: any) => (
+      <>
+        <h2>{part.title}</h2>
+        {part.note && <p>{part.note}</p>}
+        {part.sections.map((section: any) => (
+          <>
+            {section.title && <h3>{section.title}</h3>}
+            <table class="contents">
+              <tbody>
+                {section.chapters.map((chapter: any) => {
+                  const link = linkFor(part.dir, chapter.n);
+                  return (
+                    <tr class={link ? 'written' : 'planned'}>
+                      <td class="num">{chapter.n}</td>
+                      <td>
+                        {link ? (
+                          <a href={link} data-chapter-link>
+                            {chapter.title}
+                          </a>
+                        ) : (
+                          <span>{chapter.title}</span>
+                        )}
+                        <br />
+                        <small>{chapter.question}</small>
+                      </td>
+                      <td class="status">{link ? 'Written' : 'Planned'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </>
+        ))}
+      </>
+    ))
+  }
+
+  <h2>Appendices</h2>
+  <table class="contents">
+    <tbody>
+      {
+        outline.appendices.map((appendix: any) => (
+          <tr class={appendix.link ? 'written' : 'planned'}>
+            <td class="num">{appendix.id}</td>
+            <td>
+              {appendix.link ? <a href={appendix.link}>{appendix.title}</a> : <span>{appendix.title}</span>}
+              <br />
+              <small>{appendix.contents}</small>
+            </td>
+            <td class="status">{appendix.link ? 'Live' : 'Planned'}</td>
+          </tr>
+        ))
+      }
+    </tbody>
+  </table>
+</StarlightPage>

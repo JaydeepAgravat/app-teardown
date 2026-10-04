@@ -1,0 +1,226 @@
+chapter: 47
+title: Maps and navigation
+link: /part-3-archetypes/47-maps-and-navigation/
+
+probes:
+  - id: P47.1
+    name: Visited and unvisited areas offline
+    do:
+      - With a network, look closely at one neighborhood. Pan around it and zoom in to street level.
+      - Choose a city far away that you have never opened in this app. Do not open it.
+      - Force-quit the app and turn on airplane mode.
+      - Open the app and look at the neighborhood again, at the same zoom and one step closer.
+      - Pan to the far city and zoom in as far as the map allows.
+    watch: How much detail each area shows offline, and where the detail stops.
+    outcomes:
+      - label: The neighborhood is detailed and the far city is blank or a blurred enlargement
+        reading: "Tiles are kept in a disk cache that is filled by viewing. Nothing is on the device for a place you have not looked at."
+        confidence: Inferred
+        fills: { c47-tile-cache: visited areas only }
+      - label: The neighborhood is detailed and the far city shows a coarse map with main roads and names
+        reading: "A disk cache filled by viewing, over a low-detail base map of the whole world that ships with the app or is fetched once."
+        confidence: Inferred
+        fills: { c47-tile-cache: visited areas over a coarse base map }
+      - label: Both areas are blank
+        reading: "Tiles are kept in memory only, or the disk cache is refused when the app cannot check that it is current. Rare for this archetype."
+        confidence: Inferred
+        fills: { c47-tile-cache: nothing kept }
+
+  - id: P47.2
+    name: Rotate and zoom
+    do:
+      - Open the default map style on a street-level view with many labels.
+      - Rotate the map slowly with two fingers through a full turn. Watch the street names and place labels.
+      - Zoom in slowly and continuously from city level to street level. Watch the edges of roads and the text.
+      - Tilt the map if the app allows it.
+      - Repeat on an aerial imagery layer, if the app has one.
+    watch: Whether labels stay upright while the map turns, and whether lines and text stay sharp at every moment of a zoom.
+    outcomes:
+      - label: Labels stay upright, lines stay sharp at every moment, and the map tilts
+        reading: "The device draws the map from data. Tiles carry shapes and names, and a renderer on the device turns them into pixels for the current angle and zoom."
+        confidence: Inferred
+        fills: { c47-rendering: drawn on device from data }
+      - label: Labels turn with the map, and the picture blurs during a zoom and then snaps sharp
+        reading: "Tiles are delivered as images. Text is part of the picture, and each zoom level is a separate set of pictures."
+        confidence: Inferred
+        fills: { c47-rendering: delivered as images }
+      - label: The default style behaves the first way and another layer behaves the second way
+        reading: "A renderer that draws data tiles, with image tiles for layers that are pictures by nature, such as aerial imagery."
+        confidence: Inferred
+        fills: { c47-rendering: mixed }
+
+  - id: P47.3
+    name: Download a region
+    caution: This probe downloads a large file and uses storage. Run it on an unmetered connection, and choose a small region.
+    do:
+      - Find the control for downloading an area for offline use. If there is none, record that and stop.
+      - Note the size the app states before the download, and whether it asks about metered networks.
+      - Download a small region that you have not looked at closely before.
+      - Turn on airplane mode. Pan and zoom inside the region to street level.
+      - Still offline, ask for a route between two addresses inside the region. Do this while standing still.
+    watch: Whether the map is detailed everywhere in the region, and whether a route can be computed with no network.
+    outcomes:
+      - label: The map is detailed and a route is computed offline
+        reading: "The region package holds map data and a road graph, and the app has a router on the device."
+        confidence: Inferred
+        fills: { c47-offline-region: map and routes }
+      - label: The map is detailed and the route request fails or waits for a network
+        reading: "The region package holds tiles only. Routes are computed on the backend."
+        confidence: Inferred
+        fills: { c47-offline-region: map only }
+      - label: The app offers no download of an area
+        reading: "Offline use rests on the tile cache alone. The product does not promise a map without a network."
+        confidence: Observed
+        fills: { c47-offline-region: no downloads offered }
+
+  - id: P47.4
+    name: Leave the route offline
+    caution: Run this on foot, or as a passenger with someone else driving. Never operate the phone while you are driving.
+    do:
+      - With a network, start walking directions to a place ten minutes away. Do not download the area first.
+      - Walk the first hundred meters on the route.
+      - Stop walking, turn on airplane mode, and put the phone where you can hear and glance at it.
+      - Leave the route on purpose by taking a different street, and keep going for two minutes.
+      - Stop, look at the screen, then turn airplane mode off and watch what changes.
+    watch: Whether a new route appears while offline, what the app says, and what happens when the network returns.
+    outcomes:
+      - label: A new route appears offline within seconds
+        reading: "A router on the device, with road data for the area already held. If you had no download, the road data arrived with the route or with the tiles around it."
+        confidence: Inferred
+        fills: { c47-reroute: on the device }
+      - label: The old route stays, your marker leaves it, and a new route appears when the network returns
+        reading: "Routes are computed on the backend. The client holds one route as a line with instructions and can only follow it."
+        confidence: Inferred
+        fills: { c47-reroute: waits for the network }
+      - label: Guidance ends or shows an error as soon as you leave the route
+        reading: "Backend routing with no offline handling. The client treats a failed reroute as the end of the session."
+        confidence: Inferred
+        fills: { c47-reroute: guidance stops }
+
+  - id: P47.5
+    name: Navigation with the screen locked
+    caution: Run this on foot, or as a passenger with someone else driving. Never operate the phone while you are driving.
+    do:
+      - Start walking directions with spoken prompts turned on.
+      - Lock the device and walk through at least two turns.
+      - Without unlocking, look at the lock screen.
+      - Unlock, go to the home screen without opening the app, and look for an indicator or a banner.
+      - Open the app and compare its position on the route with where you are.
+    watch: Whether prompts are spoken on time while locked, what the system shows outside the app, and whether the app's position is current when it returns.
+    outcomes:
+      - label: Prompts continue, and the lock screen or status area shows the next turn or a navigation indicator
+        reading: "Navigation runs as user-visible work, with continuous location in the background and a system display that the app feeds."
+        confidence: Observed
+        fills: { c47-bg-nav: continues with a system display }
+      - label: Prompts continue, and nothing but an audio or location marker is shown outside the app
+        reading: "User-visible work declared for location or audio, without a live status or a rich notification."
+        confidence: Observed
+        fills: { c47-bg-nav: continues with audio only }
+      - label: Prompts stop within about a minute of locking
+        reading: "Guidance belongs to the screen. The app does not keep location or audio running in the background."
+        confidence: Observed
+        fills: { c47-bg-nav: stops }
+
+  - id: P47.6
+    name: Traffic layer offline
+    do:
+      - Turn on the traffic layer and look at a busy area at a busy hour. Note which roads are colored.
+      - Note any incident markers and any time shown beside them.
+      - Turn on airplane mode and keep the same view open for fifteen minutes.
+      - Pan away and back, then look at the traffic colors again.
+    watch: Whether the traffic colors and incidents stay, fade or disappear with no network, and whether the app says how old they are.
+    outcomes:
+      - label: The colors disappear or turn gray within minutes, or carry a notice of their age
+        reading: "Traffic is delivered apart from the base map, with a short time limit that the client enforces. Old traffic is treated as worse than none."
+        confidence: Inferred
+        fills: { c47-traffic-offline: removed or marked old }
+      - label: The colors stay exactly as they were, with no notice
+        reading: "Traffic is cached like any tile and shown past its useful life. A time limit may exist that is longer than this probe."
+        confidence: Inferred
+        fills: { c47-traffic-offline: shown unchanged }
+      - label: The app has no traffic layer
+        reading: "The product has no live road data. Typical of an outdoor map."
+        confidence: Observed
+        fills: { c47-traffic-offline: no traffic layer }
+
+  - id: P47.7
+    name: Place search offline
+    do:
+      - With a network, search for one business and open its detail screen. Then go back.
+      - Choose a street address you have never searched for, inside an area you have downloaded or looked at closely.
+      - Choose a kind of place, such as a pharmacy.
+      - Turn on airplane mode.
+      - Search for the business you opened, then the street address, then the kind of place.
+    watch: Which of the three searches return results offline, and what detail the results carry.
+    outcomes:
+      - label: The street address and the kind of place are found offline
+        reading: "An on-device index of streets and places, held in the downloaded region or built from the map data."
+        confidence: Inferred
+        fills: { c47-search-offline: addresses and places on the device }
+      - label: Only the business you opened earlier, or a recent search, is found
+        reading: "A local filter over history and saved places. Place search itself is backend search."
+        confidence: Inferred
+        fills: { c47-search-offline: saved and recent only }
+      - label: Nothing is found, or search shows an error
+        reading: "Backend search only. Nothing searchable is kept on the device."
+        confidence: Inferred
+        fills: { c47-search-offline: none }
+
+  - id: P47.8
+    name: Storage and its controls
+    do:
+      - Open the device's storage settings and note the app's size and the size of its data.
+      - Inside the app, look for a screen that lists downloaded areas, and for a clear-cache control.
+      - For each downloaded area, note its size and any date, such as an expiry or a last update.
+      - Look for settings about updating downloads, about metered networks, and about where downloads are stored.
+      - Look again after one week of normal use, and after one month if you can.
+    watch: Whether downloads and cache are shown apart, whether downloads expire or update by themselves, and whether the cache figure levels off.
+    outcomes:
+      - label: Downloaded areas are listed with sizes, and they expire or update by themselves
+        reading: "Downloads are permanent data that the app manages on a schedule. The backend publishes versions of each region, and the client replaces old ones."
+        confidence: Inferred
+        fills: { c47-storage: regions with expiry or automatic update }
+      - label: Downloaded areas are listed with sizes, and change only when you update or delete them
+        reading: "Downloads are permanent data that the user manages. The app does not spend data or battery to keep them current."
+        confidence: Inferred
+        fills: { c47-storage: regions managed by hand }
+      - label: There is no list of areas, and at most a clear-cache control
+        reading: "Everything on the device is cache. The app, or the operating system under storage pressure, decides what to keep."
+        confidence: Inferred
+        fills: { c47-storage: cache only }
+
+signals:
+  - { signal: "Street names stay upright while the map rotates, and the map tilts", design: The device draws the map from data tiles, confidence: Inferred }
+  - { signal: The map blurs during a zoom and then snaps sharp, design: Image tiles with one set of pictures for each zoom level, confidence: Inferred }
+  - { signal: The map language or style changes at once with no reload of the picture, design: Data tiles with the style applied on the device, confidence: Inferred }
+  - { signal: A neighborhood you looked at last week is detailed in airplane mode, design: A disk cache of tiles filled by viewing, confidence: Inferred }
+  - { signal: The area along a route is detailed offline although you never panned over it, design: Prefetching of the tiles along the route when the route is computed, confidence: Inferred }
+  - { signal: The download screen states a size before you confirm and warns about metered networks, design: Region packages built on the backend and fetched as a resumable transfer, confidence: Inferred }
+  - { signal: A downloaded area shows an expiry date or updates itself overnight, design: Versioned region packages replaced by a deferred task, confidence: Inferred }
+  - { signal: A route is computed in airplane mode inside a downloaded area, design: A road graph in the region package and a router on the device, confidence: Inferred }
+  - { signal: An offline route shows no traffic and a different arrival time from the online route, design: "On-device routing without live data, and backend routing with it", confidence: Inferred }
+  - { signal: "After you leave the route offline, the app keeps the old line until the network returns", design: Backend routing with the route held on the client as a fixed line, confidence: Inferred }
+  - { signal: "During navigation the app offers a faster route, or changes the arrival time, with no action from you", design: Traffic and incidents reach an active route by real-time delivery and the backend recomputes, confidence: Inferred }
+  - { signal: Traffic colors disappear or turn gray after some minutes offline, design: Traffic delivered as a separate layer with a short time limit, confidence: Inferred }
+  - { signal: The location indicator stays on with a persistent marker while directions run and the screen is locked, design: Continuous location in the background as user-visible work, confidence: Observed }
+  - { signal: "The position marker keeps moving at a steady speed through a tunnel", design: The client predicts position along the route when readings stop, confidence: Inferred }
+  - { signal: Spoken prompts include street names on a route computed offline, design: Speech produced on the device from instruction text, confidence: Inferred }
+  - { signal: The spoken voice becomes plainer or loses street names offline, design: Speech fetched from the backend with a simpler voice on the device as the fallback, confidence: Speculative }
+  - { signal: The next turn keeps updating on the lock screen and stops after a force-quit, design: A live status updated by the app while it runs, confidence: Inferred }
+  - { signal: Storage used grows by the stated size of each download and otherwise levels off, design: Permanent region packages beside a bounded tile cache, confidence: Inferred }
+
+worksheet:
+  - { id: c47-variant, label: Variant, options: [general map, driving navigation, outdoor map, mixed] }
+  - { id: c47-rendering, label: How the map is drawn, options: [drawn on device from data, delivered as images, mixed] }
+  - { id: c47-tile-cache, label: Tiles available offline without a download, options: [visited areas only, visited areas over a coarse base map, nothing kept] }
+  - { id: c47-offline-region, label: Downloaded region contents, options: [map and routes, map only, no downloads offered] }
+  - { id: c47-reroute, label: Rerouting with no network, options: [on the device, waits for the network, guidance stops] }
+  - { id: c47-bg-nav, label: Navigation with the screen locked, options: [continues with a system display, continues with audio only, stops] }
+  - { id: c47-traffic-offline, label: Traffic layer with no network, options: [removed or marked old, shown unchanged, no traffic layer] }
+  - { id: c47-search-offline, label: Place search with no network, options: [addresses and places on the device, saved and recent only, none] }
+  - { id: c47-storage, label: Storage management, options: [regions with expiry or automatic update, regions managed by hand, cache only] }
+  - { id: c47-sizes, label: "Sizes: app, one downloaded region, cache after a week" }
+  - { id: c47-voice, label: Spoken prompts offline }
+  - { id: c47-surfaces, label: "Surfaces: lock screen, watch, car display, widget" }
+  - { id: c47-battery, label: Battery share after an hour of navigation }
+  - { id: c47-notes, label: Notes and open questions }

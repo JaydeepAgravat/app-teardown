@@ -1,0 +1,98 @@
+# The locked chapter list. Chapter numbers are fixed.
+# A chapter shows as written on the site once a file named "<number>-<slug>.mdx"
+# exists in the matching folder under src/content/docs.
+
+parts:
+  - title: Part I. The teardown method
+    dir: part-1-method
+    sections:
+      - chapters:
+          - { n: 1, title: Reading apps from the outside, question: "Why does visible behavior reveal design, and where does that stop working?" }
+          - { n: 2, title: The mobile constraint set, question: "Which forces shape every mobile app, whatever it does?" }
+          - { n: 3, title: The universal app model, question: "What are the parts of any app and its backend, and which ones does this app have?" }
+          - { n: 4, title: Probes, question: "Which experiments can a user run, and what does each one expose?" }
+          - { n: 5, title: From signal to inference, question: "How do you turn an observation into a design claim, and how sure can you be?" }
+          - { n: 6, title: The teardown worksheet, question: "What does a finished teardown look like, and in what order do you fill it in?" }
+
+  - title: Part II. Concerns
+    dir: part-2-concerns
+    sections:
+      - title: The client core
+        chapters:
+          - { n: 7, title: Launch and startup, question: "What happens between the tap on the icon and the first useful screen?" }
+          - { n: 8, title: "Navigation, deep links and screen state", question: "How does the app know where you are, how do links reach a screen, and what survives when the app is killed?" }
+          - { n: 9, title: State and UI data flow, question: "Where does each piece of on-screen data live, and what makes the screen update?" }
+      - title: Data
+        chapters:
+          - { n: 10, title: API shape, question: "How was the interface between client and backend cut, and who decides what a screen receives?" }
+          - { n: 11, title: "Local storage, caching and prefetching", question: "What does the app keep on the device, what does it fetch before you ask, and when does it throw data away?" }
+          - { n: 12, title: Offline and sync, question: "What keeps working without a network, and how do the copies of data converge afterwards?" }
+          - { n: 13, title: Network transport and resilience, question: "How does the app behave on a slow, lossy or failing network, and how does it prioritize its requests?" }
+          - { n: 14, title: Real-time delivery, question: "How does new information reach the app without the user asking for it?" }
+          - { n: 15, title: "Lists, feeds and pagination", question: "How does a long or endless list get loaded, ordered and kept fresh?" }
+      - title: Media
+        chapters:
+          - { n: 16, title: Images, question: "How are images sized, fetched, decoded, cached and displayed?" }
+          - { n: 17, title: Audio and video playback, question: "How does playback start fast, adapt to the network and continue in the background?" }
+          - { n: 18, title: "File transfer: uploads and downloads", question: "How do large transfers survive interruptions, and who decides when they run?" }
+          - { n: 19, title: Live calls and live streaming, question: "How do audio and video move between people in real time?" }
+      - title: Trust
+        chapters:
+          - { n: 20, title: Identity and sessions, question: "How does the app know who you are, and how long does it keep believing it?" }
+          - { n: 21, title: Security and trust, question: "What does the backend refuse to trust the client with, and how is the rest protected?" }
+          - { n: 22, title: "Privacy, permissions and consent", question: "What does the app ask to access, when does it ask, and what does it do when refused?" }
+      - title: The device
+        chapters:
+          - { n: 23, title: Background work and notifications, question: "What does the app do when it is not on screen, and what wakes it up?" }
+          - { n: 24, title: "Location, sensors and hardware", question: "How does the app use the device's hardware, and what does that cost?" }
+          - { n: 25, title: "Platform surfaces: widgets, wearables and extensions", question: "Where does the app appear outside its own window, and how do those pieces share data?" }
+      - title: The business
+        chapters:
+          - { n: 26, title: Payments and subscriptions, question: "How does money move, and which party is responsible for each step?" }
+          - { n: 27, title: "Ads, attribution and growth", question: "How does the app earn from attention, and how does it know where its users came from?" }
+          - { n: 28, title: Search and discovery, question: "How does the app find things for you, and where is that work done?" }
+          - { n: 29, title: Personalization and on-device intelligence, question: "What does the app learn about you, and does the model run on the device or on the backend?" }
+      - title: Change over time
+        chapters:
+          - { n: 30, title: Remote config and experiments, question: "How does the app change its behavior without a new release?" }
+          - { n: 31, title: Server-driven UI, question: "How much of the screen does the backend decide, and how can you tell?" }
+          - { n: 32, title: "UI technology: native, cross-platform and web", question: "How is each screen drawn, and what does that say about how the app is built?" }
+          - { n: 33, title: Releases and compatibility, question: "How do old versions keep working, and how are they retired?" }
+      - title: Quality
+        chapters:
+          - { n: 34, title: Observability, question: "How does the team know what the app is doing on your device?" }
+          - { n: 35, title: Performance and resource budgets, question: "How does the app spend time, battery, memory, data and storage?" }
+          - { n: 36, title: Constrained devices and networks, question: "How does the app change for cheap phones and poor networks?" }
+          - { n: 37, title: Accessibility and global reach, question: "How does the app adapt to different users, languages, regions and devices?" }
+          - { n: 38, title: "Modularity, SDKs and team scale", question: "What does the app's shape tell you about the code and the organization behind it?" }
+
+  - title: Part III. Archetypes
+    dir: part-3-archetypes
+    note: Each archetype chapter is a complete worked teardown, and ends with a section on the archetype as an interview question.
+    sections:
+      - chapters:
+          - { n: 39, title: Messaging, question: "Sync, real-time delivery, media, security" }
+          - { n: 40, title: Social feed and stories, question: "Feeds, images, personalization, caching" }
+          - { n: 41, title: Video and short-video streaming, question: "Playback, feeds, prefetching, performance" }
+          - { n: 42, title: Audio streaming and podcasts, question: "Playback, background work, downloads" }
+          - { n: 43, title: Marketplace and e-commerce, question: "Search, payments, lists, server-driven UI" }
+          - { n: 44, title: "On-demand services: rides and delivery", question: "Location, real-time delivery, payments, resilience" }
+          - { n: 45, title: Booking and reservations, question: "Inventory holds, payments, consistency, offline tickets" }
+          - { n: 46, title: "Banking, payments and fintech", question: "Security, sessions, compatibility, privacy" }
+          - { n: 47, title: Maps and navigation, question: "Location, offline data, performance" }
+          - { n: 48, title: "Notes, documents and collaboration", question: "Sync, real-time delivery, local storage" }
+          - { n: 49, title: Meetings and calling, question: "Live calls, background work, network resilience" }
+          - { n: 50, title: AI assistants, question: "Streaming responses, on-device intelligence, sessions" }
+          - { n: 51, title: "Health, fitness and connected devices", question: "Sensors, background work, sync, platform surfaces" }
+          - { n: 52, title: Games, question: "Performance, live operations, payments, ads" }
+          - { n: 53, title: Super-apps and mini-programs, question: "Modularity, server-driven UI, remote config" }
+          - { n: 54, title: Apps with no backend, question: "Local storage, hardware, performance" }
+          - { n: 55, title: The app that fits no archetype, question: "Applying the method from first principles" }
+
+appendices:
+  - { id: A, title: Probe catalog, contents: "Every probe in the handbook, with what to watch for and where it is explained", link: /probes/ }
+  - { id: B, title: Teardown worksheet, contents: "The fillable worksheet", link: /worksheet/ }
+  - { id: C, title: Signal index, contents: "Look up an observed behavior and find the designs that produce it", link: /lookup/ }
+  - { id: D, title: Glossary, contents: "Every term the book uses, with one meaning each", link: /glossary/ }
+  - { id: E, title: The method in a design interview, contents: "How to run the teardown method forwards under a time limit", link: /interview/ }
+  - { id: F, title: Further reading, contents: "Free and openly available sources, grouped by chapter", link: /further-reading/ }

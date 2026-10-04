@@ -1,0 +1,270 @@
+chapter: 19
+title: Live calls and live streaming
+link: /part-2-concerns/19-live-calls-and-live-streaming/
+
+probes:
+  - id: P19.1
+    name: Call delay, side by side
+    do:
+      - Use two devices with two accounts, your own or a helper's, in the same room.
+      - Start a video call between them.
+      - Mute the microphone and turn the speaker off on device A, so the two devices do not howl.
+      - Clap once in front of device A's camera, or count aloud with clear hand movements, while you watch device B.
+      - Repeat ten times. For a number, film both screens with a third device showing a stopwatch to A's camera, and compare the two readings in one frame.
+    watch: The time between your real movement and its appearance on device B.
+    outcomes:
+      - label: Barely noticeable, under about half a second
+        reading: "A media path with a deadline-oriented transport. Whether media goes directly or through a relay or media server cannot be told from this."
+        confidence: Inferred
+        fills: { c19-call-delay: under half a second }
+      - label: Clearly noticeable, about half a second to a second
+        reading: "A media path with a distant server, a mixing server, or a deep playout buffer on this network."
+        confidence: Speculative
+        fills: { c19-call-delay: half to one second }
+      - label: More than a second
+        reading: "Too slow for natural conversation. A badly constrained network, or media that is not on a call-style path. Repeat on a better network."
+        confidence: Speculative
+        fills: { c19-call-delay: over one second }
+
+  - id: P19.2
+    name: Echo
+    do:
+      - Ask a helper in another room or another place to join a voice call.
+      - Ask the helper to use the speaker at normal volume, not a headset.
+      - Speak in short phrases with pauses, and listen for your own voice coming back.
+      - Then both speak at the same time for a few seconds.
+    watch: Whether you hear yourself, and whether the helper's voice cuts out while you speak.
+    outcomes:
+      - label: No echo, and both can speak at once
+        reading: "Echo cancellation is working on the helper's device and allows both directions at once."
+        confidence: Observed
+        fills: { c19-echo: none }
+      - label: You hear your own voice a moment late
+        reading: "Echo cancellation on the helper's device is failing or absent. The delay of the echo is about twice the one-way delay."
+        confidence: Observed
+        fills: { c19-echo: echo heard }
+      - label: No echo, but the helper cuts out while you speak
+        reading: "A suppressor that silences the microphone while the speaker plays. Only one direction at a time."
+        confidence: Inferred
+        fills: { c19-echo: one side cuts out }
+
+  - id: P19.3
+    name: Degrade one side
+    do:
+      - Start a video call between two devices on good networks.
+      - Carry device A to a place with a weak connection, such as the edge of wireless range or a stairwell.
+      - Keep talking and moving in front of device A's camera.
+      - Watch and listen on device B.
+    watch: What happens to A's picture and A's voice on device B, and in which order.
+    outcomes:
+      - label: The picture gets softer or jerky and the voice stays clear
+        reading: "The media engine adapts its video to the network and protects audio."
+        confidence: Inferred
+        fills: { c19-adaptation: video degrades and audio holds }
+      - label: The picture freezes or is replaced by an avatar and the voice continues
+        reading: "Video was paused to keep audio alive. Look for a poor-connection label."
+        confidence: Observed
+        fills: { c19-adaptation: video stops and audio holds }
+      - label: Picture and voice break up together
+        reading: "No priority for audio was seen, or the network was too weak for audio alone."
+        confidence: Speculative
+        fills: { c19-adaptation: both degrade together }
+      - label: The call ends
+        reading: "The call did not survive the weak network. Note how long it tried and what it said."
+        confidence: Observed
+        fills: { c19-adaptation: call drops }
+
+  - id: P19.4
+    name: Network switch mid-call
+    caution: This probe turns wireless off for the whole device and uses mobile data for the rest of the call. Turn wireless back on when you finish.
+    do:
+      - Start a video call with device A on a wireless network and cellular data enabled.
+      - Turn wireless off in device A's settings so that it moves to cellular.
+      - Keep talking, and watch both devices.
+      - Count the seconds until sound and picture are normal again.
+    watch: Whether the call freezes, shows a reconnecting label, or ends.
+    outcomes:
+      - label: No interruption you can notice
+        reading: "The media path moved to the new network almost at once. The mechanism cannot be identified from outside."
+        confidence: Speculative
+        fills: { c19-switch: seamless }
+      - label: A freeze or silence of a few seconds, then the call continues
+        reading: "The clients agreed on a new route through signaling while the backend held the call open."
+        confidence: Inferred
+        fills: { c19-switch: brief freeze then continues }
+      - label: The call ends
+        reading: "The call is tied to the route it started on, or the grace period is shorter than the reconnection."
+        confidence: Inferred
+        fills: { c19-switch: call ends }
+
+  - id: P19.5
+    name: Call a force-quit app
+    do:
+      - On device B, force-quit the app and lock the screen.
+      - Wait two minutes.
+      - Call device B's account from device A.
+      - Watch device B without touching it, and count the seconds until it reacts.
+      - Hang up on device A before answering, and watch whether B stops.
+    watch: What device B shows, how fast, and whether the ring stops when the caller gives up.
+    outcomes:
+      - label: A full incoming-call screen with a ringtone
+        reading: "A call push through the platform's calling integration. The app was started in the background to present the call."
+        confidence: Inferred
+        fills: { c19-ring: full call screen }
+      - label: An ordinary notification that someone is calling
+        reading: "Ordinary platform push. The call is joined only after you open the app from the notification."
+        confidence: Inferred
+        fills: { c19-ring: ordinary notification }
+      - label: Nothing until the app is opened
+        reading: "Signaling depends on a live process. Incoming calls reach only an app that is running."
+        confidence: Inferred
+        fills: { c19-ring: nothing }
+
+  - id: P19.6
+    name: Add participants
+    do:
+      - Start a video call between two devices and let it settle for a minute.
+      - Add a third participant, with that person's agreement.
+      - Watch the first two devices at the exact moment the third joins.
+      - Add a fourth and a fifth if you can, and note any limit the app states.
+    watch: Whether the existing picture freezes or shows a reconnecting moment when the third person joins, and how quality changes as the call grows.
+    outcomes:
+      - label: A brief freeze or reconnect when the third person joins
+        reading: "The media path changed at that moment. The likely cause is a move from direct or relayed media to a media server."
+        confidence: Inferred
+        fills: { c19-group-join: interruption when third joins, c19-media-path: changes with group size }
+      - label: No interruption when the third person joins
+        reading: "The same path serves two and three. Either the call used a media server from the start, or it added direct paths without disturbing the first."
+        confidence: Speculative
+        fills: { c19-group-join: no interruption }
+      - label: A third participant cannot be added
+        reading: "The call feature is limited to two people. No media server is implied."
+        confidence: Observed
+        fills: { c19-group-join: no group calls }
+
+  - id: P19.7
+    name: Enlarge a tile
+    do:
+      - Join a video call with at least four participants who agreed to help.
+      - Look at the layout, and try to rearrange it, switch between grid and speaker view, or pin one person.
+      - Enlarge or pin one participant and watch that picture closely for five seconds.
+      - Ask another participant whether their layout changed when yours did.
+    watch: Whether you control your own layout, and whether the enlarged picture starts soft and then sharpens.
+    outcomes:
+      - label: You control the layout, and the enlarged picture sharpens after a moment
+        reading: "A forwarding server with quality layers. Your client asked for a higher layer for that tile."
+        confidence: Inferred
+        fills: { c19-group-server: forwarding with quality layers }
+      - label: You control the layout, and quality does not change
+        reading: "Separate streams per participant with a single quality each, from a forwarding server or direct paths."
+        confidence: Speculative
+        fills: { c19-group-server: forwarding with one quality }
+      - label: The layout is one fixed picture, the same for everyone
+        reading: "A mixing server composes the call and sends each participant one stream."
+        confidence: Inferred
+        fills: { c19-group-server: mixing }
+
+  - id: P19.8
+    name: Stream delay against a clock
+    do:
+      - Use an app that lets you broadcast live at no cost. Limit the audience to yourself or a helper if the app allows it.
+      - Start a live stream on device A and point its camera at a clock or stopwatch that shows seconds.
+      - Open the stream as a viewer on device B with a second account.
+      - Hold device B next to the real clock and read both.
+      - If you cannot broadcast, watch a public live stream that shows a clock on screen, and compare it with your device's clock. This is less exact.
+    watch: The difference in seconds between the real clock and the clock in the stream on device B.
+    outcomes:
+      - label: Under about one second
+        reading: "Call-style delivery to viewers over a media path."
+        confidence: Inferred
+        fills: { c19-stream-delay: under one second, c19-stream-delivery: low-latency }
+      - label: About two to six seconds
+        reading: "Low-latency delivery. Tuned segments or a buffered media path both fit, and cannot be told apart from outside."
+        confidence: Speculative
+        fills: { c19-stream-delay: a few seconds, c19-stream-delivery: low-latency }
+      - label: Ten seconds or more
+        reading: "Segmented delivery through media delivery, with a buffer of several segments."
+        confidence: Inferred
+        fills: { c19-stream-delay: ten seconds or more, c19-stream-delivery: segmented }
+
+  - id: P19.9
+    name: Chat against picture
+    do:
+      - Keep the stream from P19.8 running, with device A broadcasting and device B viewing.
+      - On device A, hold up a hand in front of the camera and post a chat message at the same moment.
+      - Watch device B for the chat message and for the hand.
+      - Then post a message from device B and watch when it shows on device A.
+    watch: Which arrives first on device B, the message or the picture of the hand, and by how many seconds.
+    outcomes:
+      - label: The message arrives seconds before the picture
+        reading: "Chat travels by real-time delivery on its own path, and the video is delayed by segmented delivery."
+        confidence: Inferred
+        fills: { c19-chat-sync: chat ahead of picture }
+      - label: The message and the picture arrive together
+        reading: "Low-latency video, or chat that the client delays to match the video. P19.8 separates the two."
+        confidence: Speculative
+        fills: { c19-chat-sync: together }
+
+  - id: P19.10
+    name: Fall behind the live edge
+    do:
+      - Watch a live stream as a viewer and note any live indicator on the player.
+      - Pause for thirty seconds, then resume. If there is no pause control, send the app to the background for thirty seconds and return.
+      - Watch the live indicator and listen to the pace of speech for a minute.
+      - Compare against the clock from P19.8 if it is still in view.
+    watch: Whether playback continues from where it stopped, skips forward, or runs fast.
+    outcomes:
+      - label: Playback continues from where it stopped, with a control to return to live
+        reading: "The player's policy is to stay behind. The delay you added is permanent until you use the control."
+        confidence: Observed
+        fills: { c19-behind: stays behind with a control }
+      - label: Playback skips to the live edge by itself
+        reading: "The player's policy is to jump. The missed part is never shown."
+        confidence: Observed
+        fills: { c19-behind: jumps to live }
+      - label: Playback runs slightly fast and closes the distance
+        reading: "The player speeds up to return to the live edge. This fits low-latency delivery."
+        confidence: Inferred
+        fills: { c19-behind: speeds up }
+      - label: Pausing is not possible
+        reading: "The player always plays at the live edge, as a call-style path does."
+        confidence: Observed
+        fills: { c19-behind: pause not offered }
+
+signals:
+  - { signal: Movement appears on the other device in under half a second, design: Media path with a deadline-oriented transport, confidence: Inferred }
+  - { signal: The call timer runs and nobody hears anything, design: Signaling path separate from a media path that failed to open, confidence: Inferred }
+  - { signal: A setting that hides your network address during calls, design: Both direct and relayed media exist and the setting forces the relay, confidence: Inferred }
+  - { signal: A brief freeze when a third person joins a call, design: Move from direct media to a media server, confidence: Inferred }
+  - { signal: An enlarged tile is soft for a moment and then sharpens, design: Forwarding server with quality layers, confidence: Inferred }
+  - { signal: One fixed layout that is the same for every participant, design: Mixing server, confidence: Inferred }
+  - { signal: Blank tiles that fill in when you scroll a large call, design: Client subscribes to video for visible participants only, confidence: Inferred }
+  - { signal: Picture gets blurry or stops while the voice stays clear, design: Adaptation that gives up video to protect audio, confidence: Inferred }
+  - { signal: A robotic voice on a weak network, design: Loss concealment in the media engine, confidence: Inferred }
+  - { signal: A few seconds of freeze after a network switch and then the call continues, design: New route agreed through signaling while the backend holds the call, confidence: Inferred }
+  - { signal: A full incoming-call screen on a locked device whose app was force-quit, design: Call push with the platform calling integration, confidence: Inferred }
+  - { signal: A device keeps ringing after the call was answered on another device, design: Fan-out of the stop message failed for that device, confidence: Inferred }
+  - { signal: You hear your own voice a moment late, design: Echo cancellation failing on the other device, confidence: Observed }
+  - { signal: A live stream runs ten seconds or more behind a real clock, design: Segmented delivery, confidence: Inferred }
+  - { signal: A live stream runs under a second behind a real clock, design: Call-style low-latency delivery, confidence: Inferred }
+  - { signal: Chat reacts to an event before the picture shows it, design: Chat on real-time delivery beside segmented video, confidence: Inferred }
+  - { signal: A viewer invited as a guest sees the player reload and the delay vanish, design: Hosts in a call and the audience on segmented delivery, confidence: Inferred }
+  - { signal: Speech sounds slightly hurried after a stall in a live stream, design: Player speeds up to return to the live edge, confidence: Inferred }
+
+worksheet:
+  - { id: c19-family, label: Live media the app offers, options: [calls, live streaming, both] }
+  - { id: c19-call-delay, label: Call delay measured side by side, options: [under half a second, half to one second, over one second] }
+  - { id: c19-echo, label: Echo on speaker, options: [none, echo heard, one side cuts out] }
+  - { id: c19-adaptation, label: On a weak network, options: [video degrades and audio holds, video stops and audio holds, both degrade together, call drops] }
+  - { id: c19-switch, label: Network switch mid-call, options: [seamless, brief freeze then continues, call ends] }
+  - { id: c19-ring, label: Incoming call with the app force-quit, options: [full call screen, ordinary notification, nothing] }
+  - { id: c19-group-join, label: When a third person joins, options: [interruption when third joins, no interruption, no group calls] }
+  - { id: c19-media-path, label: Media path, options: [direct, relayed, changes with group size, unknown] }
+  - { id: c19-group-server, label: Group call server, options: [forwarding with quality layers, forwarding with one quality, mixing, unknown] }
+  - { id: c19-group-limit, label: Stated participant limits and what changes at size }
+  - { id: c19-stream-delay, label: Live stream delay against a clock, options: [under one second, a few seconds, ten seconds or more] }
+  - { id: c19-stream-delivery, label: Live stream delivery, options: [segmented, low-latency, unknown] }
+  - { id: c19-chat-sync, label: Chat against picture, options: [chat ahead of picture, together] }
+  - { id: c19-behind, label: After falling behind the live edge, options: [stays behind with a control, jumps to live, speeds up, pause not offered] }
+  - { id: c19-backend, label: Backend components implied }
+  - { id: c19-notes, label: "Measured delays, network of each run and failure modes seen" }

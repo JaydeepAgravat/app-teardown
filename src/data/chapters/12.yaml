@@ -1,0 +1,262 @@
+chapter: 12
+title: Offline and sync
+link: /part-2-concerns/12-offline-and-sync/
+
+probes:
+  - id: P12.1
+    name: Offline read
+    do:
+      - Open several screens while online.
+      - Turn on airplane mode.
+      - Revisit those screens.
+      - Open a screen you have not visited in this session.
+    watch: Whether content appears, and whether the app says it is offline or that content may be out of date.
+    outcomes:
+      - label: Nothing appears
+        reading: "Level 0. The client holds data only in memory."
+        confidence: Observed
+        fills: { c12-read-scope: none }
+      - label: Visited screens appear, unvisited ones do not
+        reading: "Level 1 or above, with a cache filled by visits."
+        confidence: Inferred
+        fills: { c12-read-scope: visited }
+      - label: Unvisited screens also appear
+        reading: "The app loads data ahead of need, which points to a local replica."
+        confidence: Inferred
+        fills: { c12-read-scope: all synced }
+
+  - id: P12.2
+    name: Offline write
+    do:
+      - Stay in airplane mode.
+      - "Perform each write action the feature offers: create, edit, delete, react."
+    watch: Whether the control is disabled, an error appears, or the change shows at once. Look for a pending indicator such as a clock icon, a dimmed item or a "waiting" label.
+    outcomes:
+      - label: The control is disabled or an error appears
+        reading: "Level 0 or 1 for that action. Writes need the network."
+        confidence: Observed
+      - label: The change shows at once
+        reading: "An optimistic update. Whether an outbox stands behind it is settled by P12.3."
+        confidence: Observed
+
+  - id: P12.3
+    name: Kill while pending
+    do:
+      - Run P12.2 first, and stay offline.
+      - Force-quit the app.
+      - Open it again, still offline.
+    watch: Whether the offline changes are still present.
+    outcomes:
+      - label: The changes are still there
+        reading: "The outbox and the local change are stored durably. Level 2 or above."
+        confidence: Inferred
+        fills: { c12-pending-survive: "yes" }
+      - label: The changes are gone
+        reading: "Pending mutations were held in memory only. The feature is Level 1 with an optimistic UI."
+        confidence: Inferred
+        fills: { c12-pending-survive: "no" }
+
+  - id: P12.4
+    name: Reconnect
+    do:
+      - Move to a different screen from the one where you made the offline changes.
+      - Turn the network back on.
+      - Check a second device or the web version for the changes.
+      - Repeat the whole test, this time putting the app in the background before turning the network on.
+    watch: When the pending indicators clear, and whether the changes arrive elsewhere without you returning to the original screen.
+    outcomes:
+      - label: Changes send from any screen
+        reading: "A sync engine at app level drains the outbox."
+        confidence: Inferred
+        fills: { c12-drain-trigger: app }
+      - label: Changes send only when the original screen is reopened
+        reading: "The retry belongs to that screen. There is no app-level sync engine for this feature."
+        confidence: Inferred
+        fills: { c12-drain-trigger: screen }
+      - label: Changes send while the app is in the background
+        reading: "A background task drains the outbox (Chapter 23)."
+        confidence: Inferred
+        fills: { c12-drain-trigger: background }
+
+  - id: P12.5
+    name: Two-device conflict
+    do:
+      - Sign in on two devices, A and B. In each run, change the same field of the same item to a different value on each device.
+      - "Run 1: put A in airplane mode, edit on B, then edit on A, then reconnect A."
+      - "Run 2: put A in airplane mode, edit on A, then edit on B, then reconnect A."
+    watch: Which value both devices settle on in each run, and whether either device shows a message. Run 2 is the one that separates the rules, because A's edit is earlier by clock and still arrives last.
+    outcomes:
+      - label: A wins run 2
+        reading: "Last write wins by arrival. The backend keeps whichever write it receives last."
+        confidence: Inferred
+        fills: { c12-resolution: LWW by arrival }
+      - label: B wins run 2, with no message
+        reading: "Either last write wins by client time, or a version check that discards A's stale write silently. P12.8 separates the two."
+        confidence: Speculative
+      - label: A shows an error or a prompt to reload
+        reading: "A version check with rejection. The backend refuses a write based on an old version."
+        confidence: Observed
+        fills: { c12-detection: version, c12-resolution: backend rejects }
+      - label: Two items or a conflicted copy appear
+        reading: "Keep-both resolution."
+        confidence: Observed
+        fills: { c12-resolution: keep both }
+
+  - id: P12.6
+    name: Conflict unit
+    do:
+      - Put A in airplane mode.
+      - Change one field of an item on A, for example the title.
+      - Change a different field of the same item on B, for example the description.
+      - Reconnect A.
+    watch: Whether both changes survive.
+    outcomes:
+      - label: Both changes survive
+        reading: "The conflict unit is the field, or something finer."
+        confidence: Inferred
+        fills: { c12-unit: field }
+      - label: One change is lost
+        reading: "The conflict unit is the whole record."
+        confidence: Inferred
+        fills: { c12-unit: record }
+
+  - id: P12.7
+    name: Delete against edit
+    do:
+      - Put A in airplane mode.
+      - Delete an item on B.
+      - Edit the same item on A.
+      - Reconnect A.
+    watch: Whether the item stays deleted, returns with A's edit, or returns as a new item.
+    outcomes:
+      - label: The item stays deleted
+        reading: "Delete wins over edit in this domain."
+        confidence: Observed
+        fills: { c12-delete-edit: delete wins }
+      - label: The item returns with A's edit
+        reading: "Edit wins over delete in this domain."
+        confidence: Observed
+        fills: { c12-delete-edit: edit wins }
+      - label: The item returns as a new, separate item
+        reading: "The edit was turned into a create. The original deletion stood."
+        confidence: Observed
+        fills: { c12-delete-edit: edit becomes a new item }
+
+  - id: P12.8
+    name: Clock skew
+    caution: This probe changes a device-wide setting. Other apps may sign you out or refuse connections while the clock is wrong. Restore automatic time when you finish.
+    do:
+      - Run this only if B won run 2 of P12.5, which rules out last write wins by arrival.
+      - Set device A's clock one day ahead.
+      - Put A in airplane mode and edit an item on A.
+      - Edit the same item on B.
+      - Reconnect A, then restore automatic time on A.
+    watch: Which value wins.
+    outcomes:
+      - label: A wins, although B's edit was later in reality
+        reading: "The system trusts client timestamps. Last write wins by client time."
+        confidence: Inferred
+        fills: { c12-resolution: LWW by client time }
+      - label: B wins
+        reading: "The backend discarded A's write because it was based on an old version."
+        confidence: Inferred
+        fills: { c12-detection: version }
+
+  - id: P12.9
+    name: Long absence
+    do:
+      - Leave a signed-in device offline, or the app unopened, for as long as you can afford. A spare device left for several weeks is ideal.
+      - Meanwhile, make changes from another device.
+      - Open the app online.
+      - Compare with what happens after a short absence of a few hours.
+    watch: Whether the app updates in a moment, or shows a long loading state, a "restoring" message or an empty state that refills.
+    outcomes:
+      - label: A quick update, even after a long absence
+        reading: "Delta sync with long retention."
+        confidence: Inferred
+        fills: { c12-delta: delta }
+      - label: Quick after a short absence, full reload after a long one
+        reading: "A change log with limited tombstone retention. The cursor expired."
+        confidence: Inferred
+        fills: { c12-delta: delta }
+      - label: A full reload every time
+        reading: "Either the design refetches everything, or the retention period is very short."
+        confidence: Speculative
+        fills: { c12-delta: full refetch }
+
+  - id: P12.10
+    name: First sync
+    do:
+      - Install the app on a device that has never had it.
+      - Sign in and watch without touching anything.
+      - Scroll to old data.
+    watch: What appears first, whether the app is usable before loading ends, and whether old data is present at once or loads on demand.
+    outcomes:
+      - label: Recent data first, older data arrives over time
+        reading: "Staged backfill into a local replica."
+        confidence: Observed
+        fills: { c12-first-sync: "recent first, then backfill" }
+      - label: Old data loads only when scrolled to
+        reading: "The client holds a window of the data and not a full replica."
+        confidence: Inferred
+        fills: { c12-first-sync: "windowed, loads on demand" }
+      - label: A long loading screen, then everything is there
+        reading: "A full initial sync before the app becomes usable."
+        confidence: Observed
+        fills: { c12-first-sync: full sync before use }
+
+  - id: P12.11
+    name: Flaky network duplicates
+    do:
+      - Find a weak connection, for example the edge of wireless coverage.
+      - Perform a create action several times, across several attempts.
+      - Let the connection recover.
+    watch: Whether any item appears twice.
+    outcomes:
+      - label: A duplicate appears
+        reading: "Retries without idempotency on that endpoint."
+        confidence: Inferred
+        fills: { c12-idempotency: "duplicates seen, no idempotency" }
+      - label: No duplicates across many attempts
+        reading: "Weak evidence of idempotency. The failure needs a lost response, and you cannot force one."
+        confidence: Speculative
+        fills: { c12-idempotency: no duplicates seen }
+
+signals:
+  - { signal: Screens respond at the same speed online and offline, design: UI reads from a local store, confidence: Inferred }
+  - { signal: Pending indicator on an item, design: Optimistic update with a tracked mutation, confidence: Observed }
+  - { signal: Offline changes survive a force-quit, design: Durable outbox, confidence: Inferred }
+  - { signal: Offline changes vanish after a force-quit, design: In-memory optimistic state only, confidence: Inferred }
+  - { signal: Item order or timestamp shifts slightly after sending, design: Reconcile replaces local values with backend values, confidence: Inferred }
+  - { signal: Item disappears after reconnect with no message, design: "Rollback after rejection, with no rejection UI", confidence: Inferred }
+  - { signal: Changes send while the app is on another screen, design: App-level sync engine, confidence: Inferred }
+  - { signal: The device that reconnects last always wins, design: Last write wins by arrival, confidence: Inferred }
+  - { signal: The device with a fast clock always wins, design: Last write wins by client time, confidence: Inferred }
+  - { signal: Edits to different fields of one item both survive, design: Field-level conflict unit, confidence: Inferred }
+  - { signal: A conflicted copy or duplicate appears after a conflict, design: Keep-both resolution, confidence: Observed }
+  - { signal: Concurrent text edits interleave, design: "Fine-grained merge. The algorithm family cannot be determined from outside", confidence: Speculative }
+  - { signal: Full reload after a long absence only, design: Change log with limited tombstone retention, confidence: Inferred }
+  - { signal: Full reload after an app update, design: "Local store rebuilt from the backend instead of migrated. The local store is treated as disposable", confidence: Speculative }
+  - { signal: Duplicate items after a weak connection, design: Retries without idempotency, confidence: Inferred }
+  - { signal: One failed action stops later actions from sending, design: Globally ordered outbox with no handling for a permanently failing entry, confidence: Inferred }
+  - { signal: A deleted item reappears later, design: Missing or expired tombstone on some replica, confidence: Speculative }
+  - { signal: Content stays visible offline after access was removed, design: Access changes are not delivered through the change log, confidence: Inferred }
+  - { signal: A counter jumps after reconnecting, design: Optimistic increments replaced by the backend total, confidence: Inferred }
+
+worksheet:
+  - { id: c12-level, label: Offline level, options: ["0 Online only", "1 Cached reads", "2 Queued writes", "3 Local replica", "4 Concurrent editing"] }
+  - { id: c12-read-scope, label: Offline read scope, options: [none, visited, all synced] }
+  - { id: c12-write-actions, label: Offline write actions }
+  - { id: c12-pending-survive, label: Pending mutations survive force-quit, options: ["yes", "no"] }
+  - { id: c12-drain-trigger, label: Outbox drain trigger, options: [screen, app, background] }
+  - { id: c12-rejection, label: Rejection behavior, options: [silent rollback, failed state with retry, prompt, not seen] }
+  - { id: c12-idempotency, label: Idempotency evidence }
+  - { id: c12-pull-trigger, label: Pull trigger, options: [foreground, gesture, push hint, persistent connection, periodic] }
+  - { id: c12-delta, label: Delta or full refetch, options: [delta, full refetch, unknown] }
+  - { id: c12-first-sync, label: First sync order }
+  - { id: c12-unit, label: Conflict unit, options: [record, field, finer] }
+  - { id: c12-detection, label: Conflict detection, options: [none, version, causal, unknown] }
+  - { id: c12-resolution, label: Conflict resolution, options: [LWW by arrival, LWW by client time, field-level merge, backend rejects, keep both, user decides, domain merge, fine-grained merge] }
+  - { id: c12-delete-edit, label: Delete against edit rule }
+  - { id: c12-backend, label: Backend components implied }
+  - { id: c12-failures, label: Failure modes seen }

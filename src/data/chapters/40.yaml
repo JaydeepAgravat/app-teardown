@@ -1,0 +1,236 @@
+chapter: 40
+title: Social feed and stories
+link: /part-3-archetypes/40-social-feed-and-stories/
+
+probes:
+  - id: P40.1
+    name: First screen after a gap
+    do:
+      - Use the app normally, then leave it unopened for at least four hours on a device that stays online.
+      - Before you open it, recall or screenshot the items that were at the top of the feed on your last visit.
+      - Open the app on a good connection and watch the feed during the first two seconds.
+      - Repeat on another day, and this time turn on airplane mode before you open the app.
+    watch: Whether the first thing drawn is the feed from your last visit, a skeleton, or items you have never seen, and whether anything appears in airplane mode.
+    outcomes:
+      - label: The items from the last visit show at once, then newer items replace them or a control offers them
+        reading: "A cached first screen. The loaded feed is in a disk cache or the local store, it is drawn before any request, and a refresh runs behind it."
+        confidence: Inferred
+        fills: { c40-first-screen: cached then refreshed }
+      - label: A skeleton or loading indicator shows, then fresh items, and the airplane mode run shows nothing
+        reading: "Network first for the feed. Nothing from the last visit is kept for the first screen, or it is kept and not used."
+        confidence: Inferred
+        fills: { c40-first-screen: loading then fresh }
+      - label: Items you have never seen show at once, in airplane mode as well
+        reading: "The feed was fetched ahead of opening, by a background task or a push hint, and stored for the next launch."
+        confidence: Inferred
+        fills: { c40-first-screen: fresh without loading }
+
+  - id: P40.2
+    name: Like in airplane mode
+    caution: A like is visible to the author and to others. Run this on a post from your own second account.
+    do:
+      - Open the feed online and find a post from your own second account that you have not liked.
+      - Turn on airplane mode and tap the like control. Note the control and the count.
+      - Force-quit the app, open it again while still in airplane mode, and find the post.
+      - Turn the network back on and wait one minute without opening the post.
+      - On the second account's device, check who has liked the post.
+    watch: Whether the like shows at once, whether it survives the force-quit, and whether it reaches the backend without another tap.
+    outcomes:
+      - label: The like shows at once, survives the force-quit, and reaches the second account
+        reading: "An optimistic update backed by a durable outbox. The like is a queued mutation, and the feed is drawn from a store that holds it."
+        confidence: Inferred
+        fills: { c40-like: queued durably }
+      - label: The like shows at once, and is gone after the force-quit
+        reading: "An optimistic update held in memory. The request was pending in the process and died with it."
+        confidence: Inferred
+        fills: { c40-like: queued in memory }
+      - label: The like shows, then reverts with or without a message
+        reading: "An optimistic update with rollback. The request failed and the client undid the change instead of queuing it."
+        confidence: Observed
+        fills: { c40-like: rolled back }
+      - label: The control does not respond, or an error shows before any change
+        reading: "No optimistic update. The UI waits for the backend before it changes."
+        confidence: Observed
+        fills: { c40-like: refused }
+
+  - id: P40.3
+    name: Counter from a second account
+    caution: This probe posts content. Limit the audience of the post to yourself or to your own second account.
+    do:
+      - Post something from account A and open the post on device 1, signed in as A. Note the like count.
+      - On device 2, signed in as your second account B, like the post.
+      - Watch device 1 for one minute without touching it.
+      - If the count did not change, pull to refresh on device 1. If it still did not change, refresh again after one minute.
+      - On device 1, like the post as A and note how fast the count moves.
+    watch: When B's like reaches the count on device 1, and how that compares with the instant change from A's own tap.
+    outcomes:
+      - label: The count rises on device 1 by itself within seconds
+        reading: "Counter changes are delivered live to a post that is on screen, over a persistent connection or a frequent poll."
+        confidence: Inferred
+        fills: { c40-counters: live }
+      - label: The count rises on the first refresh
+        reading: "The counter is a fetched value. The client's own tap is an optimistic estimate, and the fetched value replaces it on each load."
+        confidence: Inferred
+        fills: { c40-counters: on fetch }
+      - label: The count is still old after the first refresh and catches up later
+        reading: "The counter is aggregated asynchronously on the backend, or served from a cache with a time limit. The list of people who liked can be ahead of the number."
+        confidence: Inferred
+        fills: { c40-counters: delayed past a refresh }
+
+  - id: P40.4
+    name: Follow, then unfollow
+    caution: Following an account is visible to its owner. Use your own second account, or an account whose owner agreed.
+    do:
+      - Run this on a feed built from accounts you follow. Use account A, and an account C that A does not follow and that posted several times in the last days.
+      - Note the first three screens of A's feed.
+      - Follow C from A, refresh the feed and look for C's older posts.
+      - Have C publish a new post, refresh on A and look for it.
+      - Unfollow C from A, refresh once, and look for any of C's posts in the feed.
+    watch: Whether C's older posts enter the feed when you follow, and whether C's posts leave it at once when you unfollow.
+    outcomes:
+      - label: Older posts appear on follow, and every post of C leaves on unfollow
+        reading: "The feed is assembled when it is requested, from the accounts followed at that moment. A stored feed that is backfilled on follow and filtered on read looks the same."
+        confidence: Speculative
+        fills: { c40-follow-effect: immediate both ways }
+      - label: Only the new post appears, and C's posts stay in the feed for a while after unfollow
+        reading: "A stored feed per user, filled when a post is published. Following changes who writes into it from now on, and does not rewrite what it holds."
+        confidence: Inferred
+        fills: { c40-follow-effect: new posts only and lingering }
+      - label: The feed is ranked and shows no clear change at either step
+        reading: "Ranking decides what you see, and it hides the assembly step. The probe cannot be read on this feed."
+        confidence: Speculative
+        fills: { c40-follow-effect: not readable }
+
+  - id: P40.5
+    name: Publish and interrupt
+    caution: This probe posts content. Limit the audience of the post to yourself or to your own second account, and delete it afterwards.
+    do:
+      - Compose a post with a video of about a minute, or with several photos.
+      - Tap the share control and turn on airplane mode within two seconds.
+      - Note where the app takes you and what it shows for the post.
+      - Force-quit the app, open it again, then turn the network back on.
+      - Wait two minutes without tapping anything, then check the post from your second account.
+    watch: Whether the post shows in your own feed as pending, whether it survives the force-quit, and whether it completes without a tap.
+    outcomes:
+      - label: You return to the feed, a pending post shows there, and it publishes by itself after reconnecting
+        reading: "Upload, then attach, with a durable transfer queue and outbox. The post is an optimistic item until the upload completes and the mutation is confirmed."
+        confidence: Inferred
+        fills: { c40-post-pipeline: pending item completes by itself }
+      - label: The composer stays on screen with a progress indicator until the post is published
+        reading: "The upload belongs to the composer screen. The user waits for it, and no background worker owns the transfer."
+        confidence: Inferred
+        fills: { c40-post-pipeline: blocked in composer }
+      - label: A failed post or a saved draft waits for a tap after reconnecting
+        reading: "The pending post is durable and the retry is manual. The transfer is not retried by a worker."
+        confidence: Observed
+        fills: { c40-post-pipeline: failed until retried }
+      - label: The post is gone after the force-quit
+        reading: "The pending post and its upload were held in memory only."
+        confidence: Observed
+        fills: { c40-post-pipeline: lost }
+
+  - id: P40.6
+    name: Stories in airplane mode
+    do:
+      - On an unmetered network, open the screen that shows the row of stories. Choose a time when at least five accounts have unseen stories.
+      - Wait fifteen seconds. Do not open any story.
+      - Turn on airplane mode.
+      - Open the first story and let it advance by itself, or tap through, across as many accounts as will play.
+    watch: How many items play, across how many accounts, before a loading indicator appears.
+    outcomes:
+      - label: Items from three or more accounts play
+        reading: "Story media is prefetched across the row before any tap, in the order in which the viewer will play it."
+        confidence: Inferred
+        fills: { c40-story-preload: several accounts ahead }
+      - label: The first account plays, or only its first item, and the next shows a loading indicator
+        reading: "Only the head of the sequence is prefetched. The rest is fetched while the item before it plays."
+        confidence: Inferred
+        fills: { c40-story-preload: first items only }
+      - label: Nothing plays
+        reading: "Story media is fetched on open. The row holds only the small profile images."
+        confidence: Inferred
+        fills: { c40-story-preload: none }
+
+  - id: P40.7
+    name: Seen-state on a second device
+    caution: Viewing a story can show the author that you viewed it. Use a story posted by your own second account.
+    do:
+      - Sign in to account A on two devices, both online, and open the row of stories on both.
+      - Have your second account B post a story with two items. Confirm that both devices show B as unseen.
+      - On device 1, watch both items of B's story to the end.
+      - Watch device 2 for thirty seconds without touching it.
+      - If B still shows as unseen on device 2, pull to refresh, or leave the screen and return.
+    watch: Whether device 2 marks B's story as seen by itself, after a refresh, or not at all.
+    outcomes:
+      - label: Device 2 marks the story as seen without a gesture
+        reading: "Seen-state is synced through the backend and delivered live to the account's other devices."
+        confidence: Inferred
+        fills: { c40-story-seen: synced live }
+      - label: Device 2 marks the story as seen after a refresh or a return to the screen
+        reading: "Seen-state is stored on the backend against the account and arrives with the next fetch of the row."
+        confidence: Inferred
+        fills: { c40-story-seen: synced on fetch }
+      - label: Device 2 still shows the story as unseen after a refresh
+        reading: "Seen-state is kept in the local store of each device. The author's viewer list may still be recorded on the backend, which this probe does not test."
+        confidence: Inferred
+        fills: { c40-story-seen: per device }
+
+  - id: P40.8
+    name: Story past its limit
+    caution: This probe posts content. Limit the audience of the story to your own second account.
+    do:
+      - Post a story from account B and note the exact time.
+      - On device 1, signed in as A, watch the story once, then turn on airplane mode and confirm that it still plays.
+      - Keep device 1 in airplane mode until a few minutes past the moment the story is due to expire. Do not open the app in between.
+      - Open the app on device 1, still in airplane mode, and look for the story.
+      - Turn the network back on and look again.
+    watch: Whether the expired story still plays on the offline device, and what changes when the device comes online.
+    outcomes:
+      - label: The story is gone on the offline device once the limit has passed
+        reading: "The item data carries the expiry time, and the client enforces it against its own clock before it draws the row."
+        confidence: Inferred
+        fills: { c40-story-expiry: enforced on the device }
+      - label: The story still plays offline, and leaves when the device comes online
+        reading: "Expiry is enforced by the backend alone. The client shows whatever its cache holds until a fetch replaces the row."
+        confidence: Inferred
+        fills: { c40-story-expiry: enforced by the backend only }
+      - label: The story did not play offline before the limit either
+        reading: "Story media is not kept on the device after viewing, so the probe has nothing to test. Record the outcome of P40.6 with it."
+        confidence: Observed
+        fills: { c40-story-expiry: not testable }
+
+signals:
+  - { signal: "The feed from the last visit shows the moment the app opens, and newer items arrive a second later", design: Cached first screen read from disk with a refresh behind it, confidence: Inferred }
+  - { signal: A pull to refresh brings mostly different items each time, design: "Ranked feed that builds a new session snapshot per refresh and holds back what was shown", confidence: Inferred }
+  - { signal: A deep scroll in a ranked feed never repeats an item, design: "Paging through a session snapshot by cursor, or ranking each page with shown items excluded. The two look the same", confidence: Speculative }
+  - { signal: A like fills in at once in airplane mode and is still there after a force-quit, design: Optimistic update with a durable outbox, confidence: Inferred }
+  - { signal: A like count moves by one on your tap and jumps to a different number on the next refresh, design: Client estimate replaced by the fetched counter, confidence: Inferred }
+  - { signal: Large counts show as rounded figures, design: "Counters aggregated asynchronously and served as approximate values", confidence: Inferred }
+  - { signal: The list of people who liked a post is ahead of or behind the number, design: The counter and the list are stored and updated separately, confidence: Inferred }
+  - { signal: Each image area shows its own tint or a blurred preview before the image arrives, design: Stand-in data computed at upload and carried in the feed item, confidence: Inferred }
+  - { signal: A post you publish appears in your own feed at once with a progress bar, design: "Optimistic item with upload, then attach", confidence: Inferred }
+  - { signal: Other accounts see a new post only when its media is complete, design: "Upload, then attach. The mutation waits for the media reference", confidence: Inferred }
+  - { signal: Stories from several accounts play in airplane mode without having been opened, design: Story media prefetched in viewing order, confidence: Inferred }
+  - { signal: A story watched on one device shows as seen on another, design: Seen-state stored on the backend per viewer and author, confidence: Inferred }
+  - { signal: An expired story disappears on a device that has been offline since before the limit, design: Expiry time carried in the item data and enforced by the client, confidence: Inferred }
+  - { signal: Posts from an account stay in the feed for a while after you unfollow it, design: Stored feed per user filled at write time, confidence: Inferred }
+  - { signal: Posts from very popular accounts arrive with the same delay as any other, design: "Hybrid assembly, with popular accounts merged at read time. One of several explanations", confidence: Speculative }
+  - { signal: A sponsored post appears in the cached feed in airplane mode, design: Native ad inserted by the backend and returned as a feed item, confidence: Inferred }
+  - { signal: A sponsored post fills in a moment after its neighbors and is missing offline, design: Native ad inserted by the client from its own ad request, confidence: Inferred }
+  - { signal: A comment notification opens the post with the comment in view, design: Deep link that enters the comment list at an anchor, confidence: Inferred }
+
+worksheet:
+  - { id: c40-order, label: Home feed order, options: [time-ordered, ranked, both offered] }
+  - { id: c40-source, label: Where feed items come from, options: [followed accounts, inferred interests, mixed] }
+  - { id: c40-first-screen, label: First screen after a gap, options: [cached then refreshed, loading then fresh, fresh without loading] }
+  - { id: c40-like, label: Like while offline, options: [queued durably, queued in memory, rolled back, refused] }
+  - { id: c40-counters, label: How a counter catches up, options: [live, on fetch, delayed past a refresh] }
+  - { id: c40-follow-effect, label: Effect of follow and unfollow on the feed, options: [immediate both ways, new posts only and lingering, not readable] }
+  - { id: c40-feed-build, label: Where the feed is assembled, options: [write time, read time, hybrid, unknown] }
+  - { id: c40-post-pipeline, label: Publishing through an interruption, options: [pending item completes by itself, blocked in composer, failed until retried, lost] }
+  - { id: c40-story-preload, label: Story media before the first tap, options: [several accounts ahead, first items only, none] }
+  - { id: c40-story-seen, label: Story seen-state across devices, options: [synced live, synced on fetch, per device] }
+  - { id: c40-story-expiry, label: Story expiry, options: [enforced on the device, enforced by the backend only, not testable] }
+  - { id: c40-ads, label: "Ads in the feed and in stories: position, label, behavior offline" }
+  - { id: c40-notifications, label: "Comments and notifications: how they arrive and where a tap lands" }
+  - { id: c40-notes, label: Notes and open questions }

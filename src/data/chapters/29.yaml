@@ -1,0 +1,245 @@
+chapter: 29
+title: Personalization and on-device intelligence
+link: /part-2-concerns/29-personalization-and-on-device-intelligence/
+
+probes:
+  - id: P29.1
+    name: Smart feature in airplane mode
+    do:
+      - Pick one smart feature, such as suggested replies, voice input, photo search, text recognition, translation or an assistant.
+      - Use it online and note the quality of the result.
+      - Turn on airplane mode and use it again with a new input, not one it has already handled.
+    watch: Whether the feature works at all, and whether the result is as good as it was online.
+    outcomes:
+      - label: It works as well as it did online
+        reading: "The model runs on the device."
+        confidence: Observed
+        fills: { c29-placement: device }
+      - label: It works with a weaker or shorter result
+        reading: "A split design. A small on-device model answers alone when the backend model cannot be reached."
+        confidence: Inferred
+        fills: { c29-placement: split }
+      - label: It fails or is disabled
+        reading: "The model runs on the backend, or the feature needs backend data to work on."
+        confidence: Inferred
+        fills: { c29-placement: backend }
+
+  - id: P29.2
+    name: Response time online and offline
+    do:
+      - With a stopwatch, time the feature from input to result on a strong connection. Repeat three times.
+      - Time it again on a weak connection, for example at the edge of wireless coverage.
+      - If P29.1 showed that it works offline, time it in airplane mode too.
+    watch: Whether the time depends on the network, and whether a first result is replaced by a different one a moment later.
+    outcomes:
+      - label: The same time on every network
+        reading: "No request is on the path. The model runs on the device."
+        confidence: Inferred
+        fills: { c29-placement: device }
+      - label: Clearly slower on the weak connection
+        reading: "A round trip to a backend model is on the path."
+        confidence: Inferred
+        fills: { c29-placement: backend }
+      - label: A fast first result that changes a moment later
+        reading: "A split design. The on-device model answers first and the backend model refines the answer."
+        confidence: Inferred
+        fills: { c29-placement: split }
+
+  - id: P29.3
+    name: Storage after enabling a feature
+    do:
+      - In device settings, note the storage the app uses.
+      - Enable or first use a smart feature that was off, such as offline translation, a voice mode or photo search.
+      - Stay on an unmetered network for ten minutes with the app open.
+      - Note the storage again.
+    watch: How much the storage grew, and whether the feature showed a downloading or preparing state.
+    outcomes:
+      - label: Storage grew by tens of megabytes or more
+        reading: "A model was downloaded as an asset after install. Record the size."
+        confidence: Inferred
+        fills: { c29-model-delivery: downloaded after install }
+      - label: No real growth and the feature works in airplane mode
+        reading: "The model was already in the app package, or the operating system supplies it. P29.9 helps separate these."
+        confidence: Speculative
+        fills: { c29-model-delivery: in the app package or the operating system }
+      - label: No real growth and the feature needs the network
+        reading: "The model is on the backend. Nothing was delivered to the device."
+        confidence: Inferred
+        fills: { c29-model-delivery: stays on the backend }
+
+  - id: P29.4
+    name: New account against old
+    do:
+      - Create a second account of your own with no history, and skip any step that asks for interests if the app allows it.
+      - Sign in to it on a second device in the same place, on the same network.
+      - Open the same surface on both accounts at the same moment and compare the first screen.
+      - On each account, refresh twice and note how much changes with no new behavior.
+    watch: Whether the new account sees generic content, is asked for interests, or already sees content that fits you.
+    outcomes:
+      - label: Both accounts see the same content
+        reading: "The surface is not personalized by account history. Skip P29.5 for this surface."
+        confidence: Inferred
+        fills: { c29-new-account: same as old account }
+      - label: The new account sees generic or popular content
+        reading: "A default ranking for accounts without history, and a personal one for the old account."
+        confidence: Inferred
+        fills: { c29-new-account: generic default }
+      - label: The new account is asked for interests and then sees them
+        reading: "Stated interests are used as the initial profile."
+        confidence: Observed
+        fills: { c29-new-account: asked for interests }
+      - label: The new account already fits you although you stated nothing
+        reading: "Context, an imported contact list or data from before sign-up is in use. Which one cannot be told without removing an input."
+        confidence: Speculative
+        fills: { c29-new-account: tailored without stated interests }
+
+  - id: P29.5
+    name: Feedback delay
+    do:
+      - Use the new account from P29.4, or any account, on a personalized surface.
+      - Pick one topic that the surface does not currently show much of.
+      - For five minutes, open, linger on and react only to items on that topic. Watch the items further down the list as you go.
+      - Refresh at once and look at the first screen.
+      - Do not use the account again. Open the surface the next day and look at the first screen.
+    watch: When the topic first becomes more common. While you scroll, on the refresh, or only the next day.
+    outcomes:
+      - label: The list shifts while you scroll, before any refresh
+        reading: "Adaptation inside the visit. The client reorders held items or sends recent actions with each page request."
+        confidence: Inferred
+        fills: { c29-feedback: within the visit }
+      - label: No shift while scrolling, a clear shift on the refresh
+        reading: "The backend model reads inputs that were updated from your events within seconds."
+        confidence: Inferred
+        fills: { c29-feedback: on refresh }
+      - label: No shift on the refresh, a clear shift the next day
+        reading: "Profiles or results are computed by a scheduled batch job."
+        confidence: Inferred
+        fills: { c29-feedback: next day }
+      - label: No shift even the next day
+        reading: "These actions are not an input to this surface, or the loop is longer than a day."
+        confidence: Speculative
+        fills: { c29-feedback: none seen }
+
+  - id: P29.6
+    name: Assistant response shape
+    do:
+      - Run this only if the app has an assistant or a feature that writes text for you.
+      - On a good connection, ask for a long answer and time two things. The wait before the first text, and the time from first text to the end.
+      - Ask again on a weak connection and watch how evenly the text appears.
+      - Ask a third time and turn on airplane mode halfway through the answer. Turn the network back on after a minute.
+    watch: Whether text appears progressively, whether it stalls unevenly on the weak connection, and what happens to the partial answer when the network is cut.
+    outcomes:
+      - label: Text appears progressively and stalls unevenly on the weak connection
+        reading: "The response is streamed from a backend model as it is produced."
+        confidence: Inferred
+        fills: { c29-assistant: streamed from the backend }
+      - label: A wait, then the whole answer at once or with a smooth animation
+        reading: "The whole response is delivered in one piece. Any progressive reveal is drawn by the client."
+        confidence: Inferred
+        fills: { c29-assistant: whole response }
+      - label: The answer continues in airplane mode
+        reading: "The text is produced by a model on the device."
+        confidence: Observed
+        fills: { c29-assistant: on the device }
+
+  - id: P29.7
+    name: Personalization switch
+    do:
+      - Look in the app's settings for a control over personalized content, recommendations or history.
+      - Note the first screen of a personalized surface.
+      - Turn the control off, or clear the history, and refresh the surface.
+      - Check again the next day, then restore the setting if you want it back.
+    watch: Whether the surface becomes generic, and how soon.
+    outcomes:
+      - label: The surface becomes generic on the next refresh
+        reading: "The setting is checked at request time. This shows that use stopped, not that collection stopped."
+        confidence: Observed
+        fills: { c29-consent: immediate effect }
+      - label: The surface becomes generic only later
+        reading: "The setting takes effect when a batch job next runs, or a cached surface was served in between."
+        confidence: Inferred
+        fills: { c29-consent: delayed effect }
+      - label: No visible change
+        reading: "The setting governs something not visible on this surface, such as training, or the surface was not personalized."
+        confidence: Speculative
+        fills: { c29-consent: no visible effect }
+      - label: There is no such control
+        reading: "The app offers no in-app choice over personalization. Record what the store listing and the settings state."
+        confidence: Observed
+        fills: { c29-consent: no control found }
+
+  - id: P29.8
+    name: Second device
+    do:
+      - Sign in to your long-used account on a device that has never had the app.
+      - Compare the personalized surface with the same surface on your usual device.
+      - Try any feature that has learned from you, such as learned words, recognized people in photos or an assistant that recalls facts about you.
+    watch: Whether what the app has learned is present on the new device at once.
+    outcomes:
+      - label: The new device is as tailored as the old one
+        reading: "The profile is stored on the backend against the account."
+        confidence: Inferred
+        fills: { c29-profile: backend }
+      - label: The new device starts generic and adapts over time
+        reading: "The profile is kept in the local store of each device."
+        confidence: Inferred
+        fills: { c29-profile: device }
+      - label: Some learned things follow and others do not
+        reading: "Both kinds of profile exist. Record which feature has which."
+        confidence: Observed
+        fills: { c29-profile: both }
+
+  - id: P29.9
+    name: First use after a fresh install
+    caution: Removing and reinstalling an app deletes its data on that device. Use a spare device, or first make sure everything you need is stored on the backend.
+    do:
+      - Run this only on a feature that P29.1 showed working in airplane mode.
+      - Install the app fresh and sign in, without opening the feature.
+      - Turn on airplane mode at once.
+      - Open the feature and try it.
+    watch: Whether the feature works immediately, or says it needs to download or prepare something.
+    outcomes:
+      - label: It works at once with no network
+        reading: "The model is inside the app package or is supplied by the operating system."
+        confidence: Inferred
+        fills: { c29-model-delivery: in the app package or the operating system }
+      - label: It asks for a download or shows a preparing state
+        reading: "The model is an asset fetched after install, so it can be updated without an app release."
+        confidence: Inferred
+        fills: { c29-model-delivery: downloaded after install }
+
+signals:
+  - { signal: A smart feature works unchanged in airplane mode, design: On-device model, confidence: Observed }
+  - { signal: A smart feature fails in airplane mode, design: Backend model, confidence: Inferred }
+  - { signal: A first result appears at once and is revised a moment later, design: Split between an on-device model and a backend model, confidence: Inferred }
+  - { signal: Response time is the same on strong and weak connections, design: No request on the path, confidence: Inferred }
+  - { signal: Storage grows sharply after a feature is enabled, design: Model downloaded as an asset, confidence: Inferred }
+  - { signal: A feature shows a preparing state on first use, design: Model asset fetched after install, confidence: Inferred }
+  - { signal: A feature exists on one phone and not on another with the same app version, design: Feature or model chosen by device class through remote config, confidence: Inferred }
+  - { signal: A feature improves while the app version stays the same, design: "A backend model, or a model asset updated without a release", confidence: Speculative }
+  - { signal: A new account sees the same popular content as other new accounts, design: Default ranking for accounts without history, confidence: Inferred }
+  - { signal: A new account fits you before you have done anything, design: "Context, imported contacts or data from before sign-up", confidence: Speculative }
+  - { signal: The list adapts while you scroll with no refresh, design: Reordering on the device or recent actions sent with each page request, confidence: Inferred }
+  - { signal: A refresh seconds later reflects what you just did, design: Backend model inputs updated from a stream of events, confidence: Inferred }
+  - { signal: The surface changes only the next day, design: Batch computation of profiles or results, confidence: Inferred }
+  - { signal: What the app learned is present on a new device at once, design: Profile stored on the backend, confidence: Inferred }
+  - { signal: Photo search finds new photos only after hours, design: On-device analysis run as background work, confidence: Inferred }
+  - { signal: Assistant text stalls and resumes with the network, design: Response streamed from a backend model, confidence: Inferred }
+  - { signal: An assistant recalls a fact from a different conversation, design: Per-account record added to the model inputs on the backend, confidence: Inferred }
+  - { signal: Turning personalization off changes the surface on the next refresh, design: Setting checked at request time, confidence: Observed }
+
+worksheet:
+  - { id: c29-feature, label: Smart feature examined }
+  - { id: c29-placement, label: Where the model runs, options: [device, backend, split, unknown] }
+  - { id: c29-timing, label: Response time on strong and weak connections and offline }
+  - { id: c29-model-delivery, label: How the model reaches the device, options: [in the app package or the operating system, downloaded after install, stays on the backend, unknown] }
+  - { id: c29-model-size, label: Storage growth after enabling the feature }
+  - { id: c29-new-account, label: What a new account sees, options: [same as old account, generic default, asked for interests, tailored without stated interests] }
+  - { id: c29-feedback, label: Feedback delay, options: [within the visit, on refresh, next day, none seen] }
+  - { id: c29-profile, label: Where the profile is kept, options: [backend, device, both, unknown] }
+  - { id: c29-learned, label: What the app appears to learn from }
+  - { id: c29-assistant, label: Assistant response delivery, options: [streamed from the backend, whole response, on the device, no assistant] }
+  - { id: c29-consent, label: Effect of the personalization control, options: [immediate effect, delayed effect, no visible effect, no control found] }
+  - { id: c29-backend, label: Backend components implied }
+  - { id: c29-speculative, label: Claims that remain Speculative and what would settle them }
+  - { id: c29-failures, label: Failure modes seen }

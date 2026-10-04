@@ -1,0 +1,151 @@
+chapter: 55
+title: The app that fits no archetype
+link: /part-3-archetypes/55-the-app-that-fits-no-archetype/
+
+probes:
+  - id: P55.1
+    name: Feature inventory
+    do:
+      - Open every tab, every menu and every settings screen. Write one line for each job the app does for you, in a user's words.
+      - Next to each line, note the data it shows or changes, and who else can see that data.
+      - Group the lines that share the same data and the same people. Each group is a feature.
+      - Compare each feature with the archetype titles of Part III.
+    watch: How many features remain after grouping, and whether each one resembles a known archetype.
+    outcomes:
+      - label: One feature dominates, and the rest are settings and account screens
+        reading: "The app has one feature worth a teardown. If an archetype fits it, use that chapter. If none does, route the feature by its concerns."
+        confidence: Observed
+        fills: { c55-shape: one dominant feature }
+      - label: Several features, and each resembles a different archetype
+        reading: "A mix of archetypes. Borrow one chapter per feature, and examine the places where the features meet."
+        confidence: Observed
+        fills: { c55-shape: mix of archetypes }
+      - label: Several features, and at least one resembles no archetype
+        reading: "Borrow for the familiar features. Run the inference chain by hand on the unfamiliar one, starting from its dominant concerns."
+        confidence: Observed
+        fills: { c55-shape: has an unfamiliar feature }
+
+  - id: P55.2
+    name: Airplane-mode tour, feature by feature
+    caution: This probe changes a device-wide setting. Turn airplane mode off when you finish.
+    do:
+      - Use each feature online for a minute, then force-quit the app.
+      - Turn on airplane mode and open the app.
+      - Visit each feature in turn. Look for the content you saw earlier.
+      - In each feature, try one small change on content that only you can see.
+      - Turn airplane mode off.
+    watch: Which features show content, which accept a change, and which are blocked. Write one line per feature.
+    outcomes:
+      - label: Every feature behaves the same way offline
+        reading: "One policy for storage and writes serves the whole app. Route the features together through Chapter 11 and Chapter 12."
+        confidence: Inferred
+        fills: { c55-offline-spread: same for every feature }
+      - label: Some features show content or accept changes, and others are blocked
+        reading: "The design was chosen per feature. Record an offline level for each one, and route each separately."
+        confidence: Inferred
+        fills: { c55-offline-spread: differs per feature }
+      - label: Every feature is blocked
+        reading: "A thin client over the backend throughout. Start with Chapter 10 and Chapter 13."
+        confidence: Inferred
+        fills: { c55-offline-spread: blocked everywhere }
+
+  - id: P55.3
+    name: Walk the seams
+    do:
+      - Online, move between the features several times.
+      - In each feature, note the look of buttons and text, the loading indicator and how scrolling feels.
+      - Long-press a line of text in each feature, and pull down to refresh.
+      - On a weak connection, note the wording and placement of the error each feature shows.
+    watch: Whether any feature differs from the rest in look, loading, text behavior or failure.
+    outcomes:
+      - label: Every feature looks, loads and fails in the same way
+        reading: "One UI technology and one network client serve every feature."
+        confidence: Inferred
+        fills: { c55-seam: uniform }
+      - label: One feature differs from the rest
+        reading: "That feature is built apart. Embedded web content, an SDK from a third party and a separately built module all fit. Chapter 32 and Chapter 38 separate them."
+        confidence: Inferred
+        fills: { c55-seam: one area differs }
+      - label: Several features differ from one another
+        reading: "The app is assembled from parts that were built apart. Treat each part as its own teardown, and look for what they share."
+        confidence: Inferred
+        fills: { c55-seam: several areas differ }
+
+  - id: P55.4
+    name: Physical step without a network
+    caution: This probe uses airplane mode, which interrupts calls and other apps. Run it only on a thing you are entitled to use, at a moment when a failed step costs you nothing.
+    do:
+      - Find a step in which the app acts on or reads something outside the phone, such as a lock, a tag, a printed code or an accessory.
+      - Do the step once online and count the seconds it takes.
+      - Turn on airplane mode. If that also turned off a short-range radio the step needs, turn that radio back on.
+      - Repeat the step.
+      - Turn airplane mode off, and check on a second device whether the offline step was recorded.
+    watch: Whether the step works without a network, how long it takes, and when the record of it appears elsewhere.
+    outcomes:
+      - label: The step works offline, and the record appears after the network returns
+        reading: "The phone and the thing talk directly, and the client held what it needed before it went offline. The record waits in an outbox, or reaches the backend through the thing's own connection."
+        confidence: Inferred
+        fills: { c55-physical: works without a network }
+      - label: The step fails offline
+        reading: "The backend is in the path of every such action. The phone asks the backend, and the backend decides."
+        confidence: Inferred
+        fills: { c55-physical: needs the network }
+      - label: The step works by another route, such as a code you type or show
+        reading: "A fallback designed for places with no connection. Note what the fallback gives up, such as a record of who acted."
+        confidence: Observed
+        fills: { c55-physical: works by a fallback }
+      - label: The app has no physical step
+        reading: "Chapter 24 applies only to the sensors the app reads on the phone itself."
+        confidence: Observed
+        fills: { c55-physical: no physical step }
+
+  - id: P55.5
+    name: One action, every feature
+    do:
+      - Choose an action in one feature whose result should also show in other places, such as a list, a badge, a message thread or a widget.
+      - Note what each of those places shows now.
+      - Perform the action on content that only you can see.
+      - Go at once to each other place, without refreshing. Then wait one minute.
+      - Refresh each place that still shows the old value.
+    watch: Which places update at once, which need a refresh, and whether anything arrives later as a message or a notification.
+    outcomes:
+      - label: Every place shows the result at once
+        reading: "The features read from one shared data layer on the client and observe it."
+        confidence: Inferred
+        fills: { c55-join: shared on the client }
+      - label: Some places show the old value until refreshed, and nothing arrives on its own
+        reading: "Each feature fetches and holds its own copy. The features meet only in the backend store."
+        confidence: Inferred
+        fills: { c55-join: separate copies }
+      - label: The result arrives in another feature later, as a message or a notification
+        reading: "The features are joined on the backend. One service reacts to the other's change and sends the result through async delivery."
+        confidence: Inferred
+        fills: { c55-join: joined on the backend }
+
+signals:
+  - { signal: A feature shows content and accepts a change in airplane mode, design: "Chapter 12, offline and sync. Start with P12.1 to P12.4", confidence: Inferred }
+  - { signal: "A feature shows earlier content in airplane mode and refuses a change", design: "Chapter 11, local storage and caching. Start with P11.1 and P11.2", confidence: Inferred }
+  - { signal: A screen changes while you watch it and touch nothing, design: "Chapter 14, real-time delivery. Start with P14.1 and P14.2", confidence: Inferred }
+  - { signal: A list loads more as you scroll and has no visible end, design: "Chapter 15, lists and pagination. Start with P15.1", confidence: Inferred }
+  - { signal: A transfer shows progress and continues after you leave the screen, design: "Chapter 18, file transfer, then Chapter 23 for the background work", confidence: Inferred }
+  - { signal: "The app asks for location, the camera or a short-range radio", design: "Chapter 22 for the request, then Chapter 24 for the hardware", confidence: Observed }
+  - { signal: A physical thing responds to the phone in airplane mode, design: "Chapter 24 for the direct link, and Chapter 21 for what the phone was trusted to hold", confidence: Inferred }
+  - { signal: "Something happens while the app is closed, such as a notification or a widget that changes", design: "Chapter 23, background work and notifications, and Chapter 25 for the surface", confidence: Observed }
+  - { signal: "Content is visible offline, and one action is refused with a message about the network", design: "Chapter 21. The backend decides that action. Start with P21.1", confidence: Inferred }
+  - { signal: "One thing can be held by one person at a time, and shows a countdown or a held state", design: "A hold that the backend grants and expires. Borrow from Booking and reservations, and use P12.5 for two people at once", confidence: Speculative }
+  - { signal: The app asks you to prove who you are again before one action, design: "Chapter 20 for the session, and Chapter 21 for the step-up proof", confidence: Observed }
+  - { signal: A screen shows a price or asks for money, design: "Chapter 26, payments. Start with P26.1, which needs no purchase", confidence: Observed }
+  - { signal: A layout or a rule changes between two launches with no update installed, design: "Chapter 30, remote config, or Chapter 31, server-driven UI. P30.1 and P31.1 separate them", confidence: Speculative }
+  - { signal: "One area looks, scrolls or fails differently from the rest of the app", design: "Chapter 32 for how the area is drawn, and Chapter 38 for who built it", confidence: Inferred }
+
+worksheet:
+  - { id: c55-shape, label: Shape of the app, options: [one dominant feature, mix of archetypes, has an unfamiliar feature] }
+  - { id: c55-features, label: "Features, one per line, with the data and the people each involves" }
+  - { id: c55-routing, label: "Dominant concerns per feature, with the chapters used" }
+  - { id: c55-nearest, label: "Nearest archetype per feature, and where the feature departs from it" }
+  - { id: c55-offline-spread, label: Offline behavior across features, options: [same for every feature, differs per feature, blocked everywhere] }
+  - { id: c55-seam, label: Seams between features, options: [uniform, one area differs, several areas differ] }
+  - { id: c55-physical, label: Physical step without a network, options: [works without a network, needs the network, works by a fallback, no physical step] }
+  - { id: c55-join, label: How features share a change, options: [shared on the client, separate copies, joined on the backend] }
+  - { id: c55-own-probes, label: "Probes you wrote, each with its outcomes listed before you ran it" }
+  - { id: c55-notes, label: "Open questions, each with its candidates and what would settle it" }

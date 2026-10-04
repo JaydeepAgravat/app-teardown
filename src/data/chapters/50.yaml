@@ -1,0 +1,237 @@
+chapter: 50
+title: AI assistants
+link: /part-3-archetypes/50-ai-assistants/
+
+probes:
+  - id: P50.1
+    name: Stop mid-answer
+    do:
+      - Ask for something long, such as a detailed explanation in ten numbered sections.
+      - When about a third of the answer has appeared, tap the stop control.
+      - Note what remains on screen and which controls appear under it.
+      - Leave the conversation, force-quit the app, open it again and return to the conversation.
+    watch: Whether the partial answer is kept on screen, and whether it is still there after the app has restarted.
+    outcomes:
+      - label: The partial answer stays and is still there after the restart
+        reading: "Stopping cancels the request, and the partial answer is saved as part of the conversation, on the backend or in the local store."
+        confidence: Inferred
+        fills: { c50-stop: partial answer saved }
+      - label: The partial answer stays on screen and is gone after the restart
+        reading: "The partial answer lived only in screen state. The conversation store keeps complete answers only."
+        confidence: Inferred
+        fills: { c50-stop: partial answer lost on restart }
+      - label: The partial answer disappears as soon as you stop
+        reading: "A stopped answer is discarded. The client treats the answer as one unit that either completes or does not exist."
+        confidence: Observed
+        fills: { c50-stop: discarded at once }
+      - label: There is no stop control
+        reading: "The response is not a stream that the client can cancel, or the product chose not to offer it. Check P29.6 for the response shape."
+        confidence: Observed
+        fills: { c50-stop: no stop control }
+
+  - id: P50.2
+    name: Leave mid-answer
+    do:
+      - Ask for something long.
+      - As soon as the first words appear, go to the home screen. Do not force-quit.
+      - Wait two minutes without opening the app. Note any notification.
+      - Open the app and look at the conversation at once.
+    watch: Whether the answer is complete the moment you return, and whether the app announced it while you were away.
+    outcomes:
+      - label: The complete answer is there at once
+        reading: "The answer was produced without the client watching. Either the backend ran it to the end and stored it, or the app was allowed to keep its stream open in the background."
+        confidence: Inferred
+        fills: { c50-background: finished while away }
+      - label: The answer continues or reloads for a moment, then completes without a new request from you
+        reading: "The backend kept producing and stored the result. The client fetched or rejoined it on return."
+        confidence: Inferred
+        fills: { c50-background: rejoined on return }
+      - label: A partial answer with an error or a retry control
+        reading: "The stream belonged to the foreground client. The operating system suspended the app, the stream broke, and nothing on the backend kept the result."
+        confidence: Inferred
+        fills: { c50-background: broken with retry }
+      - label: The answer starts again from the first word
+        reading: "The client resent the prompt on return. The first run was lost or thrown away."
+        confidence: Inferred
+        fills: { c50-background: restarted }
+
+  - id: P50.3
+    name: Network drop mid-answer
+    do:
+      - Ask for something long and note roughly how long a full answer takes.
+      - When about a third has appeared, turn on airplane mode.
+      - Watch the screen for ten seconds and note what the app says.
+      - Wait until the full answer would have finished, then turn airplane mode off.
+      - Do not tap retry yet. Watch for thirty seconds, then leave and reopen the conversation.
+    watch: What the client does with the partial text, and whether the rest of the answer arrives without a new request.
+    outcomes:
+      - label: The partial text stays, and the complete answer appears after reconnecting with no retry
+        reading: "The backend finished the response without the client and stored it. The client recovered it by catch-up or by fetching the conversation."
+        confidence: Inferred
+        fills: { c50-drop: backend finished and stored }
+      - label: The partial text stays, and only a retry produces a new answer
+        reading: "The stream was the only copy. The client keeps what it received, and a retry runs the model again."
+        confidence: Inferred
+        fills: { c50-drop: partial kept and retry regenerates }
+      - label: The partial text is replaced by an error
+        reading: "The answer was held in screen state as one unit and discarded when the stream broke."
+        confidence: Observed
+        fills: { c50-drop: partial discarded }
+
+  - id: P50.4
+    name: Airplane-mode test
+    do:
+      - Use the app normally for a minute with a network, so that anything it downloads on first use is in place.
+      - Turn on airplane mode.
+      - Ask for something simple, such as rewriting one sentence in a more formal tone.
+      - Ask for something that needs knowledge or length, such as a history of a topic in several sections.
+      - Note what happens to each prompt, then turn the network back on.
+    watch: Whether any answer is produced with no network, and what happens to a prompt that cannot be answered.
+    outcomes:
+      - label: Both prompts are refused, or the send control is disabled
+        reading: "Every answer comes from a backend model. The client has no model and no outbox for prompts."
+        confidence: Inferred
+        fills: { c50-airplane: nothing works }
+      - label: The simple prompt is answered and the long one is refused
+        reading: "A small on-device model handles narrow tasks, and the rest is routed to a backend model."
+        confidence: Inferred
+        fills: { c50-airplane: simple requests only }
+      - label: Both prompts are answered
+        reading: "An on-device model produces the answers. Compare the quality and speed with the online answers to see whether the backend is used when available."
+        confidence: Inferred
+        fills: { c50-airplane: everything works }
+      - label: The prompts are accepted, marked as waiting, and answered after reconnecting
+        reading: "Prompts are queued mutations in an outbox. The model is on the backend, and the conversation is Level 2."
+        confidence: Inferred
+        fills: { c50-airplane: prompt queued }
+
+  - id: P50.5
+    name: History on a second device
+    do:
+      - Sign in to the same account on a second device, or on the web version.
+      - Check whether your earlier conversations are listed there.
+      - Open the conversation list on the second device and leave it open.
+      - On the first device, start a new conversation and send one prompt.
+      - Watch the list on the second device for a minute without touching it. Then refresh it.
+    watch: Whether old conversations follow the account, and whether a new one appears on the other device without a gesture.
+    outcomes:
+      - label: Old conversations are there, and the new one appears with no gesture
+        reading: "Conversations are synced data on the backend, and a change reaches other devices by real-time delivery."
+        confidence: Inferred
+        fills: { c50-history: synced live }
+      - label: Old conversations are there, and the new one appears only after a refresh or reopen
+        reading: "Conversations are stored on the backend and fetched on demand. Nothing pushes a change to a second device."
+        confidence: Inferred
+        fills: { c50-history: synced on refresh }
+      - label: The second device shows no earlier conversations
+        reading: "History is kept on the device, or history is switched off for this account. Check the settings for a history control before concluding."
+        confidence: Inferred
+        fills: { c50-history: device only }
+
+  - id: P50.6
+    name: Regenerate
+    do:
+      - Ask a question with many possible answers, such as five names for a small boat.
+      - When the answer is complete, tap the regenerate control.
+      - Note whether the first answer can still be reached.
+      - Send a follow-up prompt, then leave and reopen the conversation.
+    watch: What happens to the first answer, and what the conversation looks like after it is reloaded.
+    outcomes:
+      - label: Both answers are kept, with a control to switch between them
+        reading: "The conversation is stored as a tree. Each turn can have several answers, and the visible conversation is one path through it."
+        confidence: Inferred
+        fills: { c50-regenerate: versions kept }
+      - label: The new answer replaces the first, which cannot be reached again
+        reading: "The conversation is a list. Regenerating overwrites the last answer, or the old one is kept only where you cannot see it."
+        confidence: Observed
+        fills: { c50-regenerate: replaced }
+      - label: The new answer is added under the first, as a further turn
+        reading: "Regenerate is a shortcut that sends the same prompt again. The conversation is an append-only list."
+        confidence: Observed
+        fills: { c50-regenerate: appended }
+      - label: There is no regenerate control
+        reading: "The product does not offer it. Common for an assistant feature inside another app."
+        confidence: Observed
+        fills: { c50-regenerate: not offered }
+
+  - id: P50.7
+    name: Attachment order
+    caution: Attach a file of your own with nothing private in it, such as a photo of a wall or a document you wrote for the probe.
+    do:
+      - Move to a weak connection.
+      - Pick a large photo or document as an attachment, and do not tap send.
+      - Watch the attachment's thumbnail or chip for a progress indicator, and watch the send control.
+      - When any progress has finished, turn on airplane mode and look at the attachment again.
+      - Turn the network back on, type a short question about the file and send it.
+    watch: Whether the file travels before you tap send or after, and how soon the first words of the answer appear after the tap.
+    outcomes:
+      - label: Progress runs as soon as the file is picked, and send waits for it
+        reading: "Upload, then attach. The file goes to media delivery first, and the prompt carries a reference."
+        confidence: Inferred
+        fills: { c50-attach: upload then attach }
+      - label: Nothing moves until you tap send, then a wait before the answer starts
+        reading: "The file travels with the prompt, in the same request or just before it. A drop means sending everything again."
+        confidence: Inferred
+        fills: { c50-attach: sent with the prompt }
+      - label: The app accepts no attachments
+        reading: "Text only. Leave the field at this value."
+        confidence: Observed
+        fills: { c50-attach: no attachments }
+
+  - id: P50.8
+    name: Read the usage limits
+    caution: Read only. Do not try to reach a limit. Sending many prompts to find it wastes shared capacity and can restrict your account.
+    do:
+      - Open the plan, subscription or account screen and note anything about limits on messages, features or models.
+      - Look in the conversation screen and the settings for a counter, a meter or a reset time.
+      - Read the help page on limits, if there is one.
+      - Turn on airplane mode and check whether any counter or limit text is still shown.
+    watch: Where the limit is stated, whether the app shows how much is left, and whether that figure needs the network.
+    outcomes:
+      - label: A counter, a meter or a reset time is shown in the app
+        reading: "The backend counts usage per account and reports the remaining amount to the client, which only displays it."
+        confidence: Inferred
+        fills: { c50-limits: counter in the app }
+      - label: Limits are stated in the plan or help pages, with no figure in the app
+        reading: "The backend enforces a limit, and the client learns of it only when a request is refused."
+        confidence: Inferred
+        fills: { c50-limits: stated outside the app }
+      - label: No limit is stated anywhere
+        reading: "No limit is published. One may still exist, since any backend model has a cost per answer."
+        confidence: Speculative
+        fills: { c50-limits: none stated }
+
+signals:
+  - { signal: "Text appears piece by piece, and stalls and resumes unevenly on a weak connection", design: The answer arrives over a server stream from a backend model, confidence: Inferred }
+  - { signal: A wait and then the whole answer at once or with a smooth animation, design: A whole response that the client reveals. Not a stream, confidence: Inferred }
+  - { signal: A short status such as thinking or searching appears before the first words, design: The stream carries typed events and not only text, confidence: Inferred }
+  - { signal: A stop control replaces the send control while an answer is running, design: The client can cancel the request and the backend stops the model, confidence: Inferred }
+  - { signal: An answer that was running when you left the app is complete when you return, design: "The backend finishes and stores a response without the client, or the app held its stream open in the background", confidence: Inferred }
+  - { signal: A stopped or broken answer keeps its partial text after the app restarts, design: Partial answers are saved to the conversation store, confidence: Inferred }
+  - { signal: A conversation started on one device is listed on another, design: Conversation history is synced data kept on the backend, confidence: Inferred }
+  - { signal: A conversation gets a title a moment after the first answer, design: A second model call on the backend summarizes the first turn, confidence: Inferred }
+  - { signal: Arrows under an answer switch between versions of it, design: The conversation is stored as a tree of turns, confidence: Inferred }
+  - { signal: An attachment shows upload progress before the prompt is sent, design: "Upload, then attach", confidence: Inferred }
+  - { signal: "Voice mode answers within a second, can be interrupted by speaking, and shows the system's microphone indicator", design: A live audio path separate from the text request, confidence: Inferred }
+  - { signal: A notification says that a task is finished minutes after you left the app, design: A long-running task on the backend that announces its result by platform push, confidence: Inferred }
+  - { signal: A message names a limit and the time at which it resets, design: The backend counts usage per account and refuses beyond the quota, confidence: Inferred }
+  - { signal: The assistant answers simple requests in airplane mode and refuses others, design: Routing between an on-device model and a backend model, confidence: Inferred }
+  - { signal: Storage used grows by hundreds of megabytes or more after a feature is first used, design: A model asset downloaded after install for an on-device model, confidence: Inferred }
+  - { signal: The device gets warm and the battery drops during long answers, design: "The model runs on the device. Rendering a long stream also costs power, so compare with airplane mode", confidence: Speculative }
+  - { signal: A settings switch controls whether conversations are used to improve the service, design: A consent record per account on the backend, confidence: Inferred }
+  - { signal: The assistant recalls a fact from a different conversation, design: A backend profile per account that is added to the model inputs, confidence: Inferred }
+
+worksheet:
+  - { id: c50-variant, label: Variant, options: [chat assistant on a backend model, assistant feature inside another app, on-device assistant, mixed] }
+  - { id: c50-stop, label: Stop mid-answer, options: [partial answer saved, partial answer lost on restart, discarded at once, no stop control] }
+  - { id: c50-background, label: App backgrounded mid-answer, options: [finished while away, rejoined on return, broken with retry, restarted] }
+  - { id: c50-drop, label: Network drop mid-answer, options: [backend finished and stored, partial kept and retry regenerates, partial discarded] }
+  - { id: c50-airplane, label: Airplane-mode test, options: [nothing works, simple requests only, everything works, prompt queued] }
+  - { id: c50-history, label: Conversation history across devices, options: [synced live, synced on refresh, device only] }
+  - { id: c50-regenerate, label: Regenerate, options: [versions kept, replaced, appended, not offered] }
+  - { id: c50-attach, label: Attachment order, options: [upload then attach, sent with the prompt, no attachments] }
+  - { id: c50-limits, label: Usage limits, options: [counter in the app, stated outside the app, none stated] }
+  - { id: c50-voice, label: "Voice mode: delay, interruption, behavior in the background" }
+  - { id: c50-long-tasks, label: Long-running tasks and how they announce themselves }
+  - { id: c50-consent, label: Controls for the use of conversations }
+  - { id: c50-notes, label: Notes and open questions }

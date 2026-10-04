@@ -1,0 +1,199 @@
+chapter: 42
+title: Audio streaming and podcasts
+link: /part-3-archetypes/42-audio-streaming-and-podcasts/
+
+probes:
+  - id: P42.1
+    name: Track boundary
+    do:
+      - Find an album whose tracks run into each other, such as a concert recording or a continuous mix.
+      - Use a good connection and headphones. Turn off any crossfade setting in the app.
+      - Play one track from its last 30 seconds and listen across the boundary into the next track.
+      - Repeat at two more boundaries of the same album.
+    watch: Whether the sound is continuous at the boundary, and whether any silence has the same length each time.
+    outcomes:
+      - label: No silence at any boundary
+        reading: "The player prepares the next item early and joins both tracks in one output, trimming the padding of each file."
+        confidence: Inferred
+        fills: { c42-boundary: no silence }
+      - label: A short silence of about the same length at every boundary
+        reading: "Each track is started as a new playback. The next item may be fetched early, but the two are not joined."
+        confidence: Inferred
+        fills: { c42-boundary: fixed short silence }
+      - label: A pause with a loading indicator at one or more boundaries
+        reading: "The next item is not prepared before the current one ends. The boundary waits on the network."
+        confidence: Inferred
+        fills: { c42-boundary: stall at the boundary }
+
+  - id: P42.2
+    name: Queue on a second device
+    do:
+      - Sign in to one account on two devices, A and B. Close the app on B.
+      - On A, start an album, then add three unrelated tracks to the play queue and reorder them.
+      - Leave A playing. Open the app on B and look for a now-playing bar and a queue screen.
+      - Remove one queued track on B, if B allows it, and look at the queue on A.
+    watch: Whether B shows what A is playing, whether B shows the same queue in the same order, and whether a change on B reaches A.
+    outcomes:
+      - label: B shows the same queue, and a change on B appears on A
+        reading: "The play queue is one synced record per account, delivered to open devices over a persistent connection."
+        confidence: Inferred
+        fills: { c42-queue: synced queue }
+      - label: B shows what A is playing, but not the queue
+        reading: "The backend tracks the active device and its current item. The queue itself stays on the device that plays."
+        confidence: Inferred
+        fills: { c42-queue: now playing only }
+      - label: B shows nothing about A
+        reading: "The play queue belongs to each device. The backend may still receive position reports."
+        confidence: Inferred
+        fills: { c42-queue: per device }
+
+  - id: P42.3
+    name: Hand playback over
+    do:
+      - Sign in on two devices, A and B. Play a long item on A and note the position.
+      - On B, open the app and look for a control that lists your devices or offers to play here.
+      - Choose B as the place to play. Note where the sound comes from and at what position.
+      - If no such control exists, press play on the same item on B.
+    watch: Which device makes sound afterwards, whether the item continued or started again, and how long the change took.
+    outcomes:
+      - label: A falls silent and B continues at the same position
+        reading: "Playback is transferred. B prepares the item at the shared position, then claims the role of active device, and A stops when it sees the claim."
+        confidence: Inferred
+        fills: { c42-transfer: continues at position }
+      - label: A keeps making the sound, and B only controls it
+        reading: "B is a remote control. Commands travel through the backend or the local network to the player on A."
+        confidence: Inferred
+        fills: { c42-transfer: remote control only }
+      - label: A stops and B starts the item from its beginning
+        reading: "The backend enforces one active stream, but no shared position is handed over."
+        confidence: Inferred
+        fills: { c42-transfer: restarts the item }
+      - label: Both devices play at once, each on its own
+        reading: "The devices do not know about each other. There is no active-device record."
+        confidence: Observed
+        fills: { c42-transfer: not offered }
+
+  - id: P42.4
+    name: Offline queue meets a missing item
+    do:
+      - Download two tracks or episodes, D1 and D2. Pick a third item, S, that you have never played and have not downloaded.
+      - Build a play queue in the order D1, S, D2.
+      - Turn on airplane mode, then start D1 near its end.
+      - Listen until the player reaches S.
+    watch: What the player does when the next item in the queue is not on the device.
+    outcomes:
+      - label: It skips S and plays D2
+        reading: "The player knows which items are on the device and prefers continuous sound over the order of the queue."
+        confidence: Observed
+        fills: { c42-offline-queue: skips to a downloaded item }
+      - label: It stops at S with a message or a loading indicator
+        reading: "The player keeps the order of the queue and waits for the network."
+        confidence: Observed
+        fills: { c42-offline-queue: stops and waits }
+      - label: It plays S
+        reading: "S was on the device after all. The next item was prepared while D1 played online, or it sat in the audio cache. Repeat with airplane mode on before you build the queue."
+        confidence: Inferred
+        fills: { c42-offline-queue: plays from early preparation or cache }
+
+  - id: P42.5
+    name: Downloads after sign-out
+    caution: Signing out may delete every download in the app. Run this probe with one or two small downloads, on a connection where fetching them again costs nothing.
+    do:
+      - Download one small item and confirm that it plays in airplane mode.
+      - Note the storage the app uses, from the device's settings.
+      - Go online and sign out of the app. Note the storage figure again.
+      - Sign in to the same account, turn on airplane mode, and look for the download.
+    watch: Whether the storage figure drops at sign-out, and whether the item is still listed and still plays offline.
+    outcomes:
+      - label: Storage drops and the download is gone
+        reading: "Downloads belong to the session. This is the usual design for protected content, where each license is issued to an account on a device."
+        confidence: Inferred
+        fills: { c42-signout-downloads: removed }
+      - label: The download is still there and plays offline
+        reading: "The file is not tied to the session. Typical of plain files such as podcast episodes."
+        confidence: Inferred
+        fills: { c42-signout-downloads: kept and playable }
+      - label: The download is listed but will not play until the device is online
+        reading: "The file was kept and its license was not. The app must ask the license service again."
+        confidence: Inferred
+        fills: { c42-signout-downloads: kept but locked }
+
+  - id: P42.6
+    name: New episode while unopened
+    do:
+      - Follow a show that publishes every day at a known time, and turn on automatic downloads for it.
+      - Close the app without a force-quit, some hours before the next episode is due.
+      - Leave the device on power and on an unmetered network. Do not open the app.
+      - An hour or more after the episode is published, turn on airplane mode, then open the app.
+      - Repeat on another day with the device on battery and in low-power mode.
+    watch: Whether the new episode is listed, whether it plays offline, and whether a notification announced it before you opened the app.
+    outcomes:
+      - label: The new episode is listed and plays offline
+        reading: "A deferred task or a push wake found the episode and queued a transfer that completed with the app unopened."
+        confidence: Inferred
+        fills: { c42-auto-download: downloaded while unopened }
+      - label: The new episode is listed but is not on the device
+        reading: "The list was refreshed in the background. The transfer waits for the app, or for conditions that were not met."
+        confidence: Inferred
+        fills: { c42-auto-download: listed only }
+      - label: The new episode is not listed until the app is online and open
+        reading: "No background refresh ran. The app reads feeds or asks its backend only in the foreground, or the operating system withheld the run."
+        confidence: Speculative
+        fills: { c42-auto-download: nothing until opened }
+
+  - id: P42.7
+    name: Two positions for one episode
+    do:
+      - Sign in on two devices, A and B. On A, play a long episode to about minute 30 and pause.
+      - Open the episode on B and confirm that it offers to continue near minute 30.
+      - On B, seek back to minute 10, play for one minute and pause. Wait a minute.
+      - On A, force-quit the app, open it online and open the episode.
+    watch: The position A offers. It held minute 30 and B last reported minute 11.
+    outcomes:
+      - label: A continues near minute 11
+        reading: "LWW by the time of the report. The latest act of listening replaces an earlier one, whatever its position."
+        confidence: Inferred
+        fills: { c42-position-rule: latest report wins }
+      - label: A continues near minute 30
+        reading: "The furthest position wins, or A prefers its own stored value over the backend's. The two cannot be told apart from this run alone."
+        confidence: Speculative
+        fills: { c42-position-rule: furthest position wins }
+      - label: B never offered minute 30
+        reading: "The playback position is not synced between devices."
+        confidence: Observed
+        fills: { c42-position-rule: not synced }
+
+signals:
+  - { signal: Title and controls appear on the lock screen and headset buttons work, design: Player runs as user-visible work and reports to the system media controls, confidence: Inferred }
+  - { signal: "A track finishes in airplane mode, and the next one starts", design: Whole-track buffer with the next item prepared early, confidence: Inferred }
+  - { signal: A concert album plays with no silence between tracks, design: Next item decoded ahead and joined in the same output with padding trimmed, confidence: Inferred }
+  - { signal: The app offers a crossfade setting, design: Two items are decoded at once so the next item is always prepared early, confidence: Inferred }
+  - { signal: A second device shows a moving progress bar for what the first is playing, design: Synced playback state that stores a position with the time it was taken, confidence: Inferred }
+  - { signal: Starting playback on a second device pauses the first, design: Backend record of one active device per account, confidence: Inferred }
+  - { signal: A control lists your other devices as places to play, design: Presence of devices over a persistent connection and commands pushed to the chosen device, confidence: Inferred }
+  - { signal: Settings say the app must go online every few weeks to keep downloads, design: Licenses with an expiry that are renewed against the entitlement, confidence: Inferred }
+  - { signal: Downloads stop playing after a subscription ends although storage use is unchanged, design: Protected files whose license was not renewed, confidence: Inferred }
+  - { signal: An account screen lists devices with a limit on how many may hold downloads, design: Backend registry of devices and their downloads, confidence: Inferred }
+  - { signal: A new episode is on the device in the morning without the app having been opened, design: Deferred task or push wake that hands a transfer to the operating system, confidence: Inferred }
+  - { signal: A notification for a new episode arrives on every device within minutes of publication, design: The backend reads episode feeds and sends a platform push to followers, confidence: Inferred }
+  - { signal: The app works with no account and new episodes appear at irregular times, design: The device reads episode feeds itself in deferred tasks, confidence: Inferred }
+  - { signal: The same episode has a different length on two devices and positions land slightly off, design: "The publisher assembles the file per request. One of several possible causes", confidence: Speculative }
+  - { signal: Storage rises with listening and then levels off while downloads stay, design: Bounded audio cache kept apart from downloads, confidence: Inferred }
+  - { signal: The car screen shows the library and downloads with no network, design: Browse lists for the car surface come from the local store, confidence: Inferred }
+  - { signal: A watch plays downloaded items with the phone switched off, design: Watch app that is a companion with a cache or a client that works alone, confidence: Inferred }
+  - { signal: The song title on a live station changes seconds before or after the music, design: Title text and live audio travel on separate channels, confidence: Inferred }
+
+worksheet:
+  - { id: c42-variant, label: Variant, options: [on-demand music catalog, podcast app on episode feeds, live radio, more than one] }
+  - { id: c42-boundary, label: Track boundary, options: [no silence, fixed short silence, stall at the boundary] }
+  - { id: c42-queue, label: Play queue across devices, options: [synced queue, now playing only, per device] }
+  - { id: c42-transfer, label: Handing playback to another device, options: [continues at position, remote control only, restarts the item, not offered] }
+  - { id: c42-offline-queue, label: Offline queue at an item not on the device, options: [skips to a downloaded item, stops and waits, plays from early preparation or cache] }
+  - { id: c42-signout-downloads, label: Downloads after sign-out, options: [removed, kept and playable, kept but locked] }
+  - { id: c42-license, label: "Stated license rules: expiry, online check and device limit" }
+  - { id: c42-auto-download, label: New episode while unopened, options: [downloaded while unopened, listed only, nothing until opened] }
+  - { id: c42-feed-reader, label: Who reads episode feeds, options: [device, backend, not applicable, unknown] }
+  - { id: c42-position-rule, label: Rule for two positions, options: [latest report wins, furthest position wins, not synced] }
+  - { id: c42-surfaces, label: "Surfaces: lock screen, watch, car, widget, voice actions" }
+  - { id: c42-interruptions, label: Behavior on a call and on headset removal }
+  - { id: c42-notes, label: Notes and open questions }

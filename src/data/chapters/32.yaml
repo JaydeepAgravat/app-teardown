@@ -1,0 +1,250 @@
+chapter: 32
+title: "UI technology: native, cross-platform and web"
+link: /part-2-concerns/32-ui-technology-native-cross-platform-and-web/
+
+probes:
+  - id: P32.1
+    name: Long-press text
+    do:
+      - Open the screen you want to classify.
+      - Long-press a static label, such as a heading, a row title or a button caption.
+      - Long-press a link or an image, if the screen has one.
+      - Long-press a block of content text, such as an article body or a message, and look at the handles and the menu.
+      - Do the same in one of the device's own apps for comparison.
+    watch: Whether labels can be selected, whether a menu about the link appears, and whether the selection handles and menu match the ones the system's own apps show.
+    outcomes:
+      - label: Labels or headings select, or a link menu or preview opens
+        reading: "Web defaults are showing through. The screen is embedded web content."
+        confidence: Inferred
+        fills: { c32-text-selection: any text selectable }
+      - label: Only content text selects, with the system's handles and menu
+        reading: "The text is drawn by the platform's own controls. Platform toolkit or mapped toolkit. This probe cannot separate the two."
+        confidence: Inferred
+        fills: { c32-text-selection: system selection in content only }
+      - label: Content text selects, but the handles or menu differ from the system's
+        reading: "Selection was rebuilt by the toolkit. Consistent with a self-drawn toolkit. A custom menu on platform controls looks similar."
+        confidence: Speculative
+        fills: { c32-text-selection: custom selection }
+      - label: Nothing selects anywhere
+        reading: "No conclusion. Selection is off by default in most toolkits, and a careful web page disables it."
+        confidence: Observed
+        fills: { c32-text-selection: none }
+
+  - id: P32.2
+    name: Raise the system text size
+    caution: This probe changes a device-wide setting. Every app will redraw with larger text. Restore your usual text size when you finish.
+    do:
+      - Note the text size on three or four different screens of the app, including one you suspect is web content.
+      - Raise the system text size by several steps in the device's display or accessibility settings.
+      - Return to the app and visit the same screens. Force-quit and reopen it if nothing changed.
+    watch: Which screens grow and which do not. The difference between screens matters more than the result on any one.
+    outcomes:
+      - label: Every screen grows
+        reading: "The system setting reaches every screen. Consistent with the platform's own controls throughout, or with a toolkit that forwards the setting."
+        confidence: Speculative
+        fills: { c32-text-size: all screens scale }
+      - label: Some screens grow and others do not
+        reading: "The screens are probably drawn by different paths. The ones that stay fixed are candidates for embedded web content or a drawn surface. Uneven adoption inside one toolkit also fits."
+        confidence: Speculative
+        fills: { c32-text-size: some screens scale }
+      - label: No screen grows
+        reading: "The app uses fixed font sizes. This is a choice available in every family, so it identifies none."
+        confidence: Observed
+        fills: { c32-text-size: none scale }
+
+  - id: P32.3
+    name: Screen reader walk
+    caution: This probe turns on the device's screen reader, which changes how every touch works. Learn the gesture or shortcut that turns it off before you turn it on.
+    do:
+      - Turn on the screen reader.
+      - Open the screen and swipe to move from element to element, from the top of the screen to the bottom.
+      - Listen to what is announced for each control, and watch where the focus outline is drawn.
+      - Turn the screen reader off.
+    watch: Whether controls are announced one by one with a name, a role and a state. Whether web terms such as heading, link or landmark are announced. Whether the focus outline sits exactly on each control.
+    outcomes:
+      - label: Each control is announced with name, role and state, as in system apps
+        reading: "The screen publishes the platform's own accessibility structure. Platform or mapped toolkit, or a self-drawn toolkit with complete support."
+        confidence: Speculative
+        fills: { c32-screen-reader: platform elements }
+      - label: Web structure is announced, such as headings, links and landmarks
+        reading: "The screen reader is reading a web page. Embedded web content."
+        confidence: Inferred
+        fills: { c32-screen-reader: web content }
+      - label: Elements are found, but outlines sit off the controls or the order jumps
+        reading: "The structure is published separately from the pixels. Consistent with a self-drawn toolkit, or with custom controls that were labeled by hand."
+        confidence: Speculative
+        fills: { c32-screen-reader: partial }
+      - label: Focus lands on one large region, or on nothing
+        reading: "The screen is a single drawn surface with no published structure. A game engine, or a self-drawn surface without accessibility support."
+        confidence: Inferred
+        fills: { c32-screen-reader: single surface }
+
+  - id: P32.4
+    name: Two platforms side by side
+    do:
+      - Install the app on one device of each platform, if you have both. A friend's device beside yours also works.
+      - Open the same screen on both.
+      - "Compare the parts each platform has opinions about: the back control, switches, pickers, menus, how a modal is dismissed, the typeface and the transition between screens."
+      - Compare the overall layout and the order of sections.
+    watch: Whether the two screens differ in structure, share a structure with different controls, or match pixel for pixel.
+    outcomes:
+      - label: Structure and controls each follow their own platform
+        reading: "Two UI codebases, each on its platform toolkit."
+        confidence: Inferred
+        fills: { c32-cross-platform: follows each platform }
+      - label: The same structure, with each platform's own controls
+        reading: "A mapped toolkit, or two teams following one strict design system. The two cannot be separated from outside."
+        confidence: Speculative
+        fills: { c32-cross-platform: same layout with platform controls }
+      - label: Identical on both, including controls, typeface and transitions
+        reading: "One drawing path produces both. A self-drawn toolkit, embedded web content or a game engine. P32.1 and P32.5 separate them."
+        confidence: Inferred
+        fills: { c32-cross-platform: identical on both }
+
+  - id: P32.5
+    name: Each screen in airplane mode
+    caution: This probe uses airplane mode, which interrupts calls and other apps on that device.
+    do:
+      - Force-quit the app, so that screens are not simply kept in memory.
+      - Turn on airplane mode and open the app.
+      - Visit each screen of interest, including help, terms, promotions and account screens.
+      - Turn airplane mode off.
+    watch: Whether each screen still draws its own frame, such as title, tabs and empty layout, or whether the whole body is blank or shows a plain error unlike the app's other error states.
+    outcomes:
+      - label: The screen's layout draws, with cached data or an empty state in the app's style
+        reading: "The layout is code inside the app. Any family except web content served from the network."
+        confidence: Inferred
+        fills: { c32-offline-screen: layout draws }
+      - label: The whole body is blank or shows a plain error, while other screens still draw
+        reading: "The screen's layout comes from the network. Embedded web content served by a web page host."
+        confidence: Inferred
+        fills: { c32-offline-screen: screen fails whole }
+      - label: A screen that showed web signals in P32.1 draws completely
+        reading: "Web content bundled in the app or kept in a cache."
+        confidence: Inferred
+        fills: { c32-offline-screen: web content works offline }
+
+  - id: P32.6
+    name: Refresh and loading
+    do:
+      - Open the screen online and watch how it first appears.
+      - Pull down to refresh, if the screen allows it.
+      - Move to another screen and come back.
+    watch: Whether a thin progress bar runs under the title, whether the content area blanks and refills from the top, and whether content jumps as it arrives.
+    outcomes:
+      - label: Content updates in place and the layout stays
+        reading: "A list drawn by code in the app, refreshed through the data layer."
+        confidence: Inferred
+        fills: { c32-refresh: in place }
+      - label: The whole content area blanks and reloads, or a progress bar runs under the title
+        reading: "A page is being reloaded as a document. Embedded web content."
+        confidence: Inferred
+        fills: { c32-refresh: full page reload }
+      - label: The screen has no refresh gesture and shows no loading step
+        reading: "No conclusion from this probe."
+        confidence: Observed
+        fills: { c32-refresh: none }
+
+  - id: P32.7
+    name: Scroll to the edge and fling
+    do:
+      - Open a long list in one of the device's own apps. Fling it, and drag past its top edge. Note the feel and the edge effect.
+      - Do the same on a long list in the app.
+      - Fling the app's list as hard as you can, several times.
+    watch: Whether deceleration and the edge effect match the system's, and whether blank rows appear during a hard fling.
+    outcomes:
+      - label: Feel and edge effect match the system's
+        reading: "The platform's own scrolling control, or a close imitation. Platform or mapped toolkit is more likely."
+        confidence: Speculative
+        fills: { c32-scroll: matches system }
+      - label: Deceleration or the edge effect differs from the system's
+        reading: "Scrolling is implemented by something other than the platform's control. A self-drawn toolkit or embedded web content."
+        confidence: Speculative
+        fills: { c32-scroll: differs from system }
+      - label: The feel matches, and blank rows appear during a hard fling
+        reading: "Rows are produced more slowly than the platform's control scrolls. Consistent with a mapped toolkit whose logic runs apart from the UI. Late images on a platform list look similar."
+        confidence: Speculative
+        fills: { c32-scroll: blanks during fling }
+
+  - id: P32.8
+    name: The seam
+    do:
+      - Sign in to the app.
+      - Open a screen that showed web signals in P32.1, P32.5 or P32.6.
+      - Look for a sign-in form, a website header or footer, or a consent banner.
+      - Move two or three steps into the screen, then use the system's back control.
+    watch: Whether the screen knows who you are, whether it carries parts of the website, and whether back moves one step or leaves the whole screen.
+    outcomes:
+      - label: The screen knows you, has no website parts, and back moves one step
+        reading: "A bridge passes the session and navigation between the app and the page. The team built an in-app variant of the page."
+        confidence: Inferred
+        fills: { c32-seam: seamless }
+      - label: The screen asks you to sign in again
+        reading: "The page keeps its own session, and the bridge does not hand over the app's."
+        confidence: Inferred
+        fills: { c32-seam: signs in again }
+      - label: A website header, footer or consent banner is visible
+        reading: "The app shows the public website, with no in-app variant."
+        confidence: Observed
+        fills: { c32-seam: website parts visible }
+      - label: No screen showed web signals
+        reading: "Nothing to test. Record that no embedded web content was found, which is not proof that none exists."
+        confidence: Observed
+        fills: { c32-seam: not tested }
+
+  - id: P32.9
+    name: App size and startup time
+    do:
+      - In the store listing or the device's storage settings, read the size of the app itself, not its data.
+      - Do the same for two or three apps of similar scope.
+      - Force-quit the app, open it, and count the seconds from tap to first frame. Repeat three times.
+    watch: Whether the app is much larger than peers of similar scope, and whether a cold start pauses on the splash before anything is drawn.
+    outcomes:
+      - label: Small for its scope, with a near-instant first frame
+        reading: "Consistent with the platform toolkit and little bundled runtime."
+        confidence: Speculative
+        fills: { c32-size-startup: small and fast }
+      - label: Larger than its peers, with a visible pause before the first frame
+        reading: "Consistent with a bundled runtime or drawing engine. Media, models and SDKs inflate size as well."
+        confidence: Speculative
+        fills: { c32-size-startup: large with a pause }
+      - label: Very large, with a loading screen and a progress bar
+        reading: "The pattern of a game engine loading its assets."
+        confidence: Speculative
+        fills: { c32-size-startup: very large with a loading screen }
+
+signals:
+  - { signal: "A long-press selects a label, heading or button caption", design: "Embedded web content", confidence: Inferred }
+  - { signal: "A long-press on a link opens a preview or a menu about the link", design: "Embedded web content", confidence: Inferred }
+  - { signal: "A thin progress bar runs under the title while the screen loads", design: "Embedded web content loading a page", confidence: Inferred }
+  - { signal: "Pull to refresh blanks and reloads the whole screen", design: "Embedded web content reloading a document", confidence: Inferred }
+  - { signal: "One screen is blank offline while the others draw their layout", design: "Embedded web content served from the network", confidence: Inferred }
+  - { signal: "A web-style screen draws fully offline", design: "Web content bundled in the app or cached", confidence: Inferred }
+  - { signal: "A sign-in form appears inside a signed-in app", design: "Embedded web content with no session handed over the bridge", confidence: Inferred }
+  - { signal: "A website header, footer or consent banner appears inside the app", design: "The public website shown without an in-app variant", confidence: Observed }
+  - { signal: "The screen reader announces headings, links and landmarks", design: "Embedded web content", confidence: Inferred }
+  - { signal: "The screen reader finds one region or nothing", design: "A game engine or a self-drawn surface with no accessibility support", confidence: Inferred }
+  - { signal: "Focus outlines sit slightly off the visible controls", design: "A self-drawn toolkit publishing a parallel accessibility structure", confidence: Speculative }
+  - { signal: "Pixel-identical screens on both platforms, including controls and typeface", design: "A self-drawn toolkit, embedded web content or a game engine", confidence: Inferred }
+  - { signal: "The same layout on both platforms with each platform's own controls", design: "A mapped toolkit, or two teams on one design system", confidence: Speculative }
+  - { signal: "Controls keep an old look after the operating system restyles its own", design: "Imitated controls in a self-drawn toolkit", confidence: Speculative }
+  - { signal: "Selection handles or the text menu differ from the system's", design: "Text handling rebuilt by a self-drawn toolkit", confidence: Speculative }
+  - { signal: "Some screens follow the system text size and others do not", design: "Mixed families, or uneven adoption within one", confidence: Speculative }
+  - { signal: "Blank rows during a hard fling on a list with system scrolling feel", design: "A mapped toolkit producing rows apart from the UI", confidence: Speculative }
+  - { signal: "A simple app is far larger than its peers and pauses before the first frame", design: "A bundled runtime or drawing engine", confidence: Speculative }
+
+worksheet:
+  - { id: c32-family, label: Dominant UI family, options: [platform toolkit, mapped toolkit, self-drawn toolkit, embedded web content, game engine, mixed, unknown] }
+  - { id: c32-family-confidence, label: Confidence in the family claim, options: [Observed, Inferred, Speculative] }
+  - { id: c32-screens, label: Family per screen }
+  - { id: c32-text-selection, label: Text selection, options: [system selection in content only, any text selectable, custom selection, none] }
+  - { id: c32-text-size, label: System text size, options: [all screens scale, some screens scale, none scale] }
+  - { id: c32-screen-reader, label: Screen reader structure, options: [platform elements, web content, partial, single surface] }
+  - { id: c32-cross-platform, label: Same screen on two platforms, options: [follows each platform, same layout with platform controls, identical on both, not compared] }
+  - { id: c32-offline-screen, label: Screen in airplane mode, options: [layout draws, screen fails whole, web content works offline] }
+  - { id: c32-refresh, label: Refresh behavior, options: [in place, full page reload, none] }
+  - { id: c32-scroll, label: Scrolling feel, options: [matches system, differs from system, blanks during fling] }
+  - { id: c32-seam, label: Seam between app and web content, options: [seamless, signs in again, website parts visible, not tested] }
+  - { id: c32-size-startup, label: App size and startup, options: [small and fast, large with a pause, very large with a loading screen] }
+  - { id: c32-shared-code, label: Shared-code claim and its confidence }
+  - { id: c32-notes, label: Seams and failure modes seen }

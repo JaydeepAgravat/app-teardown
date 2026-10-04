@@ -1,0 +1,223 @@
+chapter: 30
+title: Remote config and experiments
+link: /part-2-concerns/30-remote-config-and-experiments/
+
+probes:
+  - id: P30.1
+    name: Change without an update
+    do:
+      - Note the app's version number from its settings or about screen, or from the store listing.
+      - Take screenshots of the main screens, their tabs and their menus.
+      - Use the app normally over two or more weeks, and check the version number whenever something looks different.
+      - When a control, tab, flow or wording changes, note whether the app was open at the time or had just been launched.
+    watch: Whether anything other than content changes while the version stays the same, and the moment at which the change arrives.
+    outcomes:
+      - label: Something changed while the app was open and in use
+        reading: "Config is applied live, or a flag is evaluated on the backend and arrived with a refreshed screen. If the change needed no refresh, it is live config."
+        confidence: Inferred
+        fills: { c30-change-arrival: during use }
+      - label: Something changed at a launch, with the version unchanged
+        reading: "Remote config read at startup. Fetch then start, or cached and applied on the next launch. P30.5 separates the two."
+        confidence: Inferred
+        fills: { c30-change-arrival: at a launch }
+      - label: Nothing changed except when the version changed
+        reading: "No evidence of remote config in the parts you watched. Behavior ships with the version."
+        confidence: Speculative
+        fills: { c30-change-arrival: only with a new version }
+
+  - id: P30.2
+    name: An announced feature you do not have
+    do:
+      - Read the release notes in the store listing, and any announcement the maker has published, for a feature described as new.
+      - Confirm that your installed version is the one named, or a later one.
+      - Look for the feature in the app.
+      - If it is absent, check again every few days without updating the app.
+    watch: Whether a feature the maker says exists is present on your current version, and if not, whether it arrives without an update.
+    outcomes:
+      - label: The feature is present on the version that announced it
+        reading: "The feature was released with the version, or its flag was already on for you. Nothing is learned about staging."
+        confidence: Observed
+        fills: { c30-announced: present }
+      - label: The feature was absent and arrived later with no update
+        reading: "The code shipped turned off, and a feature flag released it. A staged rollout reached your account or device."
+        confidence: Inferred
+        fills: { c30-announced: arrived later without an update }
+      - label: The feature arrived only with a later version
+        reading: "The announcement ran ahead of the code, or the store staged the version. A flag is not shown."
+        confidence: Speculative
+        fills: { c30-announced: arrived with a later version }
+      - label: The feature is still absent after several weeks
+        reading: "A rule excludes you, by region, device, plan or random share, or the rollout was halted."
+        confidence: Speculative
+        fills: { c30-announced: still absent }
+
+  - id: P30.3
+    name: Two accounts side by side
+    do:
+      - Use two accounts that are both yours, on two devices of the same platform and similar age. If the app allows use without an account, a signed-out device can stand in for the second account.
+      - Update both devices to the same app version, and check that both accounts have the same region and plan.
+      - Force-quit and launch the app twice on each device, so that both hold fresh config.
+      - Walk through the same screens on both, including sign-up prompts, settings, checkout or compose flows, and menus.
+    watch: Differences in which features exist, and in the order, wording or design of the same feature. Ignore content, recommendations and anything personalized.
+    outcomes:
+      - label: The two accounts match on every screen
+        reading: "No difference found. This does not rule out experiments, since most accounts fall outside any one of them."
+        confidence: Speculative
+        fills: { c30-accounts: identical }
+      - label: One account has a feature the other lacks
+        reading: "A feature flag set per account. A staged rollout, or a rule on an account attribute you could not equalize."
+        confidence: Inferred
+        fills: { c30-accounts: feature present on one only }
+      - label: The same feature has a different form on each account
+        reading: "An experiment with variants. Each account was assigned to a different group."
+        confidence: Inferred
+        fills: { c30-accounts: same feature differs in form }
+
+  - id: P30.4
+    name: Two devices of one account
+    do:
+      - Sign in to one account on two devices of the same platform.
+      - Update both to the same app version.
+      - Compare the same screens on both and note every difference in features, order or wording.
+      - Force-quit and launch the app twice on each device while online, then compare again.
+    watch: Whether the two devices agree, and whether a difference survives two fresh launches on each.
+    outcomes:
+      - label: The devices match from the start
+        reading: "Assignment follows the account, or no flag or experiment touches the screens you compared."
+        confidence: Speculative
+        fills: { c30-devices: identical, c30-unit: account }
+      - label: The devices differ at first and match after relaunching
+        reading: "Each device held cached config of a different age. Config is cached and applied at a launch, and assignment follows the account."
+        confidence: Inferred
+        fills: { c30-devices: differ until relaunch, c30-unit: account }
+      - label: The devices still differ after relaunching
+        reading: "The rule or the assignment follows the device. Assignment by installation, or targeting by device class."
+        confidence: Inferred
+        fills: { c30-devices: differ persistently, c30-unit: device or install }
+
+  - id: P30.5
+    name: First against second launch
+    caution: This probe installs the app fresh. If you remove an existing copy to do so, confirm first that everything you care about is stored in your account.
+    do:
+      - Install the app on a device that does not have it, with a normal connection.
+      - Launch it, sign in if needed, and take screenshots of the main screens, tabs and menus. Watch the screens for the first minute.
+      - Force-quit and launch again.
+      - Take the same screenshots and compare.
+    watch: Whether a tab, section, control or flow is absent on the first launch and present on the second, or changes during the first launch while you watch.
+    outcomes:
+      - label: The second launch has features the first one lacked
+        reading: "Config is cached and applied on the next launch. The first launch ran on shipped defaults."
+        confidence: Inferred
+        fills: { c30-first-second: second launch differs, c30-apply: cached and applied next launch }
+      - label: Features appeared or moved during the first launch
+        reading: "Config is applied live. The app started on shipped defaults and switched when the fetch returned."
+        confidence: Inferred
+        fills: { c30-first-second: changes during first launch, c30-apply: applied live }
+      - label: Both launches look the same
+        reading: "The app fetched config before its first screen, or the shipped defaults equal the current config. P30.6 separates the two."
+        confidence: Speculative
+        fills: { c30-first-second: no difference }
+
+  - id: P30.6
+    name: First launch in airplane mode
+    caution: This probe uses airplane mode, which cuts the connection of every app on the device. Turn it off when you finish. It also needs a fresh install, so confirm first that your data is stored in your account.
+    do:
+      - Install the app on a device that does not have it. Do not launch it.
+      - Turn on airplane mode.
+      - Launch the app and go as far as it lets you. Take screenshots of every screen you can reach.
+      - Turn airplane mode off, force-quit, launch twice, and compare the same screens.
+    watch: Whether the app opens at all, and how the screens it shows offline differ from the same screens after it has fetched config.
+    outcomes:
+      - label: It opens offline, and the same screens differ once online
+        reading: "You saw the shipped defaults. The differences are the values and switches that remote config changes."
+        confidence: Inferred
+        fills: { c30-defaults: opens on defaults that differ later }
+      - label: It opens offline, and the same screens match once online
+        reading: "The shipped defaults equal the current config for those screens, or those screens read no config."
+        confidence: Speculative
+        fills: { c30-defaults: opens and matches later }
+      - label: It does not get past a loading or error screen
+        reading: "At least one startup step blocks on the network with no fallback. A blocking config fetch is one candidate, and Chapter 7 lists the others."
+        confidence: Speculative
+        fills: { c30-defaults: blocked }
+
+  - id: P30.7
+    name: Reinstall and the variant
+    caution: This probe deletes the app and its local data. Run it only when everything you care about is stored in your account, and expect to sign in again.
+    do:
+      - Run this after P30.3 or P30.4 has found a stable difference, so that you know which variant this device shows.
+      - If the app has screens before sign-in, take screenshots of them too. Signing out first lets you see them.
+      - Delete the app, install it again, and launch it twice before signing in.
+      - Compare the screens before sign-in, then sign in to the same account, launch twice more, and compare the variant.
+    watch: Whether the variant on signed-in screens is the same as before, and whether the screens before sign-in changed.
+    outcomes:
+      - label: The variant is the same after the reinstall
+        reading: "Assignment follows the account, or an identifier that survives a reinstall."
+        confidence: Inferred
+        fills: { c30-reinstall: same, c30-unit: account }
+      - label: The variant on signed-in screens changed
+        reading: "Assignment follows an installation identifier that the reinstall replaced."
+        confidence: Inferred
+        fills: { c30-reinstall: changed, c30-unit: device or install }
+      - label: Only the screens before sign-in changed
+        reading: "Assignment is by installation before sign-in and by account after it."
+        confidence: Inferred
+        fills: { c30-reinstall: differs only before sign-in, c30-unit: anonymous then account }
+
+  - id: P30.8
+    name: Region setting
+    caution: This probe changes a region or country setting inside the app. Use only a setting the app itself offers on your own account, note the original value, and restore it when you finish. Do not use any tool that hides or changes your location.
+    do:
+      - Look in the app's settings for a region, country or market setting. If there is none, record that and stop.
+      - Take screenshots of the main screens, tabs and menus.
+      - Change the setting to another region, then force-quit and launch the app twice.
+      - Compare the same screens, then restore the setting.
+    watch: Whether whole features, tabs or payment and sign-in options appear or disappear, as opposed to content and language.
+    outcomes:
+      - label: Features or options appear or disappear with the region
+        reading: "Flags are targeted by region. The app holds code for features that a rule keeps off in some markets."
+        confidence: Inferred
+        fills: { c30-targeting: region setting changes features }
+      - label: Only content, language or prices change
+        reading: "The region selects data and formatting. No feature targeting by region is shown."
+        confidence: Observed
+        fills: { c30-targeting: only language or content changes }
+      - label: The app has no such setting
+        reading: "Region comes from the account, the store or the network, and cannot be varied safely from inside the app."
+        confidence: Observed
+        fills: { c30-targeting: no such setting }
+
+signals:
+  - { signal: A control or section changes while the app is open and the version is unchanged, design: Remote config applied live, confidence: Inferred }
+  - { signal: A feature is absent on the first launch after install and present on the second, design: Config cached and applied on the next launch over shipped defaults, confidence: Inferred }
+  - { signal: Splash length follows network speed and the first launch already has every feature, design: Config fetched before the first screen, confidence: Speculative }
+  - { signal: A screen differs after a refresh with no relaunch, design: Flag evaluated on the backend per request, confidence: Speculative }
+  - { signal: A feature named in release notes arrives days later with no update, design: Code shipped turned off and released by a feature flag in a staged rollout, confidence: Inferred }
+  - { signal: Two matched accounts show the same feature in different forms, design: Experiment with variants assigned at random, confidence: Inferred }
+  - { signal: One of two matched accounts has a feature the other lacks, design: Feature flag set per account in a staged rollout, confidence: Inferred }
+  - { signal: Two devices of one account differ and agree after each is relaunched, design: Cached config of different ages with assignment by account, confidence: Inferred }
+  - { signal: Two devices of one account differ after both are relaunched, design: "Assignment by installation, or targeting by device class", confidence: Inferred }
+  - { signal: The variant changes after a reinstall, design: Assignment keyed to an installation identifier, confidence: Inferred }
+  - { signal: Features shift a moment after sign-in, design: Config fetched again for the account after an anonymous fetch, confidence: Inferred }
+  - { signal: Screens before sign-in vary between installs and signed-in screens do not, design: Assignment by installation before sign-in and by account after, confidence: Inferred }
+  - { signal: A fresh install opens in airplane mode with fewer or different features, design: Shipped defaults used when nothing is cached, confidence: Inferred }
+  - { signal: A feature disappears for everyone at the same version and nothing else changes, design: Kill switch or rollback of a staged rollout, confidence: Speculative }
+  - { signal: A feature exists under one region setting and not under another, design: Feature flag targeted by region, confidence: Inferred }
+  - { signal: A button is shown and the backend answers that the feature is not available, design: Flag evaluated on both client and backend with the two out of step, confidence: Inferred }
+  - { signal: Every version fails at the same moment and recovers with no update, design: "A bad config value or a backend fault, corrected on the backend", confidence: Speculative }
+
+worksheet:
+  - { id: c30-apply, label: When config is applied, options: [fetch then start, cached and applied next launch, applied live, evaluated on the backend per request, mixed, unknown] }
+  - { id: c30-change-arrival, label: Change without an update, options: [during use, at a launch, only with a new version] }
+  - { id: c30-announced, label: Announced feature on a current version, options: [present, arrived later without an update, arrived with a later version, still absent] }
+  - { id: c30-accounts, label: Two accounts compared, options: [identical, feature present on one only, same feature differs in form] }
+  - { id: c30-devices, label: Two devices of one account, options: [identical, differ until relaunch, differ persistently] }
+  - { id: c30-unit, label: Unit of assignment, options: [account, device or install, anonymous then account, unknown] }
+  - { id: c30-first-second, label: First against second launch after install, options: [second launch differs, changes during first launch, no difference] }
+  - { id: c30-defaults, label: First launch with no network, options: [opens on defaults that differ later, opens and matches later, blocked] }
+  - { id: c30-reinstall, label: Variant after a reinstall, options: [same, changed, differs only before sign-in] }
+  - { id: c30-targeting, label: Targeting by region, options: [region setting changes features, only language or content changes, no such setting] }
+  - { id: c30-flags, label: Features seen under a flag or an experiment }
+  - { id: c30-backend, label: Backend components implied }
+  - { id: c30-speculative, label: Claims left Speculative }
+  - { id: c30-failures, label: Failure modes seen }

@@ -1,0 +1,246 @@
+chapter: 13
+title: Network transport and resilience
+link: /part-2-concerns/13-network-transport-and-resilience/
+
+probes:
+  - id: P13.1
+    name: Cut mid-request
+    do:
+      - Pick a screen that takes a visible moment to load.
+      - Open it, and turn on airplane mode as soon as the loading state appears.
+      - Time how long the loading state lasts.
+      - Read the message that replaces it, if any.
+    watch: How many seconds pass before the app admits failure, and whether the message mentions the connection.
+    outcomes:
+      - label: An offline message or error within about two seconds
+        reading: "The client consults connectivity or reacts to the dropped connection at once. It does not wait for a timeout."
+        confidence: Inferred
+        fills: { c13-offline-detect: immediate }
+      - label: A loading state for many seconds, then an error
+        reading: "The client waits out a timeout. The time you measured is close to that timeout."
+        confidence: Inferred
+        fills: { c13-offline-detect: after timeout }
+      - label: The loading state never ends
+        reading: "The screen has no failure state, or the request has no total timeout."
+        confidence: Observed
+        fills: { c13-offline-detect: never }
+
+  - id: P13.2
+    name: Recovery
+    do:
+      - Run P13.1 and leave the app on the failed screen.
+      - Turn airplane mode off.
+      - Wait thirty seconds without touching the app.
+      - If nothing happens, use the retry control or pull to refresh. If there is none, leave the screen and open it again.
+    watch: What it takes for the content to load.
+    outcomes:
+      - label: The content loads by itself
+        reading: "The client listens for connectivity changes, or a retry with backoff was still running. The delay before it loads hints at which."
+        confidence: Inferred
+        fills: { c13-recovery: automatic }
+      - label: The content loads only after a retry control or a refresh gesture
+        reading: "The failure is final for the client. Retrying is left to the user, and the screen owns its request."
+        confidence: Observed
+        fills: { c13-recovery: manual retry }
+      - label: The content loads only after leaving the screen and opening it again
+        reading: "The screen has a failure state with no way out. A request is made only when the screen is created."
+        confidence: Observed
+        fills: { c13-recovery: reopen screen }
+
+  - id: P13.3
+    name: Weak connection
+    do:
+      - Go where the signal is very weak and other apps load slowly but do load.
+      - Open several content screens you have not visited, so the cache cannot answer.
+      - Time each loading state.
+      - Check that another app or a web page still loads in the same spot, to confirm the network is slow and not absent.
+    watch: Whether the app waits, gives up, or stalls and then recovers without a tap.
+    outcomes:
+      - label: An error within a few seconds, while other apps still load
+        reading: "Timeouts are short for this network. If the error repeats on every try, the app cannot work on a link that is only slow."
+        confidence: Inferred
+        fills: { c13-timeouts: short }
+      - label: A long loading state that ends with content
+        reading: "Timeouts are generous, or retries are running under one loading state. The two cannot be separated by this probe."
+        confidence: Speculative
+        fills: { c13-timeouts: long }
+      - label: A long loading state that ends with an error
+        reading: "A long timeout and few or no retries. This is the default arrangement."
+        confidence: Inferred
+        fills: { c13-timeouts: long }
+
+  - id: P13.4
+    name: Quality adaptation
+    do:
+      - On a strong unmetered network, open a media-heavy screen and look closely at image sharpness and video quality.
+      - Go to a weak or slow network.
+      - Open a similar screen with content you have not seen, so nothing comes from the cache.
+      - Compare sharpness, video quality, autoplay and how many items load at once.
+    watch: Whether the content itself changes, and not only how fast it arrives.
+    outcomes:
+      - label: Images are visibly softer or video is lower quality
+        reading: "The client or backend selects a smaller variant from the network quality. Media delivery serves several variants."
+        confidence: Inferred
+        fills: { c13-adaptation: lower quality }
+      - label: Media is withheld, with placeholders, tap to load or no autoplay
+        reading: "The client defers media on a poor network. The request queue has a notion of what is optional."
+        confidence: Observed
+        fills: { c13-adaptation: media deferred }
+      - label: The same quality as before, arriving slowly
+        reading: "No adaptation was seen. The client requests the same variants on every network."
+        confidence: Inferred
+        fills: { c13-adaptation: none seen }
+
+  - id: P13.5
+    name: Network switch
+    do:
+      - Connect to a wireless network, with cellular data enabled.
+      - Start something that takes at least thirty seconds, such as an upload, a large download or a video.
+      - Walk out of wireless range so the device moves to cellular. Turning wireless off in settings is a quicker substitute.
+      - Keep watching until the action finishes or fails.
+    watch: Whether progress pauses, restarts from zero, or fails, and whether you had to do anything.
+    outcomes:
+      - label: Progress continues with no visible break
+        reading: "A transport that survives a network switch, a fast silent retry that resumes, or a transfer that was already on cellular. These cannot be told apart from outside."
+        confidence: Speculative
+        fills: { c13-switch: seamless }
+      - label: Progress pauses, then continues from where it was
+        reading: "The connection broke, and the client retried and resumed the transfer by itself."
+        confidence: Inferred
+        fills: { c13-switch: pause then resume }
+      - label: Progress restarts from zero by itself
+        reading: "The client retries automatically and the transfer is not resumable."
+        confidence: Inferred
+        fills: { c13-switch: restart }
+      - label: The action fails and waits for you
+        reading: "The broken connection is reported as a failure with no automatic retry."
+        confidence: Observed
+        fills: { c13-switch: fails }
+
+  - id: P13.6
+    name: Leave and return
+    do:
+      - On a slow network, open a heavy screen you have not visited.
+      - Leave it after two seconds, before it finishes, and open a different unvisited screen.
+      - Note whether the second screen loads faster or slower than you would expect on this network.
+      - After the second screen has loaded, go back to the first.
+    watch: The state of the first screen when you return.
+    outcomes:
+      - label: The first screen is complete on return
+        reading: "Its request kept running after you left, and the result was stored. Reads are not cancelled on leaving."
+        confidence: Inferred
+        fills: { c13-cancellation: continues }
+      - label: The first screen is further along than you left it, and still loading
+        reading: "Its request kept running at lower priority, or partial results were stored."
+        confidence: Inferred
+        fills: { c13-cancellation: continues }
+      - label: The first screen starts again from nothing
+        reading: "Either the request was cancelled when you left, or it finished and the result was discarded. A second screen that loaded quickly favors cancellation."
+        confidence: Speculative
+        fills: { c13-cancellation: starts over }
+
+  - id: P13.7
+    name: Data saver
+    caution: This probe changes a device-wide setting that affects every app. Turn the mode off when you finish.
+    do:
+      - With the mode off, note how the app treats media, autoplay and content that is ready ahead of time.
+      - Turn on the device's data-saver or low-data mode.
+      - Force-quit the app and open it again.
+      - Browse content you have not seen, and look in the app's settings for its own data control.
+    watch: Any change in image quality, autoplay, prefetching or background refresh.
+    outcomes:
+      - label: The app visibly changes, with lower quality, no autoplay or less ready ahead of time
+        reading: "The client reads the device's mode from platform services and has adaptations to switch on."
+        confidence: Observed
+        fills: { c13-data-saver: respects device mode }
+      - label: No change, and the app has its own data setting
+        reading: "The team built adaptations and exposes them as an app setting, without following the device's mode."
+        confidence: Observed
+        fills: { c13-data-saver: own setting only }
+      - label: No change, and no setting in the app
+        reading: "No adaptation to a low-data request was seen."
+        confidence: Inferred
+        fills: { c13-data-saver: none seen }
+
+  - id: P13.8
+    name: Competing requests
+    do:
+      - On a slow network, start the heaviest action the app offers, such as uploading a video or downloading a large item.
+      - While it runs, open a content screen you have not visited.
+      - Start a second heavy action if the app allows it.
+      - Note the order in which things finish, and how the progress of the first action changes.
+    watch: Whether the new screen loads at near-normal speed, and whether the heavy action slows down while it does.
+    outcomes:
+      - label: The new screen loads promptly and the heavy action slows or pauses
+        reading: "The request queue ranks what the user is looking at above transfers."
+        confidence: Inferred
+        fills: { c13-priority: foreground first }
+      - label: The new screen crawls until the heavy action finishes
+        reading: "Requests share one queue or one pool with no ranking."
+        confidence: Inferred
+        fills: { c13-priority: no ranking seen }
+      - label: Both progress steadily and neither starves
+        reading: "Separate connections for transfers, or streams sharing one connection evenly. The transport cannot be determined from outside."
+        confidence: Speculative
+        fills: { c13-priority: shared evenly }
+
+  - id: P13.9
+    name: Captive network
+    caution: Join only a public network you are entitled to use. Do not enter personal details into its sign-in page for this probe.
+    do:
+      - Turn off cellular data, so the device has no other path.
+      - Join a network that shows a sign-in or terms page, such as one in a cafe or hotel, and dismiss the page without completing it.
+      - Open the app and go to a screen you have not visited.
+      - Turn cellular data back on when you finish.
+    watch: What the app says about the connection, and how long it takes to say it.
+    outcomes:
+      - label: The app reports no internet or offline
+        reading: "The client judges connectivity by whether its own backend answers, or uses the operating system's verdict that the network has no internet."
+        confidence: Inferred
+        fills: { c13-captive: reports no internet }
+      - label: A generic error or an endless loading state
+        reading: "The client treats a connected network as a working one and does not classify this failure."
+        confidence: Inferred
+        fills: { c13-captive: generic error or hang }
+      - label: The app shows the network's sign-in page or broken content
+        reading: "The client accepted a response that did not come from its backend."
+        confidence: Observed
+        fills: { c13-captive: shows foreign content }
+
+signals:
+  - { signal: An offline message within a second or two of losing the network, design: Client consults connectivity from platform services, confidence: Inferred }
+  - { signal: A loading state of many seconds in airplane mode, design: Client waits out a default timeout without checking connectivity, confidence: Inferred }
+  - { signal: A loading state that never ends, design: No failure state in the screen or no total timeout, confidence: Observed }
+  - { signal: Errors on a slow network where other apps succeed, design: Timeouts too short for slow links, confidence: Inferred }
+  - { signal: Content arrives after a stall with no tap, design: Automatic retry with backoff, confidence: Inferred }
+  - { signal: A failed screen loads by itself when the network returns, design: Listener for connectivity changes that reruns failed requests, confidence: Inferred }
+  - { signal: A failed write shows a retry control and is never resent by itself, design: "Writes are not retried automatically, likely for lack of idempotency", confidence: Speculative }
+  - { signal: Duplicates after a weak connection, design: Writes retried without an idempotency key, confidence: Inferred }
+  - { signal: A new screen loads promptly during a heavy upload, design: Request queue with priorities, confidence: Inferred }
+  - { signal: Screens get slower after tapping through several quickly, design: No cancellation of requests for screens the user left, confidence: Inferred }
+  - { signal: The first action after a pause is slow and the next ones are fast, design: Connections closed when idle and reopened on demand, confidence: Speculative }
+  - { signal: A transfer continues unbroken across a move from wireless to cellular, design: "A transport that survives a network switch, or a silent resume. Cannot be determined from outside", confidence: Speculative }
+  - { signal: A transfer restarts from zero after a network switch, design: Automatic retry without resumable transfer, confidence: Inferred }
+  - { signal: Softer images or lower video quality on a weak network, design: Variant selection by network quality, confidence: Inferred }
+  - { signal: Autoplay and prefetching stop under the device's data-saver mode, design: Client reads the low-data setting and defers optional requests, confidence: Observed }
+  - { signal: Text loads and images do not, design: Media delivery is a separate system from the gateway, confidence: Inferred }
+  - { signal: The app fails for you and works for someone in another region, design: "Regional failure, with slow or absent failover", confidence: Speculative }
+  - { signal: A banner that says reconnecting, design: App-level tracking of a persistent connection, confidence: Inferred }
+
+worksheet:
+  - { id: c13-step, label: Network handling step, options: ["0 Defaults", "1 Timeouts and retries", "2 Managed queue", "3 Network awareness", "4 Path resilience"] }
+  - { id: c13-offline-detect, label: Failure detected after a cut, options: [immediate, after timeout, never] }
+  - { id: c13-timeouts, label: Timeouts on a weak network, options: [short, long, unknown] }
+  - { id: c13-recovery, label: Recovery when the network returns, options: [automatic, manual retry, reopen screen] }
+  - { id: c13-retry-evidence, label: Retry and backoff evidence }
+  - { id: c13-write-retry, label: Failed writes, options: [retried automatically, manual retry, not tested] }
+  - { id: c13-cancellation, label: Request for a screen the user left, options: [continues, starts over, unknown] }
+  - { id: c13-priority, label: Foreground against heavy transfers, options: [foreground first, no ranking seen, shared evenly] }
+  - { id: c13-adaptation, label: Adaptation to a weak network, options: [lower quality, media deferred, none seen] }
+  - { id: c13-switch, label: Wireless to cellular mid-action, options: [seamless, pause then resume, restart, fails] }
+  - { id: c13-data-saver, label: Device data-saver mode, options: [respects device mode, own setting only, none seen] }
+  - { id: c13-captive, label: Captive network, options: [reports no internet, generic error or hang, shows foreign content, not tested] }
+  - { id: c13-state-ui, label: How network state is shown, options: [global banner, inline retry, per-item state, silent, mixed] }
+  - { id: c13-failover, label: Outage and failover observations }
+  - { id: c13-backend, label: Backend support implied }
+  - { id: c13-notes, label: Network conditions of each run and failure modes seen }

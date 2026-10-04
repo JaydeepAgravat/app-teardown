@@ -1,0 +1,265 @@
+chapter: 23
+title: Background work and notifications
+link: /part-2-concerns/23-background-work-and-notifications/
+
+probes:
+  - id: P23.1
+    name: Notification categories
+    do:
+      - Open the device settings for the app and go to its notification settings.
+      - Count the named categories that have their own switch.
+      - Open the app's own settings screen and look for notification preferences there.
+      - If you have a second device signed in to the same account, check whether a preference changed in the app appears there too.
+    watch: Where the switches live, how many there are, and whether a preference follows the account to another device.
+    outcomes:
+      - label: Several named categories in the system settings
+        reading: "The app declares its event types to the platform. The list is the team's own taxonomy of events, and muting happens on the device after the push arrives."
+        confidence: Observed
+        fills: { c23-categories: several in system settings }
+      - label: One system switch and detailed preferences inside the app
+        reading: "Preferences are stored on the backend and applied by the notification service before sending. A preference that follows the account to a second device confirms it."
+        confidence: Inferred
+        fills: { c23-categories: in-app preferences }
+      - label: One system switch and nothing else
+        reading: "All notifications are treated as one kind. The backend has no per-category preference record."
+        confidence: Inferred
+        fills: { c23-categories: single switch }
+
+  - id: P23.2
+    name: User-visible work
+    do:
+      - Start something the app does over time, such as playback, a recording, turn-by-turn directions, a tracked activity or a large export.
+      - Go to the home screen and lock the device.
+      - Look at the lock screen and the status area for an indicator, controls or a persistent notification.
+      - Wait ten minutes, then check whether the work continued.
+    watch: Whether the work continues, and what the system shows while it does.
+    outcomes:
+      - label: It continues, with an indicator or controls shown by the system
+        reading: "The app declares user-visible work. The form of the indicator shows which activity was declared."
+        confidence: Observed
+        fills: { c23-long-running: continues with indicator }
+      - label: It continues with nothing shown
+        reading: "Fits a transfer handed to the operating system, or work that finished inside the exit grace period. The two cannot be told apart for short work."
+        confidence: Speculative
+        fills: { c23-long-running: continues without indicator }
+      - label: It stops or pauses within about a minute
+        reading: "No long-running grant for this feature. The work runs only while the app is on screen."
+        confidence: Observed
+        fills: { c23-long-running: stops }
+
+  - id: P23.3
+    name: Force-quit, then an event
+    do:
+      - On device A, put the app in the background. From a second device or account, cause an event that notifies A. Take a screenshot of the notification.
+      - Force-quit the app on A.
+      - Cause the same kind of event again. Take a screenshot of the notification, if one arrives.
+      - Compare the two for text, sender name, image, grouping and actions.
+    watch: Whether a notification arrives after the force-quit, and whether it has the same detail as the first.
+    outcomes:
+      - label: The same notification in both cases
+        reading: "A system-displayed notification. The backend writes the text and no app code is needed. A combined design whose fallback text equals the built text is not excluded."
+        confidence: Inferred
+        fills: { c23-builder: system displayed, c23-force-quit: same }
+      - label: A plainer notification after the force-quit
+        reading: "A combined design. The app builds the full notification after a push wake, and the payload carries fallback text for when the wake is refused."
+        confidence: Inferred
+        fills: { c23-builder: combined, c23-force-quit: plainer }
+      - label: No notification after the force-quit
+        reading: "An app-built notification with no fallback. Everything depends on the push wake."
+        confidence: Inferred
+        fills: { c23-builder: app built, c23-force-quit: none }
+
+  - id: P23.4
+    name: Leave during a write
+    do:
+      - Open the same account on a second device, or have a second account that can see your changes.
+      - On device A, make a change that takes a moment to send, such as a post with a photo or a long message.
+      - Confirm it and go to the home screen at once. Do not return to the app.
+      - Watch the second device for two minutes.
+    watch: Whether the change reaches the second device while the app on A stays in the background.
+    outcomes:
+      - label: It arrives on the second device while A stays in the background
+        reading: "The send completed after the app left the screen, in the exit grace period or as a transfer handed to the operating system."
+        confidence: Inferred
+        fills: { c23-grace: finished while away }
+      - label: It arrives only after you reopen the app on A
+        reading: "The send was suspended with the app and resumed on return. An outbox kept it, and nothing ran in the background."
+        confidence: Inferred
+        fills: { c23-grace: finished on return }
+      - label: It never arrives and is gone or failed on A
+        reading: "The send was held in memory only and was lost when the app was suspended."
+        confidence: Inferred
+        fills: { c23-grace: lost }
+
+  - id: P23.5
+    name: Act from the notification
+    do:
+      - Put the app on device A in the background and keep a second device or account in view.
+      - Cause an event that notifies A.
+      - Expand the notification on A and look for buttons or a reply field.
+      - Use one action that changes something, such as a reply or marking the item done. Watch the second device.
+    watch: Whether the action completes without the app coming to the screen, and whether the result reaches the second device.
+    outcomes:
+      - label: The action completes and the app never opens
+        reading: "The action starts the app in the background for a few seconds and sends a mutation. If the result arrives reliably on a weak network too, it goes through an outbox."
+        confidence: Inferred
+        fills: { c23-actions: complete in background }
+      - label: Tapping the action opens the app
+        reading: "Actions are shortcuts into the UI. No background path exists for the mutation, or it needs a check that only the foreground can run."
+        confidence: Observed
+        fills: { c23-actions: open the app }
+      - label: The notification has no actions
+        reading: "The app declares no action set for this notification type."
+        confidence: Observed
+        fills: { c23-actions: none }
+
+  - id: P23.6
+    name: Read elsewhere
+    do:
+      - Sign in to one account on two devices, A1 and A2. Put the app in the background on both.
+      - From another account, cause an event that notifies both. Confirm both show the notification and note the badge on each.
+      - Open the item on A1 only.
+      - Watch the notification and the badge on A2 for one minute without touching it.
+    watch: Whether the notification and the badge on A2 change after the item is read on A1.
+    outcomes:
+      - label: The notification and the badge on A2 both clear
+        reading: "Read state is fanned out as a push, and A2 either runs a push wake to withdraw the notification or receives a badge value computed on the backend."
+        confidence: Inferred
+        fills: { c23-withdraw: notification and badge clear }
+      - label: The badge clears and the notification stays
+        reading: "The badge count comes from the backend in a payload the system applies. Nothing withdraws the notification itself."
+        confidence: Inferred
+        fills: { c23-withdraw: badge only, c23-badge-source: backend }
+      - label: Neither changes until the app is opened on A2
+        reading: "No withdrawal. The badge is computed on the client from the local store when the app runs."
+        confidence: Inferred
+        fills: { c23-withdraw: nothing clears, c23-badge-source: client }
+
+  - id: P23.7
+    name: Low-power mode
+    caution: This probe turns on low-power mode, which changes the behavior of every app on the device. Turn it off when you finish.
+    do:
+      - Run P23.3 first and keep the screenshot of the notification received with the app in the background.
+      - Turn on low-power mode on device A. Open the app, then put it in the background and wait five minutes.
+      - From a second device or account, cause the same kind of event three times, a few minutes apart.
+      - Compare each notification with the screenshot. Then turn low-power mode off.
+    watch: Whether notifications still arrive, and whether they have the same detail as without low-power mode.
+    outcomes:
+      - label: Notifications arrive with the same detail every time
+        reading: "Either a system-displayed notification, or the platform still granted the push wake. Read it together with P23.3."
+        confidence: Observed
+        fills: { c23-low-power: unchanged }
+      - label: Notifications arrive plainer or without images some of the time
+        reading: "A combined design. The wake that builds the full notification is rationed under low-power mode and the fallback text shows through."
+        confidence: Inferred
+        fills: { c23-low-power: plainer }
+      - label: Notifications are late by minutes or do not arrive
+        reading: "The notification depends on a silent push, which the platform delays or drops in low-power mode."
+        confidence: Inferred
+        fills: { c23-low-power: late or missing }
+
+  - id: P23.8
+    name: Scheduled notification, offline
+    caution: This probe uses airplane mode, which interrupts calls and other apps on that device.
+    do:
+      - Find a feature that notifies you at a time you choose, such as a reminder, an alarm or a scheduled alert. Set one for five minutes from now.
+      - Go to the home screen and turn on airplane mode.
+      - Wait until two minutes past the chosen time.
+      - Turn airplane mode off and wait another two minutes.
+    watch: Whether the notification appears at the chosen time while the device is offline.
+    outcomes:
+      - label: It appears on time while offline
+        reading: "A local notification. The app handed the request to the operating system and no backend is involved in firing it."
+        confidence: Inferred
+        fills: { c23-local: fires offline }
+      - label: It appears only after the device reconnects
+        reading: "The reminder is scheduled on the backend and sent by platform push."
+        confidence: Inferred
+        fills: { c23-local: needs network }
+      - label: The app has no notification the user can schedule
+        reading: "No evidence about local scheduling from this probe. Notifications that invite you back after days of absence are the other place to look."
+        confidence: Observed
+        fills: { c23-local: no such feature }
+
+  - id: P23.9
+    name: Offline, then reconnect
+    caution: This probe uses airplane mode, which interrupts calls and other apps on that device.
+    do:
+      - Put the app on device A in the background and turn on airplane mode.
+      - From a second device or account, cause five events that would each notify A, one minute apart. Number them if the event has text.
+      - Wait five more minutes, then turn airplane mode off on A. Do not open the app.
+      - Count the notifications that arrive in the next two minutes and note which events they name.
+    watch: How many notifications arrive, and whether they are separate, merged or only the latest.
+    outcomes:
+      - label: Five notifications, one per event
+        reading: "No replacement key, and an expiry longer than the test. The push service stored every message."
+        confidence: Inferred
+        fills: { c23-offline-push: all delivered }
+      - label: One notification, for the latest event or as a summary
+        reading: "A replacement key, a push service that keeps only the latest, or one wake that built a single summary. The three cannot be told apart."
+        confidence: Speculative
+        fills: { c23-offline-push: collapsed to one }
+      - label: No notifications, and the events are there when the app is opened
+        reading: "A short expiry, or a backend that did not send to a device it saw as unreachable. The data comes from the pull on open."
+        confidence: Inferred
+        fills: { c23-offline-push: none }
+
+  - id: P23.10
+    name: Days unopened
+    caution: This probe uses airplane mode, which interrupts calls and other apps on that device.
+    do:
+      - Open the app and note the newest item on its first screen. Leave the app without a force-quit.
+      - Do not open the app for at least three days. Use the device normally and charge it overnight. Dismiss its notifications without tapping them.
+      - Make sure the account has new content by then, from a second device or account if needed.
+      - Turn on airplane mode, then open the app.
+    watch: Whether the first screen holds content newer than the item you noted, while the device is offline.
+    outcomes:
+      - label: Newer content is present offline
+        reading: "The local store moved forward with no visit. A deferred task or a push wake refreshed it. The two cannot be separated from outside."
+        confidence: Inferred
+        fills: { c23-refresh: refreshed while unopened }
+      - label: The content is as you left it
+        reading: "No background refresh ran, because the app registers none or the operating system did not grant it. One run cannot separate these."
+        confidence: Speculative
+        fills: { c23-refresh: not refreshed }
+      - label: The first screen is empty or shows only an error
+        reading: "No readable local copy. This is an offline result for Chapter 12 and says nothing about background work."
+        confidence: Observed
+        fills: { c23-refresh: nothing stored }
+
+signals:
+  - { signal: A persistent indicator or lock-screen controls while the app is in the background, design: User-visible work declared to the operating system, confidence: Observed }
+  - { signal: Several named notification categories in the system settings, design: Event types declared to the platform and muted on the device, confidence: Observed }
+  - { signal: A notification preference changed in the app also applies on a second device, design: Preferences stored on the backend and applied before sending, confidence: Inferred }
+  - { signal: The same notification arrives after a force-quit, design: System-displayed notification with text written by the backend, confidence: Inferred }
+  - { signal: A plainer notification after a force-quit or in low-power mode, design: App-built notification with fallback text in the payload, confidence: Inferred }
+  - { signal: No notification after a force-quit, design: App-built notification that depends on a push wake, confidence: Inferred }
+  - { signal: A notification shows a contact name that exists only on this device, design: App-built notification composed from local data, confidence: Inferred }
+  - { signal: Readable message text in a notification from an app with end-to-end encryption, design: Content decrypted on the device by a short-lived process before display, confidence: Inferred }
+  - { signal: A notification image that is missing on a weak network, design: Image downloaded on the device under a deadline before display, confidence: Inferred }
+  - { signal: A reply sent from a notification without the app opening, design: Notification action that runs a mutation in a short background window, confidence: Inferred }
+  - { signal: A notification disappears after the item is read on another device, design: Withdrawal push handled by a push wake, confidence: Inferred }
+  - { signal: The badge changes while the app is force-quit, design: Badge count computed on the backend and carried in the payload, confidence: Inferred }
+  - { signal: The badge disagrees with the unread count inside the app, design: "Two sources for the count, one on the backend and one on the client", confidence: Speculative }
+  - { signal: A notification changes its text in place instead of adding a new one, design: Replacement key shared by successive pushes, confidence: Inferred }
+  - { signal: A reminder fires on time in airplane mode, design: Local notification scheduled on the device, confidence: Inferred }
+  - { signal: A reminder fires for something already completed on another device, design: Local notification that no wake reached to cancel, confidence: Inferred }
+  - { signal: One notification after a long offline period in which several events happened, design: "Replacement key, or a push service that stores only the latest message", confidence: Speculative }
+  - { signal: Fresh content offline after days without opening the app, design: Deferred task or push wake that refreshes the local store, confidence: Inferred }
+
+worksheet:
+  - { id: c23-categories, label: Notification categories, options: [several in system settings, in-app preferences, single switch] }
+  - { id: c23-long-running, label: Long-running work in the background, options: [continues with indicator, continues without indicator, stops] }
+  - { id: c23-builder, label: Who writes the notification, options: [system displayed, app built, combined, unknown] }
+  - { id: c23-force-quit, label: Notification after a force-quit, options: [same, plainer, none] }
+  - { id: c23-grace, label: A write in progress when leaving, options: [finished while away, finished on return, lost] }
+  - { id: c23-actions, label: Notification actions, options: [complete in background, open the app, none] }
+  - { id: c23-withdraw, label: After reading on another device, options: [notification and badge clear, badge only, nothing clears] }
+  - { id: c23-badge-source, label: Badge count source, options: [backend, client, unknown] }
+  - { id: c23-low-power, label: Notifications in low-power mode, options: [unchanged, plainer, late or missing] }
+  - { id: c23-local, label: Scheduled notifications, options: [fires offline, needs network, no such feature] }
+  - { id: c23-offline-push, label: Notifications after an offline period, options: [all delivered, collapsed to one, none] }
+  - { id: c23-refresh, label: Refresh while unopened for days, options: [refreshed while unopened, not refreshed, nothing stored] }
+  - { id: c23-rich, label: "Grouping, images and in-place updates seen" }
+  - { id: c23-backend, label: Backend components implied }
+  - { id: c23-failures, label: Failure modes seen }

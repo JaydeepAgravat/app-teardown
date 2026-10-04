@@ -1,0 +1,131 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { loadChapters } from '../lib/data.mjs';
+
+const rows = loadChapters().flatMap((chapter: any) =>
+  (chapter.signals ?? []).map((row: any) => ({ ...row, chapter: chapter.chapter, title: chapter.title, link: chapter.link }))
+);
+const levels = ['Observed', 'Inferred', 'Speculative'];
+---
+
+<StarlightPage
+  frontmatter={{
+    title: 'Signal lookup',
+    description: 'Describe a behavior you saw in an app and find the designs that produce it.',
+    tableOfContents: false,
+  }}
+>
+  <p>
+    Describe something you saw an app do. The lookup returns the designs that produce that behavior, how sure you can
+    be, and the chapter that explains it.
+  </p>
+
+  <div class="lookup not-content">
+    <input
+      type="search"
+      id="lookup-query"
+      placeholder="For example: item reappears after delete"
+      aria-label="Describe what you saw"
+      autocomplete="off"
+    />
+    <div class="chips" role="group" aria-label="Filter by confidence">
+      <button type="button" class="chip" data-level="" aria-pressed="true">All</button>
+      {
+        levels.map((level) => (
+          <button type="button" class="chip" data-level={level} aria-pressed="false">
+            {level}
+          </button>
+        ))
+      }
+    </div>
+    <p id="lookup-count" aria-live="polite"></p>
+    <ul id="lookup-list">
+      {
+        rows.map((row: any) => (
+          <li data-level={row.confidence} data-text={`${row.signal} ${row.design} ${row.title}`.toLowerCase()}>
+            <p class="lookup-signal">{row.signal}</p>
+            <p class="lookup-design">
+              <span class={`conf conf-${row.confidence.toLowerCase()}`}>{row.confidence}</span>
+              {row.design}
+            </p>
+            <a href={row.link}>
+              Chapter {row.chapter}. {row.title}
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+    <p id="lookup-empty" hidden>
+      No signal matches yet. Try fewer or different words. More signals are added as chapters are written.
+    </p>
+  </div>
+</StarlightPage>
+
+<script>
+  const query = document.querySelector<HTMLInputElement>('#lookup-query')!;
+  const list = document.querySelector<HTMLElement>('#lookup-list')!;
+  const items = [...list.querySelectorAll<HTMLElement>('li')];
+  const chips = [...document.querySelectorAll<HTMLButtonElement>('.chip')];
+  const count = document.querySelector<HTMLElement>('#lookup-count')!;
+  const empty = document.querySelector<HTMLElement>('#lookup-empty')!;
+
+  const STOP = new Set(['a', 'an', 'the', 'of', 'on', 'in', 'is', 'it', 'and', 'or', 'to', 'with', 'when', 'after', 'my', 'i']);
+  // Crude stemming so that "deleted" and "reappearing" match "delete" and "reappears".
+  const stem = (word: string) => (word.length > 4 ? word.replace(/(ing|ed|es|s)$/, '') : word);
+
+  let level = '';
+
+  const words = (text: string) =>
+    text
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter((t) => t && !STOP.has(t))
+      .map(stem);
+
+  // Each signal's words, and how many signals each word starts a word in, so that
+  // rare words such as "splash" count for more than common ones such as "app".
+  const index = items.map((item) => [...new Set(words(item.dataset.text!))]);
+  const weight = (token: string) => {
+    const hits = index.filter((entry) => entry.some((word) => word.startsWith(token))).length;
+    return hits === 0 ? 0 : Math.log(1 + items.length / hits);
+  };
+
+  const run = () => {
+    const tokens = [...new Set(words(query.value))];
+    const weights = new Map(tokens.map((token) => [token, weight(token)]));
+
+    const scored = items.map((item, i) => {
+      const score =
+        tokens.length === 0
+          ? 1
+          : tokens.reduce((sum, t) => sum + (index[i].some((word) => word.startsWith(t)) ? weights.get(t)! : 0), 0);
+      return { item, score, visible: false };
+    });
+
+    // Keep only results that come reasonably close to the best match.
+    const best = Math.max(...scored.map((s) => s.score));
+    scored.forEach((s) => {
+      s.visible = s.score > 0 && s.score >= best * 0.5 && (!level || s.item.dataset.level === level);
+    });
+
+    scored.sort((a, b) => b.score - a.score);
+    scored.forEach(({ item, visible }) => {
+      item.hidden = !visible;
+      list.appendChild(item);
+    });
+
+    const shown = scored.filter((s) => s.visible).length;
+    count.textContent = `${shown} of ${items.length} signals`;
+    empty.hidden = shown > 0;
+  };
+
+  query.addEventListener('input', run);
+  chips.forEach((chip) =>
+    chip.addEventListener('click', () => {
+      level = chip.dataset.level!;
+      chips.forEach((c) => c.setAttribute('aria-pressed', String(c === chip)));
+      run();
+    })
+  );
+  run();
+</script>

@@ -1,0 +1,215 @@
+chapter: 34
+title: Observability
+link: /part-2-concerns/34-observability/
+
+probes:
+  - id: P34.1
+    name: Diagnostics setting
+    do:
+      - Open the app's settings and look through every section, including privacy, data and about.
+      - Look for a control that mentions diagnostics, crash reports, usage data, analytics or improving the app.
+      - Read its description. Do not change it yet.
+    watch: Whether a control exists, what it says is collected, and whether crash reports and usage data have separate controls.
+    outcomes:
+      - label: Separate controls for crash reports and usage data
+        reading: "The maker treats the two as separate channels behind separate consent. Both channels exist by the maker's own statement."
+        confidence: Observed
+        fills: { c34-setting: separate controls }
+      - label: One control for diagnostics or usage data
+        reading: "At least one channel exists and a consent gate sits in front of it. Which channels the control covers is not stated."
+        confidence: Observed
+        fills: { c34-setting: one control }
+      - label: No such control
+        reading: "Either nothing optional is collected, or collection is not offered as a choice in this region. The absence of a control does not show the absence of a pipeline."
+        confidence: Speculative
+        fills: { c34-setting: none found }
+
+  - id: P34.2
+    name: Privacy listing
+    do:
+      - Open the app's page in the store.
+      - Find the privacy section the maker has filled in.
+      - Note whether it lists diagnostics, crash data, performance data or usage data, and whether each is linked to your identity.
+    watch: Which kinds of data are declared and for which purposes, such as analytics or app functionality.
+    outcomes:
+      - label: Declares both diagnostics and usage data
+        reading: "The maker states that crash or performance data and analytics events are collected. This is a published statement, not an observation of what is sent."
+        confidence: Observed
+        fills: { c34-listing: diagnostics and usage data }
+      - label: Declares diagnostics only
+        reading: "The maker states that crash or performance data is collected and usage data is not."
+        confidence: Observed
+        fills: { c34-listing: diagnostics only }
+      - label: Declares usage data only
+        reading: "The maker states that analytics events are collected. Crash data may still reach the maker through reports the platform collects."
+        confidence: Observed
+        fills: { c34-listing: usage data only }
+      - label: Declares neither, or the section is empty
+        reading: "By the maker's statement nothing in these categories is collected, or the listing was not completed. Treat the app as having no declared client pipeline."
+        confidence: Speculative
+        fills: { c34-listing: none declared }
+
+  - id: P34.3
+    name: Consent choices
+    do:
+      - Look in settings for a privacy choices or consent screen that can be reopened.
+      - If there is none, recall or note what the app asked on its first launch on your device.
+      - Read the categories offered and which are marked as required.
+    watch: Whether analytics is a category you can refuse, and which category crash reports are placed in.
+    outcomes:
+      - label: Categories, with analytics optional
+        reading: "The consent gate separates categories, so the recorder checks a category for each event or each channel."
+        confidence: Inferred
+        fills: { c34-consent: categories }
+      - label: One accept or refuse choice
+        reading: "A single gate covers all optional collection."
+        confidence: Inferred
+        fills: { c34-consent: all or nothing }
+      - label: Nothing was asked and no screen exists
+        reading: "Collection, if any, runs without an in-app choice in your region. Consent rules differ by region, so another user may see a prompt."
+        confidence: Speculative
+        fills: { c34-consent: not asked }
+
+  - id: P34.4
+    name: Feedback form
+    do:
+      - Find the app's feedback, help or report-a-problem form.
+      - Read the whole form before typing anything, including small print near the send control.
+      - Look for a mention of logs, diagnostics, device details or a screenshot, and for a control to leave them out.
+      - Send a short, real piece of feedback only if you have one. You do not need to send anything to record the outcome.
+    watch: What the form says it attaches, and whether you are given a choice.
+    outcomes:
+      - label: Says it attaches logs, with a control to leave them out
+        reading: "The client keeps a log on the device and uploads it on demand. The team treats that upload as something to ask about."
+        confidence: Inferred
+        fills: { c34-feedback: logs with a choice }
+      - label: Says it attaches logs or diagnostics, with no choice
+        reading: "The client keeps a log on the device and attaches it to every report."
+        confidence: Inferred
+        fills: { c34-feedback: logs without a choice }
+      - label: Mentions only a screenshot or device details
+        reading: "The form collects context at the moment of the report. Nothing shows a stored log."
+        confidence: Observed
+        fills: { c34-feedback: screenshot or device details }
+      - label: A plain text form, an email draft or a web page
+        reading: "Feedback is not connected to the client's internals. A log may still exist and simply not be attached."
+        confidence: Speculative
+        fills: { c34-feedback: text only }
+
+  - id: P34.5
+    name: Report trigger
+    do:
+      - Open any ordinary screen of the app that shows nothing private.
+      - Take a screenshot with the device's own controls.
+      - Wait a few seconds and look for a prompt from the app.
+    watch: Whether the app offers to report a problem or share the screenshot.
+    outcomes:
+      - label: The app offers to report a problem
+        reading: "A report trigger is installed at app level, on every screen, and opens the feedback path of P34.4."
+        confidence: Observed
+        fills: { c34-report-trigger: "yes" }
+      - label: The app offers only to share the screenshot
+        reading: "The app listens for screenshots for a product feature. This says nothing about reporting."
+        confidence: Observed
+        fills: { c34-report-trigger: "no" }
+      - label: Nothing happens
+        reading: "No screenshot trigger. Reports start only from the form."
+        confidence: Observed
+        fills: { c34-report-trigger: "no" }
+
+  - id: P34.6
+    name: Idle day
+    do:
+      - Use the app normally, then close it.
+      - Open the device's data usage screen and note the figure for the app. Note the background figure separately if the device shows one.
+      - Leave the device connected and do not open the app for a full day.
+      - Read the figures again.
+    watch: How much data the app used while you did not open it.
+    outcomes:
+      - label: No change
+        reading: "The app does nothing on the network while closed, or too little to register."
+        confidence: Observed
+        fills: { c34-idle-data: none }
+      - label: A small increase
+        reading: "Something runs in the background. It may be an upload of queued events, a config check, a sync or the handling of a push. The figure cannot separate them."
+        confidence: Speculative
+        fills: { c34-idle-data: small }
+      - label: A large increase
+        reading: "Too much for events alone. Content sync or prefetching is the likelier cause (Chapter 11)."
+        confidence: Speculative
+        fills: { c34-idle-data: large }
+
+  - id: P34.7
+    name: Offline session, then reconnect
+    caution: This probe uses airplane mode, which interrupts calls and other apps on that device.
+    do:
+      - Pick a feature that works offline for reading (Chapter 12). Skip this probe if the app shows nothing offline.
+      - Note the app's figure on the device's data usage screen.
+      - Turn on airplane mode and browse for several minutes. Read only. Do not create, edit, like or send anything.
+      - Close the app, then turn airplane mode off. Do not open the app.
+      - After an hour, read the data figure again.
+    watch: Whether the app used data after reconnecting although you did not open it and had nothing of your own waiting to send.
+    outcomes:
+      - label: The figure rose
+        reading: "Something was queued while offline and uploaded in the background. With no writes pending, an event queue is a likely cause. A scheduled refresh fits equally well."
+        confidence: Speculative
+        fills: { c34-offline-upload: seen }
+      - label: The figure did not change
+        reading: "No background upload ran in that hour. A queue may still exist and wait for the next launch."
+        confidence: Speculative
+        fills: { c34-offline-upload: not seen }
+
+  - id: P34.8
+    name: Launch after a crash
+    caution: Never try to cause a crash. Run this probe only when the app has closed unexpectedly on its own.
+    do:
+      - When the app closes unexpectedly during normal use, note what you were doing.
+      - Open the app again.
+      - Watch the first few seconds and the first screen.
+    watch: Whether the app asks to send a report, shows a message about the previous run, or returns you to where you were.
+    outcomes:
+      - label: The app asks whether to send a report
+        reading: "A crash file was written at failure and found at this launch. Upload is behind an explicit choice."
+        confidence: Observed
+        fills: { c34-crash-prompt: asks to send }
+      - label: A message about the last run, or an offer to restore
+        reading: "The client detected that the previous run ended badly. A report was probably sent without asking."
+        confidence: Inferred
+        fills: { c34-crash-prompt: recovery message }
+      - label: Nothing visible
+        reading: "Either a report was uploaded silently, or none was written. The two cannot be told apart."
+        confidence: Speculative
+        fills: { c34-crash-prompt: nothing visible }
+
+signals:
+  - { signal: Settings offer a control for usage data or diagnostics, design: A consent gate in front of at least one client channel, confidence: Observed }
+  - { signal: Separate controls for crash reports and for usage data, design: Crash reporting and analytics are separate channels with separate consent, confidence: Inferred }
+  - { signal: The store privacy listing declares diagnostics or usage data, design: "The maker states that the channel exists. A declaration, not an observation of traffic", confidence: Observed }
+  - { signal: A usage-data setting says it applies after a restart, design: The recorder reads consent once at startup, confidence: Inferred }
+  - { signal: The feedback form says it attaches logs, design: A bounded log kept on the device and uploaded on demand, confidence: Inferred }
+  - { signal: The feedback form lists device model and versions, design: Context is collected at the moment of the report, confidence: Observed }
+  - { signal: A report prompt appears after a screenshot or a shake, design: A report trigger installed at app level, confidence: Observed }
+  - { signal: A prompt to send a report on the launch after a crash, design: Crash file written at failure and uploaded on the next launch, confidence: Observed }
+  - { signal: An offer to restore your place after an unexpected close, design: The client detects an unclean end to the previous run, confidence: Inferred }
+  - { signal: A small amount of data used on a day the app was not opened, design: "Background upload, config check, sync or push handling. The channel cannot be identified", confidence: Speculative }
+  - { signal: Data sent after reconnecting from a read-only offline session, design: A durable event queue drained in the background, confidence: Speculative }
+  - { signal: Startup hangs on a poor network and is fast in airplane mode, design: An upload or config call on the launch path without a short timeout, confidence: Speculative }
+  - { signal: Storage grows in an app that caches little, design: An unbounded queue or log, confidence: Speculative }
+  - { signal: A support agent asks you to reproduce a problem after enabling diagnostics, design: Per-user detail raised by remote config, confidence: Inferred }
+  - { signal: Warmth and stutter on simple screens, design: "Possibly a recorder capturing frames. Many other causes fit", confidence: Speculative }
+  - { signal: The privacy policy names analytics or crash providers, design: "Third parties receive the data. Stated by the maker", confidence: Observed }
+
+worksheet:
+  - { id: c34-setting, label: Diagnostics or usage setting, options: [separate controls, one control, none found] }
+  - { id: c34-listing, label: Privacy listing declares, options: [diagnostics and usage data, diagnostics only, usage data only, none declared] }
+  - { id: c34-consent, label: Consent for analytics, options: [categories, all or nothing, not asked] }
+  - { id: c34-feedback, label: Feedback attachments, options: [logs with a choice, logs without a choice, screenshot or device details, text only, no form] }
+  - { id: c34-report-trigger, label: Report prompt on screenshot or shake, options: ["yes", "no"] }
+  - { id: c34-idle-data, label: Data used on an idle day, options: [none, small, large] }
+  - { id: c34-offline-upload, label: Upload after a read-only offline session, options: [seen, not seen, not tested] }
+  - { id: c34-crash-prompt, label: Launch after a natural crash, options: [asks to send, recovery message, nothing visible, no crash seen] }
+  - { id: c34-channels, label: "Channels claimed, each with a confidence word" }
+  - { id: c34-third-parties, label: Third parties the maker names }
+  - { id: c34-recording, label: Session recording evidence }
+  - { id: c34-failures, label: Failure modes seen }
+  - { id: c34-open, label: Open questions }

@@ -1,0 +1,287 @@
+chapter: 27
+title: Ads, attribution and growth
+link: /part-2-concerns/27-ads-attribution-and-growth/
+
+probes:
+  - id: P27.1
+    name: Ad inventory
+    do:
+      - Use the app for ten minutes as you normally would, visiting every main screen.
+      - Each time you see an ad or a promotion, write down the screen, the position and the action that preceded it.
+      - Look for the small label that marks paid content, such as a sponsored or ad marker.
+      - Check the store listing for a statement that the app contains ads.
+    watch: Which ad formats the app uses and where it places them. Sort each sighting into banner, full-screen ad, rewarded ad or native ad.
+    outcomes:
+      - label: No ads anywhere
+        reading: "The app does not earn from attention, or ads are removed for your account. Skip to the attribution and growth probes."
+        confidence: Observed
+        fills: { c27-ads-present: none }
+      - label: One format only
+        reading: "A single ad placement. The ad component is small and the format tells you which user action the team is willing to interrupt."
+        confidence: Observed
+        fills: { c27-ads-present: one format }
+      - label: Several formats
+        reading: "Ads are a main source of revenue. Expect an ad component with its own cache, frequency limits and several ad sources."
+        confidence: Inferred
+        fills: { c27-ads-present: several formats }
+
+  - id: P27.2
+    name: Ad slots in airplane mode
+    caution: This probe changes a device-wide setting. Turn airplane mode off when you finish.
+    do:
+      - Force-quit the app.
+      - Turn on airplane mode.
+      - Open the app and go to the screens where you saw ads in P27.1.
+      - Perform the action that normally brings a full-screen ad.
+    watch: What occupies each ad slot when no ad can be fetched, and whether the app itself still works.
+    outcomes:
+      - label: The slot closes up and content fills the space
+        reading: "The layout reserves no space until an ad has loaded. The ad slot is added to the screen by the ad component after a successful load."
+        confidence: Inferred
+        fills: { c27-offline-slot: collapses }
+      - label: An empty space or a placeholder remains
+        reading: "The layout reserves a fixed ad slot whether or not an ad fills it. This avoids content jumping when an ad arrives."
+        confidence: Inferred
+        fills: { c27-offline-slot: empty space }
+      - label: An ad still shows
+        reading: "Either an ad loaded earlier is still held on the device, or the slot shows a house ad that ships with the app or sits in a cache."
+        confidence: Speculative
+        fills: { c27-offline-slot: ad still shows }
+      - label: The app refuses to work without a network
+        reading: "The app is online only, by design or to protect ad revenue. The two reasons cannot be told apart from outside."
+        confidence: Speculative
+        fills: { c27-offline-slot: app blocked }
+
+  - id: P27.3
+    name: Rewarded ad readiness
+    do:
+      - Run this only if the app offers a rewarded ad.
+      - Force-quit the app, open it, and go to the rewarded ad control as fast as you can.
+      - Note the state of the control, then tap it.
+      - Watch one ad to the end, then look at the control again straight away.
+    watch: Whether the ad starts at once, and whether the control has a not-ready state. Compare the first tap after launch with the tap right after an ad has finished.
+    outcomes:
+      - label: The ad starts at once, every time
+        reading: "Rewarded ads are loaded ahead of display, at launch and again after each showing."
+        confidence: Inferred
+        fills: { c27-rewarded-ready: ready at once }
+      - label: The control is disabled or says no ad is available, then becomes ready
+        reading: "Loaded ahead, with the readiness state bound to the control. The delay is the load, and a long one hints at several ad sources being asked."
+        confidence: Inferred
+        fills: { c27-rewarded-ready: readiness state shown }
+      - label: A loading indicator appears after the tap, then the ad plays
+        reading: "The ad is requested on demand. Nothing is held ahead of display."
+        confidence: Inferred
+        fills: { c27-rewarded-ready: loads on demand }
+
+  - id: P27.4
+    name: Count the full-screen ads
+    do:
+      - Run this only if the app shows full-screen ads between actions.
+      - Find the action that triggers one, such as finishing a level or closing an article.
+      - Repeat that action fifteen times at a steady pace. Record which repetitions bring an ad and the time of each.
+      - Repeat the run, this time with a pause of several minutes between actions.
+    watch: Whether ads follow the count of actions, the time since the last ad, or neither.
+    outcomes:
+      - label: An ad on every action
+        reading: "No frequency limit on this placement."
+        confidence: Observed
+        fills: { c27-frequency: every time }
+      - label: An ad every fixed number of actions, in both runs
+        reading: "A frequency limit that counts actions."
+        confidence: Inferred
+        fills: { c27-frequency: count based }
+      - label: Ads are spaced by time, and the slow run shows one on nearly every action
+        reading: "A frequency limit that enforces a minimum time between ads."
+        confidence: Inferred
+        fills: { c27-frequency: time based }
+      - label: No pattern you can find
+        reading: "A limit decided per user on the backend, a combination of rules, or slots that went unfilled. These fit equally well."
+        confidence: Speculative
+        fills: { c27-frequency: irregular }
+
+  - id: P27.5
+    name: Decline tracking and compare
+    caution: This probe changes a privacy setting. If you use the device-wide tracking setting, it affects every app. Prefer the per-app setting or the app's own consent screen, and restore your choice when you finish.
+    do:
+      - Note the ads you see over ten minutes with your current setting.
+      - Decline tracking or personalized ads, using the app's consent screen or the per-app tracking setting.
+      - Force-quit the app and open it again.
+      - Note the ads you see over another ten minutes.
+    watch: Whether the subject of the ads changes, whether as many slots are filled, and whether the app asks you again.
+    outcomes:
+      - label: Ads turn generic or follow the content on screen
+        reading: "The consent state reaches the ad request. Without it the ad sources select by context and not by your profile."
+        confidence: Inferred
+        fills: { c27-consent-effect: ads change }
+      - label: Fewer ads, or more empty slots
+        reading: "Some ad sources decline to bid on requests without a user identity, so fill drops. This is also evidence of more than one ad source."
+        confidence: Inferred
+        fills: { c27-consent-effect: fewer ads }
+      - label: No visible change
+        reading: "Either the ads were not personalized before, or you cannot see the difference in a short sample. Do not conclude that consent is ignored."
+        confidence: Speculative
+        fills: { c27-consent-effect: no visible change }
+      - label: The app asks again or limits features
+        reading: "Consent is a gate in the startup flow, and the team treats a refusal as a state to revisit."
+        confidence: Observed
+        fills: { c27-consent-effect: app asks again }
+
+  - id: P27.6
+    name: Install from a referral link
+    caution: Use your own two accounts and a spare device. Do not send test invitations to other people.
+    do:
+      - On your main device, create an invitation or referral link from your own account.
+      - Send the link to a spare device that has never had the app.
+      - Tap the link on the spare device, install the app from the store and open it.
+      - Create a second account of your own and watch what the app knows before and after sign-up.
+    watch: Whether the app knows who invited you, when it knows, and whether you had to type anything.
+    outcomes:
+      - label: The app shows the inviter or the invited content before sign-up
+        reading: "A deferred deep link. The link's target was carried through installation and matched on first launch."
+        confidence: Inferred
+        fills: { c27-referral: carried through install }
+      - label: The referral is credited only after sign-up, with nothing typed
+        reading: "Either the match was carried through installation and applied late, or the invitation was matched to the new account by email address or phone number."
+        confidence: Speculative
+        fills: { c27-referral: matched after sign-up }
+      - label: The app asks you to type a referral code
+        reading: "A manual referral code. No match across installation is attempted, or it failed and this is the fallback."
+        confidence: Inferred
+        fills: { c27-referral: typed code }
+      - label: The app shows no sign of the referral
+        reading: "The link led to the store and nothing more. Install sources may still be reported to the team in aggregate, which you cannot see."
+        confidence: Speculative
+        fills: { c27-referral: none }
+
+  - id: P27.7
+    name: Invitation screen
+    caution: Do not grant access to your contacts for this probe. Granting it may upload other people's details.
+    do:
+      - Open the screen that invites friends or finds people you know.
+      - Read what it offers before you grant anything.
+      - If it asks for contacts access, read the explanation and decline.
+      - Look at what remains after you decline.
+    watch: Whether the app offers a link to share, asks for your contacts, or both.
+    outcomes:
+      - label: A share link or code only
+        reading: "Invitations travel as links through other apps. The backend needs a link resolver and a referral record, and never sees your contacts."
+        confidence: Inferred
+        fills: { c27-invite: share link only }
+      - label: A request for contacts access, and nothing works without it
+        reading: "Contact matching. The client uploads identifiers from your contacts and the backend matches them against its accounts."
+        confidence: Inferred
+        fills: { c27-invite: contact matching }
+      - label: A request for contacts access, with a share link as fallback
+        reading: "Both mechanisms. Contact matching finds existing users and the link reaches people who are not users yet."
+        confidence: Inferred
+        fills: { c27-invite: both }
+      - label: No invitation feature
+        reading: "Growth does not depend on users inviting each other."
+        confidence: Observed
+        fills: { c27-invite: none }
+
+  - id: P27.8
+    name: Rating prompt timing
+    do:
+      - Over a week or more of normal use, note every time the app asks for a rating or for feedback.
+      - For each prompt, write down what you had just done.
+      - Note whether the first question is the system rating dialog or the app's own question.
+      - Dismiss one prompt and note how long it takes to return.
+    watch: What triggers the prompt, and what stands in front of the system dialog.
+    outcomes:
+      - label: The system rating dialog appears right after a success
+        reading: "The prompt is tied to an event in the domain logic, chosen as a moment when the user is likely to be pleased."
+        confidence: Inferred
+        fills: { c27-rating: after a success }
+      - label: The app's own question comes first
+        reading: "A pre-prompt. Satisfied users are sent on to the store and dissatisfied users to a feedback form."
+        confidence: Observed
+        fills: { c27-rating: own question first }
+      - label: A prompt at launch or at a moment with no connection to what you did
+        reading: "A trigger based on launch count or days since install, with no link to an event."
+        confidence: Inferred
+        fills: { c27-rating: at launch or unrelated }
+      - label: No prompt in the period
+        reading: "No prompt exists, the conditions were not met, or the operating system declined to show it. These cannot be told apart."
+        confidence: Speculative
+        fills: { c27-rating: not seen }
+
+  - id: P27.9
+    name: Re-engagement notifications
+    do:
+      - Use the app actively for a few days, with its notifications allowed.
+      - Stop opening it for two weeks.
+      - Record every notification it sends in that time, with the day and the text.
+      - For a sharper reading, keep the device in airplane mode for one of those days and see whether a notification still arrives.
+    watch: Whether the notifications refer to real activity, follow a schedule, or stop.
+    outcomes:
+      - label: None arrive
+        reading: "No re-engagement campaign for your account, or one with a longer delay than your absence."
+        confidence: Speculative
+        fills: { c27-reengage: none }
+      - label: Generic messages at regular intervals
+        reading: "A schedule keyed to days since last use. If one arrives in airplane mode, the client scheduled it locally before you left."
+        confidence: Inferred
+        fills: { c27-reengage: generic on a schedule }
+      - label: Messages that name specific content or activity
+        reading: "The backend composes each message from your data and other users' activity, and sends it by platform push."
+        confidence: Inferred
+        fills: { c27-reengage: specific to activity }
+
+  - id: P27.10
+    name: Promotional content over time
+    do:
+      - Note the promotional items on the home screen, such as banners for the app's own offers.
+      - Check again each day for a week, without updating the app.
+      - Compare with a second account of your own on another device at the same moment.
+    watch: Whether promotions change without a release, and whether two accounts see the same ones.
+    outcomes:
+      - label: Promotions change over the week, and both accounts see the same
+        reading: "Promotional content comes from the backend or from remote config, with one set for everyone in your region."
+        confidence: Inferred
+        fills: { c27-promo: changes without a release }
+      - label: The two accounts see different promotions
+        reading: "Promotions are targeted per user or assigned by an experiment."
+        confidence: Inferred
+        fills: { c27-promo: differs by account }
+      - label: Nothing changes over the week
+        reading: "Promotions ship with the app, or the campaign simply did not change during your sample."
+        confidence: Speculative
+        fills: { c27-promo: unchanged }
+
+signals:
+  - { signal: A sponsored label on some items in a feed, design: Native ads inserted into the list by the backend or by the client, confidence: Observed }
+  - { signal: A full-screen ad appears with no delay at a break in the flow, design: The ad was loaded ahead of display, confidence: Inferred }
+  - { signal: A rewarded ad control that starts disabled and becomes ready, design: Readiness state of a preloaded ad bound to the control, confidence: Inferred }
+  - { signal: An ad slot that stays empty while the rest of the screen loads, design: "No fill. Every ad source declined or timed out", confidence: Inferred }
+  - { signal: Content jumps down when an ad arrives, design: Ad slot with no reserved space, confidence: Inferred }
+  - { signal: Ad load time varies widely between requests, design: Several ad sources asked in turn or in an auction, confidence: Speculative }
+  - { signal: Ads differ in visual style and close-button behavior from one showing to the next, design: More than one ad source behind one ad slot, confidence: Inferred }
+  - { signal: The same placeholder promotion for the app's own products fills gaps, design: House ads as the fallback when no paid ad fills, confidence: Inferred }
+  - { signal: A full-screen ad appears every fixed number of actions, design: Count-based frequency limit, confidence: Inferred }
+  - { signal: Fewer slots are filled after you decline tracking, design: Consent state passed to ad sources that bid less without an identity, confidence: Inferred }
+  - { signal: A consent screen appears before the first ad on a fresh install, design: Consent gate ahead of ad initialization, confidence: Observed }
+  - { signal: A fresh install from an invitation opens on the inviter or the invited content, design: Deferred deep link, confidence: Inferred }
+  - { signal: The app asks where you heard about it during onboarding, design: Self-reported attribution to supplement what matching cannot see, confidence: Inferred }
+  - { signal: A referral reward arrives only after the new account completes an action, design: "Referral record with a qualifying event, checked on the backend", confidence: Inferred }
+  - { signal: People you know are suggested right after you grant contacts access, design: Contact matching on the backend, confidence: Inferred }
+  - { signal: The app's own question about enjoyment comes before the system rating dialog, design: Pre-prompt that routes unhappy users to feedback, confidence: Observed }
+  - { signal: Notifications arrive at set intervals after you stop using the app, design: Re-engagement schedule keyed to last use, confidence: Inferred }
+  - { signal: Home screen promotions change without an app update, design: Promotional content from the backend or remote config, confidence: Inferred }
+
+worksheet:
+  - { id: c27-ads-present, label: Ads present, options: [none, one format, several formats] }
+  - { id: c27-formats, label: Ad formats and where each appears }
+  - { id: c27-offline-slot, label: Ad slot offline, options: [collapses, empty space, ad still shows, app blocked] }
+  - { id: c27-rewarded-ready, label: Rewarded ad readiness, options: [ready at once, readiness state shown, loads on demand, no rewarded ads] }
+  - { id: c27-frequency, label: Full-screen ad frequency, options: [every time, count based, time based, irregular, no full-screen ads] }
+  - { id: c27-ad-sources, label: Evidence of several ad sources }
+  - { id: c27-consent-effect, label: Effect of declining tracking, options: [ads change, fewer ads, no visible change, app asks again] }
+  - { id: c27-referral, label: Referral across installation, options: [carried through install, matched after sign-up, typed code, none] }
+  - { id: c27-invite, label: Invitation mechanism, options: [share link only, contact matching, both, none] }
+  - { id: c27-rating, label: Rating prompt trigger, options: [after a success, own question first, at launch or unrelated, not seen] }
+  - { id: c27-reengage, label: Re-engagement notifications, options: [none, generic on a schedule, specific to activity] }
+  - { id: c27-promo, label: Promotional content, options: [changes without a release, differs by account, unchanged] }
+  - { id: c27-backend, label: Backend components and third parties implied }
+  - { id: c27-failures, label: Failure modes seen }

@@ -1,0 +1,274 @@
+chapter: 17
+title: Audio and video playback
+link: /part-2-concerns/17-audio-and-video-playback/
+
+probes:
+  - id: P17.1
+    name: Weak start
+    do:
+      - Find a weak connection, for example the edge of wireless coverage or a spot with poor cellular signal.
+      - Pick an item at least a few minutes long that you have never played on this device.
+      - Tap play and time the wait until the first picture or sound.
+      - Watch the first two minutes without touching anything. Then walk toward better coverage and keep watching.
+    watch: Whether playback starts before any download completes, how sharp the picture is in the first seconds compared with later, and whether playback stops. For audio, quality changes are hard to hear, so note only the wait and the stops.
+    outcomes:
+      - label: It starts soft and sharpens, with few or no stops
+        reading: "Adaptive streaming. The player starts at a low quality level and chooses a level again for each segment."
+        confidence: Inferred
+        fills: { c17-delivery: adaptive streaming, c17-adaptation: switches quality }
+      - label: It plays at one sharpness throughout and stops repeatedly to load
+        reading: "One quality level. Progressive download, or adaptive streaming with a single level for this item."
+        confidence: Inferred
+        fills: { c17-delivery: progressive download, c17-adaptation: stalls at one quality }
+      - label: A progress indicator must finish before anything plays
+        reading: "Whole file. The client downloads the complete item and plays it from storage."
+        confidence: Observed
+        fills: { c17-delivery: whole file, c17-adaptation: not applicable }
+      - label: Audio starts after a wait and you can hear no change in quality
+        reading: "The delivery design cannot be told from this probe. P17.3 gives more evidence."
+        confidence: Speculative
+        fills: { c17-delivery: unknown, c17-adaptation: not visible }
+
+  - id: P17.2
+    name: Seek to an unbuffered point
+    do:
+      - On a moderate connection, start a long item and let it play for about twenty seconds.
+      - Drag the seek bar far ahead, to a point well past anything that could have loaded.
+      - Time the wait until playback continues.
+      - Then jump back about fifteen seconds and note whether that is instant.
+    watch: How long the forward seek takes, whether the bar refuses to move, and whether small preview frames appear while you drag.
+    outcomes:
+      - label: Playback continues within a second or two of the forward seek
+        reading: "The media is addressable by time, as segments or as byte positions in an indexed file. Only the target is fetched."
+        confidence: Inferred
+        fills: { c17-seek: fast anywhere }
+      - label: The wait grows with the distance, or the bar will not move past what has loaded
+        reading: "The file must arrive in order. It is a single file that is not indexed for seeking, or the player does not request by position."
+        confidence: Inferred
+        fills: { c17-seek: slow or refused }
+      - label: The forward seek is fast and the short jump back also has to load
+        reading: "Time-addressable media, and the player keeps nothing behind the playback position."
+        confidence: Inferred
+        fills: { c17-seek: fast with no back buffer }
+
+  - id: P17.3
+    name: Airplane mode mid-playback
+    do:
+      - On a good connection, start a long item and let it play for one minute.
+      - Turn on airplane mode and start a timer.
+      - Let it play until it stops by itself.
+      - Repeat once on an item you have been playing for ten minutes, if you have the time.
+    watch: How many seconds of playback continue with no network, and what the app shows when it stops.
+    outcomes:
+      - label: It stops within about ten seconds
+        reading: "A short buffer. The player fetches little ahead, which saves data and makes it fragile on poor networks."
+        confidence: Observed
+        fills: { c17-buffer-ahead: under ten seconds }
+      - label: It plays for tens of seconds to a few minutes, then stops
+        reading: "A buffer target measured in tens of seconds or minutes. If it lasts longer on the second run, the target grows as the item goes on."
+        confidence: Observed
+        fills: { c17-buffer-ahead: tens of seconds to minutes }
+      - label: It plays to the end of the item
+        reading: "The whole item was on the device. Either the file is small and was fetched in full, or it was downloaded earlier."
+        confidence: Inferred
+        fills: { c17-buffer-ahead: whole item }
+
+  - id: P17.4
+    name: Lock the screen
+    do:
+      - Start playback of an audio item, or of a video if the app has no audio.
+      - Lock the screen with the device's lock button.
+      - Listen for one minute, then wake the screen without unlocking it.
+      - Press play or pause on a headset if you have one.
+    watch: Whether sound continues, whether the lock screen shows the title and artwork with working controls, and whether the headset button works.
+    outcomes:
+      - label: Sound continues, with title and controls on the lock screen
+        reading: "The app declares background audio and reports to the system media controls."
+        confidence: Observed
+        fills: { c17-background: continues with system controls }
+      - label: Sound continues, with no controls on the lock screen
+        reading: "The app declares background audio and does not report what is playing to the system media controls."
+        confidence: Observed
+        fills: { c17-background: continues without controls }
+      - label: Sound stops at once or within about a minute
+        reading: "No background playback for this content. For video this is often a product decision, and may differ by subscription tier."
+        confidence: Observed
+        fills: { c17-background: stops }
+
+  - id: P17.5
+    name: Switch apps
+    do:
+      - Start a video in the app.
+      - Go to the home screen or switch to another app, without pausing first.
+      - Wait ten seconds, then look at the app's preview in the app switcher, and return to the app.
+    watch: Whether a small floating video window appears, whether sound continues, and whether the video is still playing or paused at the point you left when you return. Note whether the app switcher preview shows the picture or a black area.
+    outcomes:
+      - label: A small floating window keeps playing over other apps
+        reading: "Picture-in-picture. The app hands its video to a window the operating system draws."
+        confidence: Observed
+        fills: { c17-app-switch: picture-in-picture }
+      - label: The picture goes and the sound continues
+        reading: "Background audio for video. A well-built player stops fetching picture data in this state."
+        confidence: Observed
+        fills: { c17-app-switch: audio continues }
+      - label: Playback pauses and waits at the point you left
+        reading: "The player pauses when the app leaves the screen and keeps its position and buffer."
+        confidence: Observed
+        fills: { c17-app-switch: pauses }
+      - label: Playback pauses, and the item reloads or restarts when you return
+        reading: "The player is torn down when the app leaves the screen. The buffer is discarded, and the position too if it restarts from the beginning."
+        confidence: Inferred
+        fills: { c17-app-switch: stops and reloads }
+
+  - id: P17.6
+    name: Next item offline
+    do:
+      - On an unmetered network, start an item that has an obvious next item, such as a track in an album, an episode in a series or a clip in a vertical feed.
+      - Let it play for thirty seconds.
+      - Turn on airplane mode.
+      - Move to the next item with the skip control or a swipe.
+    watch: Whether the next item starts to play with no network, and for how long.
+    outcomes:
+      - label: The next item starts and plays for at least a few seconds
+        reading: "The start of the next item was preloaded while the current one played."
+        confidence: Inferred
+        fills: { c17-next-preload: start of next item preloaded }
+      - label: The next item plays to its end
+        reading: "The whole next item was fetched ahead. This is common for music, where a track is small."
+        confidence: Inferred
+        fills: { c17-next-preload: whole next item preloaded }
+      - label: The next item shows a loading indicator or an error
+        reading: "No media for the next item was on the device. A poster image alone does not count."
+        confidence: Observed
+        fills: { c17-next-preload: not preloaded }
+
+  - id: P17.7
+    name: Position after a force-quit
+    do:
+      - Start a long item and play it to a point you can recognize, a few minutes in.
+      - Force-quit the app while it is still playing, without pausing.
+      - Turn on airplane mode, open the app again and go to the same item.
+    watch: Where the item offers to start.
+    outcomes:
+      - label: Within a few seconds of where you were
+        reading: "The player writes the playback position to the local store every few seconds."
+        confidence: Inferred
+        fills: { c17-position-local: saved every few seconds }
+      - label: At an earlier point, a noticeable distance back
+        reading: "The position is written to the local store at long intervals, or only on pause. The distance estimates the interval."
+        confidence: Inferred
+        fills: { c17-position-local: saved at long intervals }
+      - label: At the beginning
+        reading: "The position was held in memory only, or it is kept only on the backend and could not be read offline."
+        confidence: Speculative
+        fills: { c17-position-local: not saved locally }
+
+  - id: P17.8
+    name: Continue on a second device
+    do:
+      - Sign in with the same account on two devices, A and B, both online.
+      - On A, play a long item to a recognizable point, then pause it. Note the exact time shown.
+      - On B, open the same item and note the position it offers.
+      - Repeat on a different item, and this time force-quit the app on A while it is playing, without pausing.
+    watch: Whether B offers the position from A, and how close it is in each of the two runs.
+    outcomes:
+      - label: B is exact after a pause and close after the force-quit
+        reading: "The position is synced, with a report on pause and frequent reports during playback."
+        confidence: Inferred
+        fills: { c17-position-sync: synced closely }
+      - label: B is exact after a pause and well behind after the force-quit
+        reading: "The position is synced, with reports at long intervals during playback. The distance behind estimates the report interval."
+        confidence: Inferred
+        fills: { c17-position-sync: synced at long intervals }
+      - label: B starts from the beginning in both runs
+        reading: "The playback position is not synced for this content."
+        confidence: Observed
+        fills: { c17-position-sync: not synced }
+
+  - id: P17.9
+    name: Download then go offline
+    caution: A download can be large. Run this on an unmetered network with enough free storage, and delete the download when you finish.
+    do:
+      - Look for a download control on an item. If the app offers a choice of download quality, note the choices.
+      - Download one item and let it finish. Note its size if the app shows it, and any expiry the app states.
+      - Force-quit the app and turn on airplane mode.
+      - Open the app, find the download and play it. Seek to several points.
+    watch: Whether the item plays with no network after a cold start, and anything the app says about expiry or about needing to go online.
+    outcomes:
+      - label: The app offers no downloads for this content
+        reading: "No offline playback. Anything that plays offline does so from a cache or a buffer."
+        confidence: Observed
+        fills: { c17-offline-download: none offered }
+      - label: The download plays and seeks freely with no network
+        reading: "A whole file in permanent storage, with whatever it needs to play stored beside it. If the app states an expiry, the content is protected and the license carries a time limit."
+        confidence: Observed
+        fills: { c17-offline-download: plays offline }
+      - label: The download is listed and refuses to play until you go online
+        reading: "The media is on the device and the right to play it is not. A license check needs the backend."
+        confidence: Inferred
+        fills: { c17-offline-download: needs network to play }
+
+  - id: P17.10
+    name: Autoplay and data cost
+    caution: This probe turns wireless off and turns on data-saver mode, which are device-wide settings. Scrolling a video feed on cellular data uses your data allowance, so keep each run short. Restore both settings when you finish.
+    do:
+      - Look in the app's settings for a control over autoplay or data use, and note its positions.
+      - On an unmetered wireless network, scroll a feed that contains video and note whether items play by themselves, with or without sound, and how sharp they are.
+      - Turn wireless off so the device uses cellular data, and scroll a different part of the feed for one minute.
+      - Turn on data-saver mode and scroll for one more minute.
+    watch: Whether videos still start by themselves on cellular data and under data-saver mode, and whether they look softer.
+    outcomes:
+      - label: Videos never play by themselves, on any network
+        reading: "No autoplay. Playback starts only on a tap."
+        confidence: Observed
+        fills: { c17-autoplay: no autoplay }
+      - label: Videos play by themselves the same way in all three states
+        reading: "Autoplay is not conditioned on the network type or on data-saver mode."
+        confidence: Observed
+        fills: { c17-autoplay: same in all states }
+      - label: Autoplay stops or the picture is softer on cellular data or under data-saver mode
+        reading: "Autoplay or its quality cap is conditioned on a metered network or on data-saver mode. The client reads both from platform services."
+        confidence: Inferred
+        fills: { c17-autoplay: reduced on metered or data saver }
+      - label: Only the app's own setting changes the behavior
+        reading: "The team treats autoplay data cost as a choice inside the app. Test each position of the setting."
+        confidence: Observed
+        fills: { c17-autoplay: app setting only }
+
+signals:
+  - { signal: The picture softens and sharpens within one item, design: Adaptive streaming with several quality levels, confidence: Inferred }
+  - { signal: The first seconds of every video are soft, design: Playback starts at a low quality level to shorten the start delay, confidence: Inferred }
+  - { signal: Playback stops repeatedly at the same sharpness on a weak connection, design: A single quality level, confidence: Inferred }
+  - { signal: A progress indicator must complete before playback, design: Whole file download, confidence: Observed }
+  - { signal: The next item starts with no wait, design: Start of the next item preloaded during the current one, confidence: Inferred }
+  - { signal: A still frame shows before the video starts to move, design: Poster image fetched as an image and drawn as a stand-in, confidence: Inferred }
+  - { signal: Small preview frames appear while dragging the seek bar, design: A separate set of thumbnail images produced by the encoding pipeline, confidence: Inferred }
+  - { signal: The picture stays soft for a while after the network improves, design: A long buffer of segments fetched at a low quality level, confidence: Inferred }
+  - { signal: Video is always softer on cellular data than on an unmetered network of similar speed, design: A quality cap on metered networks, confidence: Speculative }
+  - { signal: Title and artwork with working controls on the lock screen, design: Player reports to the system media controls, confidence: Observed }
+  - { signal: Sound pauses when a headset is unplugged and for a phone call, design: Player follows the operating system's messages about the audio output, confidence: Observed }
+  - { signal: A small floating video window stays over other apps, design: Picture-in-picture through a platform service, confidence: Observed }
+  - { signal: An item continues from the same point on another device, design: Playback position synced through the backend, confidence: Inferred }
+  - { signal: A second device is exact after a pause and behind after a force-quit, design: Position reports sent on pause and at intervals during playback, confidence: Inferred }
+  - { signal: A download states an expiry or asks to be renewed online, design: Protected content with a license that carries a time limit, confidence: Inferred }
+  - { signal: The app switcher preview is black where the video is, design: Protected content decoded where the app and the system cannot capture it, confidence: Speculative }
+  - { signal: Caption language changes at once with no stop, design: Captions delivered as a separate text track and drawn by the client, confidence: Inferred }
+  - { signal: Playback continues while other screens show backend errors, design: Segments served by media delivery apart from the gateway and services, confidence: Inferred }
+
+worksheet:
+  - { id: c17-delivery, label: Delivery design, options: [whole file, progressive download, adaptive streaming, unknown] }
+  - { id: c17-adaptation, label: Reaction to a slower network, options: [switches quality, stalls at one quality, not visible, not applicable] }
+  - { id: c17-start, label: Start delay and what shortens it }
+  - { id: c17-seek, label: Seeking, options: [fast anywhere, fast with no back buffer, slow or refused] }
+  - { id: c17-buffer-ahead, label: Buffer ahead, options: [under ten seconds, tens of seconds to minutes, whole item] }
+  - { id: c17-next-preload, label: Next item, options: [not preloaded, start of next item preloaded, whole next item preloaded] }
+  - { id: c17-background, label: Screen locked, options: [continues with system controls, continues without controls, stops] }
+  - { id: c17-app-switch, label: App left during video, options: [picture-in-picture, audio continues, pauses, stops and reloads] }
+  - { id: c17-interruptions, label: Calls and headset removal }
+  - { id: c17-position-local, label: Position after force-quit, options: [saved every few seconds, saved at long intervals, not saved locally] }
+  - { id: c17-position-sync, label: Position across devices, options: [synced closely, synced at long intervals, not synced] }
+  - { id: c17-offline-download, label: Offline downloads, options: [none offered, plays offline, needs network to play] }
+  - { id: c17-protection, label: Expiry and protected content evidence }
+  - { id: c17-tracks, label: Captions and audio tracks }
+  - { id: c17-autoplay, label: Autoplay in feeds, options: [no autoplay, same in all states, reduced on metered or data saver, app setting only] }
+  - { id: c17-backend, label: Backend support implied }

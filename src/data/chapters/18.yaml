@@ -1,0 +1,279 @@
+chapter: 18
+title: "File transfer: uploads and downloads"
+link: /part-2-concerns/18-file-transfer-uploads-and-downloads/
+
+probes:
+  - id: P18.1
+    name: Preparation pause
+    do:
+      - Pick a video of two to five minutes from your own library, and note its size.
+      - On a steady network, send or post it to a place only you can see, such as a conversation with your own second account.
+      - Time the interval between tapping send and the first movement of the progress indicator.
+      - Time the whole transfer. This is your baseline for the other probes.
+    watch: Whether a label such as preparing or processing appears before progress moves, and how long that phase lasts.
+    outcomes:
+      - label: A distinct preparation phase, then progress
+        reading: "The client prepares the file before upload, most likely a transcode. Repeat with a longer video. A pause that grows with the video's length confirms it."
+        confidence: Inferred
+        fills: { c18-preprocess: visible preparation phase }
+      - label: Progress moves at once
+        reading: "No preparation was seen. The client sends the original, prepares while it uploads, or prepares too fast to notice."
+        confidence: Speculative
+        fills: { c18-preprocess: none seen }
+
+  - id: P18.2
+    name: Interrupt and restore
+    caution: This probe uses airplane mode, which interrupts calls and other apps on the device.
+    do:
+      - Start the same upload as in P18.1 and keep the app on screen.
+      - When progress is near the halfway point, turn on airplane mode.
+      - Wait thirty seconds, then turn airplane mode off.
+      - Wait one minute without touching the app. If nothing happens, use the retry control.
+    watch: Where progress stands when the transfer continues, and whether you had to act.
+    outcomes:
+      - label: Continues by itself from about where it stopped
+        reading: "A resumable transfer with automatic retry. The backend kept the parts it had received."
+        confidence: Inferred
+        fills: { c18-shape: resumable transfer, c18-resume-point: continues from where it stopped, c18-recovery: automatic }
+      - label: Continues from about where it stopped after you tap retry
+        reading: "A resumable transfer. The interruption is reported as a failure and the client waits for the user."
+        confidence: Inferred
+        fills: { c18-shape: resumable transfer, c18-resume-point: continues from where it stopped, c18-recovery: manual retry }
+      - label: Starts again from zero
+        reading: "A single request. Nothing on the backend survived the interruption."
+        confidence: Inferred
+        fills: { c18-shape: single request, c18-resume-point: restarts from zero }
+      - label: The transfer is gone
+        reading: "The client dropped the transfer on failure. There is no retry and no durable record of it."
+        confidence: Observed
+        fills: { c18-resume-point: transfer lost, c18-recovery: none }
+
+  - id: P18.3
+    name: Network switch mid-transfer
+    caution: This probe turns wireless off for the whole device and uses mobile data. Turn wireless back on when you finish, and skip the probe if your data allowance is small.
+    do:
+      - Connect to a wireless network, with cellular data enabled.
+      - Start the upload and keep the app on screen.
+      - Near the halfway point, turn wireless off in settings so the device moves to cellular.
+      - Watch until the transfer finishes or fails.
+    watch: Whether progress pauses, falls back, returns to zero or fails.
+    outcomes:
+      - label: Progress continues with no visible break
+        reading: "A resumable transfer with a fast silent retry, or a transport that survives a network switch. The two cannot be told apart from outside."
+        confidence: Speculative
+        fills: { c18-switch: seamless }
+      - label: Progress pauses or steps back slightly, then continues
+        reading: "The connection broke and the client resumed. A small step back is the part that was in flight."
+        confidence: Inferred
+        fills: { c18-switch: pause then continue }
+      - label: Progress returns to zero
+        reading: "A single request, retried automatically after the switch."
+        confidence: Inferred
+        fills: { c18-switch: restart }
+      - label: The transfer fails or stops and waits
+        reading: "The broken connection is treated as a failure, or the transfer is restricted to an unmetered network. A waiting message that names the network means the second."
+        confidence: Inferred
+        fills: { c18-switch: fails or waits }
+
+  - id: P18.4
+    name: Background mid-upload
+    do:
+      - Sign in to the same account on a second device, or have your second account ready to receive the file.
+      - Start an upload that needs at least five minutes. Use a longer video than in P18.1 if needed.
+      - After the first tenth of progress, go to the home screen and use other apps for the full baseline time. Do not force-quit.
+      - Look for an ongoing notification with progress while you are away.
+      - Check the second device for the file, then return to the app.
+    watch: Whether the file arrived while the app was off screen, and whether a persistent notification was shown.
+    outcomes:
+      - label: Arrived while away, with a persistent progress notification
+        reading: "The app process was kept alive by a visible task and sent the file itself."
+        confidence: Inferred
+        fills: { c18-background: continues in background, c18-owner: app process kept alive by a visible task }
+      - label: Arrived while away, with no persistent notification
+        reading: "The transfer was handed to the operating system. P18.5 can confirm this."
+        confidence: Inferred
+        fills: { c18-background: continues in background, c18-owner: operating system }
+      - label: Not arrived, and continues from where it stopped on return
+        reading: "The app process owns the transfer. It froze when the app was suspended. The transfer is resumable, or the process survived."
+        confidence: Inferred
+        fills: { c18-background: pauses until return, c18-owner: app process }
+      - label: Not arrived, and restarts or shows failed on return
+        reading: "The app process owns the transfer and it did not survive suspension."
+        confidence: Inferred
+        fills: { c18-background: fails or restarts, c18-owner: app process }
+
+  - id: P18.5
+    name: Force-quit mid-upload
+    do:
+      - Have the second device or second account ready, as in P18.4.
+      - Start the long upload and wait for the first quarter of progress.
+      - Force-quit the app.
+      - Wait for the full baseline time without opening the app, then check the second device.
+      - Open the app and look at the item.
+    watch: Whether the file arrived with no process, and what state the item is in when you reopen the app.
+    outcomes:
+      - label: The file arrived without reopening the app
+        reading: "The operating system owned the transfer and something completed the attach step with the app closed."
+        confidence: Inferred
+        fills: { c18-force-quit: completes without the app, c18-owner: operating system }
+      - label: On reopening, the upload continues from about where it stopped
+        reading: "The transfer queue is durable and the transfer is resumable. On some platforms a force-quit cancels transfers the operating system holds, so this does not rule that owner out."
+        confidence: Inferred
+        fills: { c18-force-quit: continues on reopen, c18-shape: resumable transfer }
+      - label: On reopening, the item is pending or failed and the upload starts from zero
+        reading: "The outbox is durable and the transfer progress is not, or the transfer is a single request."
+        confidence: Inferred
+        fills: { c18-force-quit: restarts on reopen }
+      - label: On reopening, the item is gone
+        reading: "The transfer and the pending item were held in memory only."
+        confidence: Observed
+        fills: { c18-force-quit: lost }
+
+  - id: P18.6
+    name: Attach order
+    do:
+      - Open the destination on the second device or second account, such as the conversation or your profile.
+      - On the first device, send or post an item with the long video and a line of text.
+      - Watch the second device from the moment you tap send until the upload completes.
+    watch: When the item first appears on the second device, and whether its media is ready at that moment.
+    outcomes:
+      - label: Nothing appears until the upload is done, then the complete item
+        reading: "Upload, then attach. The mutation was held until media delivery returned a reference."
+        confidence: Inferred
+        fills: { c18-attach: upload then attach }
+      - label: The item appears at once with a placeholder, and the media fills in later
+        reading: "Item first, then media. The item exists on the backend before its file."
+        confidence: Observed
+        fills: { c18-attach: item first then media }
+      - label: The item appears complete well before the baseline time
+        reading: "The upload began before you tapped send, when you chose the file. Upload, then attach, with early upload."
+        confidence: Inferred
+        fills: { c18-attach: upload then attach }
+
+  - id: P18.7
+    name: Queue several files
+    do:
+      - Select six or more photos or short videos of your own and send them together.
+      - Watch the progress indicators from the start.
+      - Note which item completes first and how many move at the same moment.
+      - While they run, send a short text to the same place.
+    watch: How many transfers advance at once, the order they complete in, and whether the text overtakes them.
+    outcomes:
+      - label: One item advances at a time, in the order chosen
+        reading: "A serial transfer queue that keeps the user's order."
+        confidence: Observed
+        fills: { c18-parallelism: one at a time }
+      - label: Several items advance at the same moment
+        reading: "A transfer queue with a parallelism limit. Count the moving items to estimate it."
+        confidence: Observed
+        fills: { c18-parallelism: several at once }
+      - label: One combined indicator for the whole group
+        reading: "Progress is reported for the batch. Parallelism cannot be read from outside."
+        confidence: Speculative
+        fills: { c18-parallelism: cannot tell }
+
+  - id: P18.8
+    name: Transfer conditions
+    caution: This probe turns wireless off for the whole device and may use mobile data. Cancel the transfer if it starts on cellular and your allowance is small. Turn wireless back on when you finish.
+    do:
+      - Read the app's settings for options about cellular data, wireless only, charging or backup, and record them.
+      - Leave those options at their defaults.
+      - Turn wireless off so the device is on cellular.
+      - Start a large upload or an offline download.
+    watch: Whether the transfer runs, waits or asks, and the words the app uses.
+    outcomes:
+      - label: The transfer waits and names the network as the reason
+        reading: "The transfer queue carries an unmetered-network condition and checks it before it runs."
+        confidence: Observed
+        fills: { c18-conditions: waits for unmetered network }
+      - label: The app asks before it uses cellular data
+        reading: "A condition with a user override, often tied to a size threshold. Try a small file to find the threshold."
+        confidence: Observed
+        fills: { c18-conditions: asks first }
+      - label: The transfer runs at once on cellular
+        reading: "No network condition for this kind of transfer, or the file is under a size threshold."
+        confidence: Inferred
+        fills: { c18-conditions: runs on any network }
+
+  - id: P18.9
+    name: Download pause and resume
+    do:
+      - Find a large item the app lets you download for offline use, such as a long video, an album or a map region.
+      - Start the download. At about a third, use the pause control if there is one, wait ten seconds and resume.
+      - At about two thirds, force-quit the app.
+      - Open the app again and look at the download.
+    watch: Where progress stands after the pause and after the force-quit.
+    outcomes:
+      - label: Continues from about where it stopped both times
+        reading: "A resumable download with a durable record of the partial file. If progress moved on while the app was closed, the operating system owns it."
+        confidence: Inferred
+        fills: { c18-download-resume: continues from where it stopped }
+      - label: Continues after the pause, and restarts from zero after the force-quit
+        reading: "Progress is held in memory. The partial file is discarded or forgotten at process death."
+        confidence: Inferred
+        fills: { c18-download-resume: restarts after force-quit }
+      - label: Restarts from zero both times, or there is no pause control
+        reading: "A single-request download."
+        confidence: Inferred
+        fills: { c18-download-resume: restarts from zero }
+
+  - id: P18.10
+    name: Cancelled download cleanup
+    do:
+      - In the device's settings, note the storage the app uses.
+      - Start a large offline download and let it reach about half.
+      - Check the storage figure again. It should have grown.
+      - Cancel or remove the download in the app.
+      - Check the storage figure once more, then again after closing and reopening the app.
+    watch: Whether the storage figure returns to where it started.
+    outcomes:
+      - label: Storage returns to the starting figure at once
+        reading: "The transfer worker deletes the partial file on cancel."
+        confidence: Observed
+        fills: { c18-cleanup: storage released }
+      - label: Storage returns only after the app is reopened
+        reading: "A sweep at launch removes partial files that no transfer owns."
+        confidence: Inferred
+        fills: { c18-cleanup: storage released }
+      - label: Storage stays higher than the starting figure
+        reading: "The partial file was left behind. No component owns its cleanup."
+        confidence: Inferred
+        fills: { c18-cleanup: storage kept }
+
+signals:
+  - { signal: Progress returns to zero after a brief loss of signal, design: Single request with nothing kept on the backend, confidence: Inferred }
+  - { signal: Progress continues from where it stopped after an interruption, design: Resumable transfer with an upload session on the backend, confidence: Inferred }
+  - { signal: Progress steps back a little after an interruption and then continues, design: Resumable transfer that lost the part in flight, confidence: Inferred }
+  - { signal: An interrupted upload continues after minutes and restarts after days, design: Upload sessions that expire on the backend, confidence: Inferred }
+  - { signal: A label such as preparing before progress moves and longer for longer videos, design: Transcode on the device before upload, confidence: Inferred }
+  - { signal: The app used far less data than the size of the original file, design: Resize or transcode on the device before upload, confidence: Inferred }
+  - { signal: A file arrives on another device while the sending app is closed, design: Transfer handed to the operating system, confidence: Inferred }
+  - { signal: A persistent notification with progress for the length of the transfer, design: App process kept alive by a visible task, confidence: Inferred }
+  - { signal: An upload stops when you switch apps and continues on return, design: Transfer owned by the app process, confidence: Inferred }
+  - { signal: Progress jumps forward the moment you reopen the app, design: Operating system kept transferring and the app reads its count on return, confidence: Inferred }
+  - { signal: A pending item survives a force-quit, design: Durable outbox and transfer queue, confidence: Inferred }
+  - { signal: An item reaches other users only when its media is complete, design: Upload then attach, confidence: Inferred }
+  - { signal: An item reaches other users with a placeholder that fills in later, design: Item first then media, confidence: Observed }
+  - { signal: Send completes faster than the file size allows, design: Early upload that began when the file was chosen, confidence: Inferred }
+  - { signal: A text sent after a video arrives before it, design: Outbox that lets small items overtake one blocked on an upload, confidence: Inferred }
+  - { signal: A message that the transfer is waiting for a wireless network, design: Transfer queue with an unmetered-network condition, confidence: Observed }
+  - { signal: Progress sits at the end for a while before the item is done, design: Progress counts bytes only and the backend is still processing, confidence: Inferred }
+  - { signal: App storage stays higher after a cancelled download, design: Partial files with no cleanup, confidence: Inferred }
+
+worksheet:
+  - { id: c18-feature, label: Transfer feature examined and file size used }
+  - { id: c18-shape, label: Shape of the transfer, options: [single request, resumable transfer, unknown] }
+  - { id: c18-resume-point, label: After an interruption, options: [continues from where it stopped, restarts from zero, transfer lost] }
+  - { id: c18-recovery, label: Recovery when the network returns, options: [automatic, manual retry, none] }
+  - { id: c18-switch, label: Network switch mid-transfer, options: [seamless, pause then continue, restart, fails or waits] }
+  - { id: c18-background, label: Upload while the app is off screen, options: [continues in background, pauses until return, fails or restarts] }
+  - { id: c18-force-quit, label: Upload after a force-quit, options: [completes without the app, continues on reopen, restarts on reopen, lost] }
+  - { id: c18-owner, label: Owner of the transfer, options: [app process, app process kept alive by a visible task, operating system, unknown] }
+  - { id: c18-preprocess, label: Work before upload, options: [visible preparation phase, none seen] }
+  - { id: c18-attach, label: Order of file and item, options: [upload then attach, item first then media, unknown] }
+  - { id: c18-parallelism, label: Several files at once, options: [one at a time, several at once, cannot tell] }
+  - { id: c18-conditions, label: Large transfer on cellular, options: [waits for unmetered network, asks first, runs on any network] }
+  - { id: c18-download-resume, label: Download after pause and force-quit, options: [continues from where it stopped, restarts after force-quit, restarts from zero] }
+  - { id: c18-cleanup, label: Storage after a cancelled download, options: [storage released, storage kept] }
+  - { id: c18-backend, label: Backend support implied }
+  - { id: c18-notes, label: "Progress reporting, network of each run and failure modes seen" }

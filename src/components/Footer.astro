@@ -1,0 +1,78 @@
+---
+import Default from '@astrojs/starlight/components/Footer.astro';
+
+const isChapter = /^part-\d/.test(Astro.locals.starlightRoute?.id ?? '');
+---
+
+{
+  isChapter && (
+    <div class="mark-read not-content">
+      <button type="button" id="mark-read" aria-pressed="false">
+        Mark chapter as read
+      </button>
+    </div>
+  )
+}
+
+<Default><slot /></Default>
+
+<script>
+  import { load, save, CHANGE_EVENT } from '../lib/store';
+
+  // Reading progress: a toggle on chapter pages, and a check mark on every link to a read chapter.
+  const here = location.pathname.replace(/\/?$/, '/');
+  const button = document.querySelector<HTMLButtonElement>('#mark-read');
+
+  const paintProgress = () => {
+    const { read } = load();
+    if (button) {
+      const done = Boolean(read[here]);
+      button.setAttribute('aria-pressed', String(done));
+      button.textContent = done ? 'Read. Select to mark as unread' : 'Mark chapter as read';
+    }
+    document.querySelectorAll<HTMLAnchorElement>('.sidebar-content a[href], a[data-chapter-link]').forEach((link) => {
+      const path = new URL(link.href).pathname.replace(/\/?$/, '/');
+      link.classList.toggle('is-read', Boolean(read[path]));
+    });
+    const counter = document.querySelector<HTMLElement>('[data-read-count]');
+    if (counter) counter.textContent = String(Object.values(read).filter(Boolean).length);
+  };
+
+  button?.addEventListener('click', () => {
+    const { read } = load();
+    if (read[here]) delete read[here];
+    else read[here] = true;
+    save();
+  });
+
+  window.addEventListener(CHANGE_EVENT, paintProgress);
+  paintProgress();
+
+  // Diagrams: rendered in the browser, and again when the color theme changes.
+  const diagrams = document.querySelectorAll<HTMLElement>('.mermaid[data-source]');
+  if (diagrams.length > 0) {
+    (async () => {
+      const { default: mermaid } = await import('mermaid');
+      let run = 0;
+      const render = async () => {
+        const dark = document.documentElement.dataset.theme === 'dark';
+        mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default', securityLevel: 'strict' });
+        const batch = ++run;
+        let index = 0;
+        for (const el of diagrams) {
+          try {
+            const { svg } = await mermaid.render(`diagram-${batch}-${index++}`, el.dataset.source!);
+            el.innerHTML = svg;
+          } catch (error) {
+            el.textContent = `This diagram could not be drawn: ${(error as Error).message}`;
+          }
+        }
+      };
+      await render();
+      new MutationObserver(render).observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['data-theme'],
+      });
+    })();
+  }
+</script>

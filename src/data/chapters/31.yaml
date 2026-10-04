@@ -1,0 +1,243 @@
+chapter: 31
+title: Server-driven UI
+link: /part-2-concerns/31-server-driven-ui/
+
+probes:
+  - id: P31.1
+    name: Structure change without an update
+    do:
+      - Note the app's version number from its settings or about screen, or from the store listing.
+      - Take full-length screenshots of the screen of interest, scrolling to the end.
+      - Repeat every few days over three or more weeks, checking each time that the version has not changed.
+      - Compare the screenshots for the kinds of block and their order, not for content.
+    watch: Whether blocks you already know reorder, appear or vanish, and whether a kind of block you have never seen in this app appears, all while the version stays the same.
+    outcomes:
+      - label: A kind of block never seen before appears, with no update
+        reading: "The backend can send new visual forms. A layout description or embedded web content. P31.7 separates the two."
+        confidence: Speculative
+        fills: { c31-structure-change: new kinds of block appear }
+      - label: Known blocks reorder, appear or vanish, with no update
+        reading: "The backend decides the structure of this screen from pieces the app already holds. Backend-ordered sections or a component list, unless P31.2 shows only rare switches."
+        confidence: Inferred
+        fills: { c31-structure-change: known blocks reorder or come and go }
+      - label: Only content changes
+        reading: "A fixed screen. The app holds the layout and the backend sends data."
+        confidence: Inferred
+        fills: { c31-structure-change: content only, c31-level: fixed screen }
+
+  - id: P31.2
+    name: Arrangement across refreshes
+    do:
+      - Open the screen and write down the order of its blocks from top to bottom.
+      - Pull to refresh, or leave the screen and return, and write the order down again. Repeat five times.
+      - Repeat at a different time of day, and again on another day.
+      - Count how many distinct arrangements you recorded.
+    watch: Whether the order and presence of blocks vary between refreshes within one session, vary only between days, or never vary.
+    outcomes:
+      - label: The arrangement varies between refreshes or within a day
+        reading: "The structure arrives with the data on every fetch. A screen-describing response. Remote config does not change this often."
+        confidence: Inferred
+        fills: { c31-arrangements: varies between refreshes }
+      - label: The arrangement changes rarely, in single steps
+        reading: "Either a feature flag that picks one of a few built-in layouts, or a description that staff seldom edit. One switch cannot separate them."
+        confidence: Speculative
+        fills: { c31-arrangements: changes in rare steps }
+      - label: The arrangement never varies
+        reading: "No evidence that the backend decides the structure of this screen."
+        confidence: Speculative
+        fills: { c31-arrangements: fixed }
+
+  - id: P31.3
+    name: Shared quirks across screens
+    do:
+      - Pick four screens that belong to different features, such as home, a campaign or promotion page, a help page and an account page.
+      - On each, look closely at card shapes, corner radius, spacing, how long text is cut off, and how images are cropped.
+      - Note the loading state and, if you can provoke one on a weak connection, the error state of each.
+      - Look for any visual oddity that repeats exactly.
+    watch: Whether unrelated screens are built from the same blocks with the same quirks, or whether each has its own design, loading state and error state.
+    outcomes:
+      - label: Unrelated screens share the same blocks, states and oddities
+        reading: "Those screens are drawn by one renderer from a shared component catalog."
+        confidence: Inferred
+        fills: { c31-quirks: shared across unrelated screens }
+      - label: Each screen has its own layout, loading state and error state
+        reading: "Those screens are built by hand, one at a time. Fixed screens, or backend-ordered sections made for each."
+        confidence: Inferred
+        fills: { c31-quirks: each screen distinct }
+      - label: A group of screens shares a look that differs from the rest of the app
+        reading: "That group comes from another renderer, most often embedded web content. Run P31.7 on it."
+        confidence: Speculative
+        fills: { c31-quirks: one group looks different }
+
+  - id: P31.4
+    name: The screen in airplane mode
+    caution: This probe uses airplane mode, which cuts the connection of every app on the device. Turn it off when you finish.
+    do:
+      - Open the screen online and scroll through it, so that anything cacheable is cached.
+      - Turn on airplane mode.
+      - Force-quit the app, launch it and open the same screen.
+      - Then open a similar screen that you have not visited before.
+    watch: Whether the visited screen shows its last structure with content, shows a frame of its own with an error or empty state inside, or shows nothing that belongs to that screen.
+    outcomes:
+      - label: The visited screen appears with its last structure and content
+        reading: "The response that carries the screen is cached whole. This fits every level and says the layout does not need the network on each visit."
+        confidence: Observed
+        fills: { c31-offline: last structure with content }
+      - label: The screen shows its own frame, with an error or empty state inside
+        reading: "The app holds this screen's layout and lacks only data. A fixed screen, or sections built into the app."
+        confidence: Inferred
+        fills: { c31-offline: own frame without content }
+      - label: Only a generic full-screen error or spinner appears
+        reading: "The app has nothing to draw without a response. The layout comes from the backend and is not cached, or the screen is embedded web content."
+        confidence: Speculative
+        fills: { c31-offline: nothing of the screen }
+
+  - id: P31.5
+    name: Where taps lead
+    do:
+      - On the screen of interest, pick positions that hold promotional or editorial blocks, such as the first banner and the first two tiles.
+      - Tap each and note what kind of destination opens. An item, a list, a campaign page, a web page, or another app.
+      - Repeat on several days without updating the app.
+    watch: Whether the same position leads to different kinds of destination over time, or always to the same kind of screen with different content.
+    outcomes:
+      - label: The same position leads to different kinds of destination over time
+        reading: "Actions are data sent by the backend, most likely as deep links. The backend controls navigation from this screen."
+        confidence: Inferred
+        fills: { c31-actions: destination kinds vary }
+      - label: Each position always leads to the same kind of native screen
+        reading: "Navigation from this screen is built into the app, and the backend supplies only the arguments."
+        confidence: Speculative
+        fills: { c31-actions: one kind of destination }
+      - label: Each position always leads to a web page inside the app
+        reading: "The action carries a web address. Promotional targets are embedded web content, and the app needs no screen for them."
+        confidence: Inferred
+        fills: { c31-actions: always web content }
+
+  - id: P31.6
+    name: Interaction inside the screen
+    caution: This probe uses airplane mode for its last step. Turn it off when you finish.
+    do:
+      - Find a control inside the screen that changes what the screen shows without leaving it. A filter, a toggle, a quantity stepper or a segment selector.
+      - Use it on a normal connection and watch the control and the area it affects.
+      - Repeat on a weak connection.
+      - Turn on airplane mode and use the control once more. Do not submit anything.
+    watch: Whether the control responds at once, whether a loading state appears and a section or the whole screen redraws, and whether it works with no network.
+    outcomes:
+      - label: The control responds at once, also with no network
+        reading: "The behavior is client code. This part of the screen is fixed, or the component holds its own state."
+        confidence: Inferred
+        fills: { c31-interaction: responds locally }
+      - label: A loading state appears and the section or screen redraws
+        reading: "Each interaction is a round trip, and the backend sends a new description or new data for the section."
+        confidence: Inferred
+        fills: { c31-interaction: round trip per interaction }
+      - label: The screen has no such control
+        reading: "The screen is read and tapped through, which is the kind of screen that suits a description. No evidence either way."
+        confidence: Speculative
+        fills: { c31-interaction: no control found }
+
+  - id: P31.7
+    name: Embedded web tells
+    do:
+      - Open the screen and watch the top edge while it loads.
+      - Long-press a label or a paragraph that is not a link or a text field.
+      - Scroll to both ends and compare the feel with a screen you know to be native, such as the app's main list.
+      - Tap a link inside the screen and watch whether the whole view loads again.
+    watch: A thin progress bar while loading, text that can be selected where other screens do not allow it, scrolling and tap feedback that differ from the rest of the app, and whole-view reloads.
+    outcomes:
+      - label: Two or more web tells are present
+        reading: "This screen is embedded web content. The backend sends layout and behavior together."
+        confidence: Inferred
+        fills: { c31-web: present, c31-level: embedded web content }
+      - label: One tell is present
+        reading: "Possibly web content. One tell has other explanations."
+        confidence: Speculative
+        fills: { c31-web: one tell only }
+      - label: No web tells
+        reading: "The screen is drawn by the app's own UI code, from a fixed layout or from a description."
+        confidence: Inferred
+        fills: { c31-web: absent }
+
+  - id: P31.8
+    name: Old version against new
+    do:
+      - Find a device whose copy of the app has not been updated for some months, or keep an old version on a spare device by turning off automatic updates for that app.
+      - Sign in to the same account on that device and on one with the current version.
+      - Open the same screen on both at the same moment and refresh both.
+      - Compare the blocks one by one, and tap the same blocks on each.
+    watch: Whether the old version shows the same structure, lacks some blocks, shows a placeholder or an update prompt in place of a block, or shows an older design altogether.
+    outcomes:
+      - label: The old version shows the same structure as the new one
+        reading: "The backend decides the structure, and every component it sends is in the old version's catalog."
+        confidence: Inferred
+        fills: { c31-old-version: same structure }
+      - label: Some blocks are missing or plainer on the old version, with no gap
+        reading: "A described screen, with unknown components filtered or substituted by the backend, or skipped by the client."
+        confidence: Inferred
+        fills: { c31-old-version: blocks missing or plainer }
+      - label: A placeholder or update prompt stands in place of a block
+        reading: "A described screen, and the client has a designed fallback for a component it does not know."
+        confidence: Inferred
+        fills: { c31-old-version: placeholder or update prompt }
+      - label: The old version shows an older layout of the whole screen
+        reading: "The layout ships in the app. A fixed screen."
+        confidence: Inferred
+        fills: { c31-old-version: older layout, c31-level: fixed screen }
+
+  - id: P31.9
+    name: Two platforms
+    do:
+      - Run this only if you have a device of each platform, or a tablet and a phone of different platforms.
+      - Sign in to the same account on both and update both apps.
+      - Open the same screen on both at the same moment and refresh both.
+      - Compare the blocks and their order, then repeat a week later to see whether changes arrive together.
+    watch: Whether both platforms show the same blocks in the same order with the same wording, and whether details such as fonts, controls and scrolling follow each platform or are the same on both.
+    outcomes:
+      - label: Same blocks and order, with controls that follow each platform
+        reading: "One backend description drawn by two native catalogs."
+        confidence: Inferred
+        fills: { c31-platforms: same structure and order }
+      - label: Same content in a different structure on each platform
+        reading: "Each app holds its own layout for this screen."
+        confidence: Inferred
+        fills: { c31-platforms: same content with different structure }
+      - label: Identical in every detail, including fonts, controls and scrolling
+        reading: "One renderer on both platforms. Embedded web content or a shared UI layer, which Chapter 32 separates."
+        confidence: Speculative
+        fills: { c31-platforms: identical in every detail }
+
+signals:
+  - { signal: Known blocks reorder or come and go with no app update, design: Backend-ordered sections or a component list, confidence: Inferred }
+  - { signal: A new kind of block appears with no app update, design: Layout description or embedded web content, confidence: Speculative }
+  - { signal: The order of blocks differs between two refreshes, design: Structure sent with the data in a screen-describing response, confidence: Inferred }
+  - { signal: The structure switches once and then holds for weeks, design: "A feature flag between built-in layouts, or a description that is seldom edited", confidence: Speculative }
+  - { signal: A whole new screen appears with no app update and is made of familiar blocks, design: Component list drawn from a catalog in the app, confidence: Inferred }
+  - { signal: Unrelated screens share one exact visual oddity, design: Shared component catalog and one renderer, confidence: Inferred }
+  - { signal: An old version shows the current structure of a screen, design: Structure decided by the backend, confidence: Inferred }
+  - { signal: An old version lacks a block with no gap, design: "Unknown component filtered by the backend or skipped by the client", confidence: Inferred }
+  - { signal: An old version shows an update card among normal cards, design: Client fallback for an unknown component, confidence: Inferred }
+  - { signal: An old version shows an older layout of the whole screen, design: Fixed screen whose layout ships in the app, confidence: Inferred }
+  - { signal: Offline the screen is a generic error with no frame of its own, design: "Layout held on the backend and not cached, or embedded web content", confidence: Speculative }
+  - { signal: Offline the screen keeps its frame and shows an error inside it, design: Layout held in the app, confidence: Inferred }
+  - { signal: One position on a screen leads to different kinds of destination over time, design: Actions and navigation described by the backend, confidence: Inferred }
+  - { signal: A control shows a loading state and its section redraws, design: Backend re-describes the section on each interaction, confidence: Inferred }
+  - { signal: Two platforms show the same blocks in the same order and change on the same day, design: One backend description drawn by each platform's catalog, confidence: Inferred }
+  - { signal: Selectable text and a thin progress bar and a whole-view reload on one screen, design: Embedded web content, confidence: Inferred }
+  - { signal: A screen asks you to sign in again inside the app, design: Embedded web content without a shared session, confidence: Inferred }
+  - { signal: A layout is broken for all users and fixed with no update, design: A description published and corrected on the backend, confidence: Speculative }
+
+worksheet:
+  - { id: c31-level, label: How much of this screen the backend decides, options: [fixed screen, backend-ordered sections, component list, layout description, embedded web content, mixed, unknown] }
+  - { id: c31-structure-change, label: Structure change without an update, options: [new kinds of block appear, known blocks reorder or come and go, content only] }
+  - { id: c31-arrangements, label: Arrangement across refreshes, options: [varies between refreshes, changes in rare steps, fixed] }
+  - { id: c31-quirks, label: Shared quirks across screens, options: [shared across unrelated screens, each screen distinct, one group looks different] }
+  - { id: c31-offline, label: The screen with no network, options: [last structure with content, own frame without content, nothing of the screen] }
+  - { id: c31-actions, label: Where taps lead, options: [destination kinds vary, one kind of destination, always web content] }
+  - { id: c31-interaction, label: Interaction inside the screen, options: [responds locally, round trip per interaction, no control found] }
+  - { id: c31-web, label: Embedded web tells, options: [present, one tell only, absent] }
+  - { id: c31-old-version, label: Old version on the same screen, options: [same structure, blocks missing or plainer, placeholder or update prompt, older layout, not tested] }
+  - { id: c31-platforms, label: Two platforms compared, options: [same structure and order, same content with different structure, identical in every detail, not tested] }
+  - { id: c31-screens, label: Screens that the backend describes }
+  - { id: c31-backend, label: Backend components implied }
+  - { id: c31-speculative, label: Claims left Speculative }
+  - { id: c31-failures, label: Failure modes seen }

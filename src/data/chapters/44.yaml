@@ -1,0 +1,249 @@
+chapter: 44
+title: "On-demand services: rides and delivery"
+link: /part-3-archetypes/44-on-demand-services-rides-and-delivery/
+
+probes:
+  - id: P44.1
+    name: Quote before confirming
+    caution: Stop at the screen that shows the price. Do not confirm. A confirmed request sends a real provider toward you.
+    do:
+      - Enter a pickup point and a destination, or fill a basket, and go as far as the screen that shows the price.
+      - Note the price, the arrival-time estimate and the time on your clock.
+      - Leave the screen open and untouched for ten minutes. Note any change, and any message about the price.
+      - Go back, enter the same request again and compare the price.
+      - Turn on airplane mode and try to reach the price screen once more. Then turn it off.
+    watch: Whether the price is one figure or a range, whether it changes or expires while you wait, and whether any price appears offline.
+    outcomes:
+      - label: One exact price, which is refreshed or marked expired after some minutes
+        reading: "The backend issues a quote with an identity and a time limit. Confirming refers to that quote, and the client never states an amount."
+        confidence: Inferred
+        fills: { c44-price-before: fixed quote with expiry }
+      - label: One exact price that never changes or expires while you wait
+        reading: "The backend issues a price with no visible time limit. It may still check the price again at confirmation, which this probe does not reach."
+        confidence: Speculative
+        fills: { c44-price-before: fixed price with no expiry seen }
+      - label: A range, or a figure marked as an estimate
+        reading: "The price is computed after the work is done, from what was measured. The figure before confirming is a forecast."
+        confidence: Inferred
+        fills: { c44-price-before: estimate or range }
+      - label: No price before confirming
+        reading: "The price is decided only at the end. The app treats the amount as an outcome of the trip and not as part of the request."
+        confidence: Observed
+        fills: { c44-price-before: none shown }
+
+  - id: P44.2
+    name: Nearby markers before a request
+    caution: Do not confirm a request. This probe only watches the first screen.
+    do:
+      - Open the first screen, the one with the map, in a busy area. If the app has no such map, record that and stop.
+      - Watch the provider markers for two minutes without touching the map.
+      - Time the gaps between movements of one marker.
+      - Turn on airplane mode and watch for one more minute. Then turn it off.
+    watch: Whether markers glide, move in steps at a regular interval, or stand still, and what they do with no network.
+    outcomes:
+      - label: Markers glide and stop gliding within seconds of going offline
+        reading: "Positions arrive often, by a held connection or a short polling interval, and the client animates between them."
+        confidence: Inferred
+        fills: { c44-idle-map: frequent updates }
+      - label: Markers move in steps at a regular interval of several seconds or more
+        reading: "The client polls for nearby providers on a timer. The interval you timed is the polling interval."
+        confidence: Inferred
+        fills: { c44-idle-map: polled in steps }
+      - label: Markers keep gliding for a long time while offline
+        reading: "The movement is drawn by the client and is not a live position. The markers show that providers are near, and not where each one is."
+        confidence: Inferred
+        fills: { c44-idle-map: drawn by the client }
+      - label: There are no provider markers before a request
+        reading: "The product does not show supply before a request. Nothing about delivery of positions can be read from this screen."
+        confidence: Observed
+        fills: { c44-idle-map: none shown }
+
+  - id: P44.3
+    name: Leave during matching
+    caution: Run this only on a ride or order you intend to complete and pay for. Do not make a request for the sake of the probe.
+    do:
+      - Confirm a request you were going to make anyway.
+      - As soon as the app says it is looking for a provider, or waiting for the merchant, go to the home screen and lock the device.
+      - Leave it locked until something happens, or for five minutes.
+      - Note what told you that a provider accepted, then open the app.
+    watch: Whether you learn of the match while the app is in the background, and what the app shows when it returns.
+    outcomes:
+      - label: A notification announces the match, and the app shows the assigned provider at once
+        reading: "Matching is backend work. The backend finishes it without the client and tells the client by platform push. The client only displays the result."
+        confidence: Inferred
+        fills: { c44-matching: notified in the background }
+      - label: No notification, and the app shows the assigned provider when opened
+        reading: "Matching is backend work, and the client learns of the result only when it next asks. Check that notifications are allowed before recording this."
+        confidence: Inferred
+        fills: { c44-matching: seen on return }
+      - label: The app is still searching, or asks you to request again
+        reading: "The search depends on the client staying on screen, or the request timed out with no provider. The second reason is far more common, so repeat on another day before you conclude."
+        confidence: Speculative
+        fills: { c44-matching: stalled or lost }
+
+  - id: P44.4
+    name: Force-quit during an active trip
+    caution: Run this only on a ride or order you intend to complete. Keep notifications on, so the provider can still reach you. Skip this probe if you are standing at a pickup point where you must be reachable at once.
+    do:
+      - Wait until a provider is assigned and on the way.
+      - Note the state shown and the arrival-time estimate.
+      - Force-quit the app and wait two minutes.
+      - Open the app from its icon, not from a notification.
+    watch: Which screen appears first, how long the trip takes to appear, and whether its state has moved on.
+    outcomes:
+      - label: The app opens on the trip, with a current state and a marker in a new position
+        reading: "The backend owns the trip. At launch the client asks the backend for any active trip and rebuilds the screen from the answer."
+        confidence: Inferred
+        fills: { c44-restore: opens on the trip }
+      - label: The app opens on its first screen, with a banner or a row that leads to the trip
+        reading: "The backend owns the trip, and the client restores it as data without restoring the navigation state."
+        confidence: Inferred
+        fills: { c44-restore: trip reached from the first screen }
+      - label: The app opens on the trip, showing the state and position from before the force-quit for several seconds
+        reading: "The client keeps the last trip record in its local store, draws it first and then replaces it with the backend's answer."
+        confidence: Inferred
+        fills: { c44-restore: stored copy then update }
+      - label: The trip cannot be found in the app
+        reading: "A defect, or the trip ended while the app was closed. Check the order history before recording a defect."
+        confidence: Observed
+        fills: { c44-restore: trip not shown }
+
+  - id: P44.5
+    name: Network gap while tracking
+    caution: Run this only on a ride or order you already have. Keep the gap to one minute, and do not run it in the last minutes before the provider arrives.
+    do:
+      - Open the tracking map while the provider is moving.
+      - Turn on airplane mode for one minute and keep watching the marker and the arrival-time estimate.
+      - Turn airplane mode off and keep watching for thirty seconds.
+    watch: What the marker does while offline, whether the app says it is offline, and how the marker gets to its new position afterwards.
+    outcomes:
+      - label: The marker stops, then jumps or slides straight to the new position
+        reading: "The customer's client receives only the latest position. The live position is an ephemeral signal, and nothing is replayed after a gap."
+        confidence: Inferred
+        fills: { c44-marker-gap: jumps to current }
+      - label: The marker stops, then travels along the roads it missed
+        reading: "The client receives the path since its last position, or draws its own path along the planned route between the old and new positions."
+        confidence: Speculative
+        fills: { c44-marker-gap: travels the missed path }
+      - label: The marker keeps moving while offline
+        reading: "The client predicts movement along the planned route. What you see is a forecast that the next real position corrects."
+        confidence: Inferred
+        fills: { c44-marker-gap: keeps moving offline }
+
+  - id: P44.6
+    name: The same trip on a second device
+    caution: Use a trip you already have, and a second device of your own. If the app offers only a share link, send it to yourself.
+    do:
+      - During an active trip, sign in to the same account on a second device, or open the trip's share link there.
+      - Place the two devices side by side.
+      - Compare the state, the arrival-time estimate and the marker position.
+      - Keep watching through one change of state, such as the provider arriving.
+    watch: Whether both devices show the same state and estimate, and how far apart in time a change appears on the two.
+    outcomes:
+      - label: State, estimate and marker match, and changes appear on both within a few seconds
+        reading: "Both clients display one trip record that the backend owns, and the backend fans out each change to every watcher."
+        confidence: Inferred
+        fills: { c44-second-device: in step }
+      - label: The state matches, and the estimate or the marker differs between the two
+        reading: "The state comes from the backend. The estimate or the marker movement is partly computed on each client."
+        confidence: Inferred
+        fills: { c44-second-device: state in step only }
+      - label: The second device shows an older state until it is refreshed
+        reading: "That device or that surface has no live delivery. It fetches the trip on open or on a slow timer."
+        confidence: Inferred
+        fills: { c44-second-device: stale until refresh }
+      - label: The second device cannot show the trip
+        reading: "The trip is visible to one session only, or the sign-in on the second device ended the first. Record which."
+        confidence: Observed
+        fills: { c44-second-device: not available }
+
+  - id: P44.7
+    name: Contacting the provider
+    caution: Use a trip you already have. You do not need to complete a call. If you do call or write, keep it to something the provider needs to know.
+    do:
+      - During an active trip, open the control for contacting the provider.
+      - Note what is offered, a call, a chat, or both.
+      - Tap the call control and note what opens. Stop there unless you have a reason to call.
+      - If the device's own dialer opened, note the number. Compare it with the number from an earlier trip with a different provider, if you have one in your call history.
+      - After the trip ends, check whether the contact control is still there.
+    watch: Whether a call leaves the app, which number is dialed, and whether contact is still possible after the trip.
+    outcomes:
+      - label: The dialer opens with a number that is the same for different providers, or is clearly not a personal number
+        reading: "A relayed number. A telephony third party connects the two parties for this trip, and neither sees the other's number."
+        confidence: Inferred
+        fills: { c44-contact: relayed number }
+      - label: A call screen opens inside the app and the dialer never appears
+        reading: "The call travels over the data network between the two apps. No phone number is involved."
+        confidence: Observed
+        fills: { c44-contact: call inside the app }
+      - label: Only a chat is offered
+        reading: "Contact stays inside the product, tied to the trip. The parties have no way to reach each other outside it."
+        confidence: Observed
+        fills: { c44-contact: chat only }
+      - label: The dialer opens with a different, ordinary number for each provider
+        reading: "Either a relayed number assigned for each trip, or the provider's own number. The two look the same from outside."
+        confidence: Speculative
+        fills: { c44-contact: number differs for each trip }
+
+  - id: P44.8
+    name: Charge timing and final price
+    caution: Use a trip or order you were going to pay for anyway. This probe only reads your receipt and your own bank or card notifications.
+    do:
+      - Before confirming a request you intend to make, note the price shown.
+      - After confirming, watch for a notification from your bank or card, and note its amount and time.
+      - When the trip or order is complete, note the final price and how soon it appears in the app.
+      - Over the next few days, compare the entries on your statement with the receipt.
+    watch: When the first bank entry appears, whether a pending entry later changes or disappears, and how the final amount relates to the first price.
+    outcomes:
+      - label: A pending entry at confirmation, replaced by a final charge after completion
+        reading: "The backend places a hold through the payment token while you are present, and captures the final amount afterwards."
+        confidence: Inferred
+        fills: { c44-charge-timing: hold then capture }
+      - label: No bank entry until completion, then one charge
+        reading: "The backend charges the saved payment token after the trip, with the customer absent. A failed charge can only be collected later."
+        confidence: Inferred
+        fills: { c44-charge-timing: one charge after completion }
+      - label: A full charge at confirmation, with any later change as a separate refund or charge
+        reading: "The order is paid before the work starts, as in a shop. Changes to the order are handled as new movements of money."
+        confidence: Inferred
+        fills: { c44-charge-timing: charged at confirmation }
+      - label: No bank entry at all, because you paid the provider in person
+        reading: "The backend records the amount due and the provider collects it. The payment flow of the app is not exercised."
+        confidence: Observed
+        fills: { c44-charge-timing: paid in person }
+
+signals:
+  - { signal: "The trip screen reappears after a force-quit with a state that advanced while the app was closed", design: The backend owns the trip as a state machine and every client only displays it, confidence: Inferred }
+  - { signal: A second device shows the same trip state within seconds of the first, design: One trip record on the backend with fan-out to every watcher, confidence: Inferred }
+  - { signal: A provider is assigned while the customer's device is locked, design: Matching and dispatch run on the backend and the client waits on the result, confidence: Inferred }
+  - { signal: The provider marker glides smoothly and now and then corrects its heading in a small step, design: Positions arrive every few seconds and the client animates between them, confidence: Inferred }
+  - { signal: The marker follows the road even where a raw position would drift onto buildings, design: "Positions are snapped to roads, on the backend or on the customer's client", confidence: Speculative }
+  - { signal: The marker keeps moving while the customer's device is offline, design: The client predicts movement along the planned route, confidence: Inferred }
+  - { signal: The marker freezes for a while and then moves along the missed roads, design: "The provider's app buffered readings through a network gap and uploaded them as a batch", confidence: Speculative }
+  - { signal: A state such as delivered appears late and carries an earlier time than the moment it appeared, design: "The provider's app queued the state change offline with the device's time, and the backend accepted it later", confidence: Inferred }
+  - { signal: The arrival-time estimate goes up as well as down while the provider is on the way, design: The backend recomputes the estimate from live position and traffic and the client displays it, confidence: Inferred }
+  - { signal: The price screen shows a notice that the price was updated or has expired, design: A quote with an identity and a time limit issued by the backend, confidence: Inferred }
+  - { signal: The final price differs from the quote and the receipt lists the reason, design: The backend reprices from the measured trip under stated rules, confidence: Inferred }
+  - { signal: A pending bank entry at confirmation later changes to another amount, design: A hold placed at the start and captured after completion through a payment token, confidence: Inferred }
+  - { signal: The app refuses a new request until an earlier failed charge is settled, design: Charges are made after completion with the customer absent and failures become a debt on the account, confidence: Inferred }
+  - { signal: A call to the provider goes to a number that is the same for every provider, design: A relayed number from a telephony third party mapped to the trip, confidence: Inferred }
+  - { signal: The chat and call controls disappear soon after the trip ends, design: Contact between the parties is a resource scoped to the trip, confidence: Inferred }
+  - { signal: A lock-screen status keeps advancing after the app is force-quit, design: A live status updated by a dedicated push from the backend, confidence: Inferred }
+  - { signal: Tapping confirm twice on a weak connection creates one request, design: "An idempotency key on the request. Weak evidence, because the client may simply disable the button", confidence: Speculative }
+  - { signal: "The customer's app shows the location indicator only while a map is on screen", design: "Continuous location while on screen on the customer's side, with background location only on the provider's side", confidence: Observed }
+
+worksheet:
+  - { id: c44-parties, label: Parties to one job, options: [customer and provider, "customer, courier and merchant", more] }
+  - { id: c44-states, label: Trip or order states seen, in order }
+  - { id: c44-price-before, label: Price before confirming, options: [fixed quote with expiry, fixed price with no expiry seen, estimate or range, none shown] }
+  - { id: c44-idle-map, label: Nearby markers before a request, options: [frequent updates, polled in steps, drawn by the client, none shown] }
+  - { id: c44-matching, label: Matching while the app is away, options: [notified in the background, seen on return, stalled or lost] }
+  - { id: c44-restore, label: Active trip after a force-quit, options: [opens on the trip, trip reached from the first screen, stored copy then update, trip not shown] }
+  - { id: c44-marker-gap, label: Marker after a network gap on the customer's device, options: [jumps to current, travels the missed path, keeps moving offline] }
+  - { id: c44-second-device, label: The same trip on a second device, options: [in step, state in step only, stale until refresh, not available] }
+  - { id: c44-eta, label: Arrival-time estimate and how it behaves }
+  - { id: c44-contact, label: Contact between the parties, options: [relayed number, call inside the app, chat only, number differs for each trip] }
+  - { id: c44-charge-timing, label: When the money moves, options: [hold then capture, one charge after completion, charged at confirmation, paid in person] }
+  - { id: c44-price-after, label: Final price against the first price, and the reason given }
+  - { id: c44-provider-side, label: "Evidence about the provider's app, seen from the customer's side" }
+  - { id: c44-notes, label: Notes and open questions }

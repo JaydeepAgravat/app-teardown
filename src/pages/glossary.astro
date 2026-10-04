@@ -1,0 +1,36 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { loadGlossary } from '../lib/data.mjs';
+
+const groups = loadGlossary();
+const anchor = (term: string) => term.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+---
+
+<StarlightPage
+  frontmatter={{
+    title: 'Glossary',
+    description: 'Every term the handbook uses, with one meaning each.',
+    tableOfContents: false,
+  }}
+>
+  <p>
+    Each term has one meaning, and every chapter uses it the same way. In the chapters, the first use of a term on a
+    page is underlined. Hover over it, or focus it, to see its definition.
+  </p>
+
+  {
+    groups.map((group: any) => (
+      <>
+        <h2>{group.title}</h2>
+        <dl class="glossary">
+          {group.terms.map((entry: any) => (
+            <>
+              <dt id={anchor(entry.term)}>{entry.term}</dt>
+              <dd>{entry.definition}</dd>
+            </>
+          ))}
+        </dl>
+      </>
+    ))
+  }
+</StarlightPage>

@@ -1,0 +1,271 @@
+chapter: 22
+title: Privacy, permissions and consent
+link: /part-2-concerns/22-privacy-permissions-and-consent/
+
+probes:
+  - id: P22.1
+    name: First-run prompts
+    do:
+      - Install the app on a device that does not have it, or delete and reinstall it.
+      - Launch it and go through the first run without skipping.
+      - Count the system prompts shown before you reach the first useful screen, and note what came before each one.
+    watch: Whether system prompts appear before you have used any feature, and whether the app's own explanation screen comes before each.
+    outcomes:
+      - label: No system prompt until you use a feature that needs one
+        reading: "Requests are made in context. Each feature owns its permission."
+        confidence: Observed
+        fills: { c22-timing: in context }
+      - label: Explanation pages during onboarding, each followed by a system prompt
+        reading: "Requests are made in onboarding, with an explanation screen ahead of each prompt."
+        confidence: Observed
+        fills: { c22-timing: onboarding with explanation, c22-explanation: "yes" }
+      - label: System prompts at launch with nothing before them
+        reading: "Requests are made at launch from one block of startup code."
+        confidence: Observed
+        fills: { c22-timing: at launch, c22-explanation: "no" }
+
+  - id: P22.2
+    name: Deny on first request
+    do:
+      - Use a feature that needs a permission, such as scanning, a map or attaching a photo.
+      - If the app shows its own explanation screen first, note it and continue.
+      - Refuse the system prompt.
+      - Try to complete the task anyway.
+    watch: What the feature does without the permission, and what the rest of the app does. Repeat for each permission and record each one.
+    outcomes:
+      - label: The task can be completed another way
+        reading: "A fallback. The feature has a second input path, and the backend has whatever that path needs."
+        confidence: Observed
+        fills: { c22-denied: fallback }
+      - label: The feature explains that it needs the permission and offers device settings
+        reading: "The denied state is handled, with no alternative route."
+        confidence: Observed
+        fills: { c22-denied: blocked with explanation }
+      - label: The feature shows a blank or broken screen, or nothing happens
+        reading: "The code assumed a grant. The denied state has no branch."
+        confidence: Inferred
+        fills: { c22-denied: silent failure }
+      - label: The whole app refuses to continue
+        reading: "A hard gate. Either the permission is the product, or the team chose not to build a degraded mode."
+        confidence: Observed
+        fills: { c22-denied: app blocked }
+
+  - id: P22.3
+    name: Ask again
+    do:
+      - After P22.2, leave the feature and return to it.
+      - Trigger the same action again.
+      - Use the app normally for a few days and note any card or banner that reopens the question.
+    watch: Whether the system prompt returns, the app shows its own screen, or nothing happens.
+    outcomes:
+      - label: The app shows its own explanation with a link to device settings
+        reading: "The app reads the denied state and knows the system prompt is spent."
+        confidence: Inferred
+        fills: { c22-reask: own screen with settings link }
+      - label: The system prompt appears again
+        reading: "The operating system still allows a prompt for this permission, or the first refusal was a one-time choice. The app requests without tracking earlier answers."
+        confidence: Observed
+        fills: { c22-reask: system prompt again }
+      - label: Nothing happens
+        reading: "The request returns denied at once and the app ignores the result."
+        confidence: Inferred
+        fills: { c22-reask: nothing }
+
+  - id: P22.4
+    name: Grant, then revoke
+    caution: This probe changes a permission for this app in device settings. Restore it when you finish.
+    do:
+      - Grant the permission and use the feature, so that you are on a screen that depends on it.
+      - Leave the app without closing it and open device settings.
+      - Revoke the permission for this app.
+      - Return to the app through the app switcher.
+    watch: Whether the app returns to the same screen or restarts, and whether the feature notices that the permission is gone.
+    outcomes:
+      - label: The same screen returns and shows that the permission is missing
+        reading: "The app reads the permission state when it returns to the foreground. If the process was ended, state restoration brought the screen back."
+        confidence: Inferred
+        fills: { c22-revoke: handled in place }
+      - label: The app restarts at its first screen
+        reading: "The operating system ended the process when the permission changed, and the app has no state restoration for that screen."
+        confidence: Inferred
+        fills: { c22-revoke: restarts }
+      - label: "The same screen returns and looks normal, then fails or shows stale data"
+        reading: "The permission state was read once and kept. The app does not read it again."
+        confidence: Inferred
+        fills: { c22-revoke: stale or broken }
+
+  - id: P22.5
+    name: Approximate location
+    caution: This probe changes the location setting for this app in device settings. Restore it when you finish.
+    do:
+      - Skip this probe if the app never asks for location.
+      - In the location prompt, or in device settings for this app, choose approximate location.
+      - Use each feature that depends on location.
+    watch: Whether the features work with coarse results, ask for precise location, or stop.
+    outcomes:
+      - label: Features work with coarser results and no complaint
+        reading: "The feature accepts an area. The backend query works on a region, not only on a point."
+        confidence: Inferred
+        fills: { c22-location: works with approximate }
+      - label: Features work and the app keeps asking for precise location
+        reading: "The reduced grant is supported and treated as temporary. The app detects it and prompts for more."
+        confidence: Observed
+        fills: { c22-location: keeps asking }
+      - label: Features refuse to run without precise location
+        reading: "The reduced grant is handled as a refusal. Either the feature needs a point, or the alternative was not built."
+        confidence: Observed
+        fills: { c22-location: requires precise }
+
+  - id: P22.6
+    name: Limited photo access
+    do:
+      - Skip this probe if the app never uses your photos.
+      - Start an action that attaches or uploads a photo.
+      - If a system prompt offers a choice, grant access to selected photos only.
+      - Complete the attachment, then start a second one.
+    watch: Whether any permission prompt appears at all, and how the app behaves with a partial library.
+    outcomes:
+      - label: A picker opens with no permission prompt
+        reading: "A system picker. The app receives only the items you choose and holds no access to the library."
+        confidence: Inferred
+        fills: { c22-photos: system picker }
+      - label: The app asks for access and works with the selected photos
+        reading: "The app reads the library itself and supports the reduced grant. A control to change the selection confirms it."
+        confidence: Observed
+        fills: { c22-photos: limited selection accepted }
+      - label: The app asks for access and insists on the whole library
+        reading: "The app draws its own gallery from the full library and does not handle the reduced grant."
+        confidence: Observed
+        fills: { c22-photos: requires full access }
+
+  - id: P22.7
+    name: Decline tracking and non-essential use
+    do:
+      - On a fresh install, decline every optional choice. The system tracking prompt, and each non-essential purpose on the app's own consent screen.
+      - Note how many taps a full refusal takes compared with a full acceptance.
+      - Use the app for a few days.
+    watch: Whether the app behaves the same, asks again, or withholds features.
+    outcomes:
+      - label: The app works the same and does not ask again
+        reading: "The refusal is stored and respected in the UI. What changed in data flows cannot be seen."
+        confidence: Observed
+        fills: { c22-tracking: no visible effect }
+      - label: The app asks again later, by banner, card or screen
+        reading: "The refusal is stored with a time, and the app reopens the question on a schedule."
+        confidence: Inferred
+        fills: { c22-tracking: asks again }
+      - label: Features are withheld until you accept
+        reading: "Consent is tied to features. Record which ones, and whether they need the data in question."
+        confidence: Observed
+        fills: { c22-tracking: features withheld }
+      - label: No tracking prompt and no consent screen appeared at all
+        reading: "The app does not track in the platform's sense, or the rules applied to your region do not require a prompt. The two cannot be separated from outside."
+        confidence: Speculative
+        fills: { c22-tracking: never asked }
+
+  - id: P22.8
+    name: Account deletion path
+    caution: Stop before the final confirmation. Do not delete your account.
+    do:
+      - Look for account deletion in the app's account, privacy or security settings.
+      - Follow the path and read each screen up to the final confirmation.
+      - Note any stated waiting period, and what is said about data other people hold.
+      - Cancel.
+    watch: Whether the path stays inside the app, and what it says about timing.
+    outcomes:
+      - label: An in-app flow that states a waiting period before deletion
+        reading: "Soft deletion. An account state, a scheduled job and a cancel path at sign-in."
+        confidence: Inferred
+        fills: { c22-deletion: in app with grace period }
+      - label: An in-app flow that states deletion is immediate
+        reading: "A deletion operation exists on the backend and runs on request, at least as far as the user can see."
+        confidence: Inferred
+        fills: { c22-deletion: in app and immediate }
+      - label: The path leads to a web page or a message to support
+        reading: "The operation lives outside the app, or is a manual process."
+        confidence: Observed
+        fills: { c22-deletion: web or support }
+      - label: No path found
+        reading: "Deletion is not offered in the app. Check the store listing and the help pages before concluding."
+        confidence: Observed
+        fills: { c22-deletion: not found }
+
+  - id: P22.9
+    name: Data export path
+    do:
+      - Look for an option to download or export your data, in the app's privacy settings or on the maker's website.
+      - Request an export of your own data.
+      - Note how and when it arrives, and skim the categories it contains.
+    watch: Whether the file is available at once or is prepared and delivered later.
+    outcomes:
+      - label: A file is available at once
+        reading: "The export reads from one store, or the data set is small."
+        confidence: Inferred
+        fills: { c22-export: immediate file }
+      - label: The export is prepared and delivered later by link or email
+        reading: "An asynchronous job that gathers data from several services."
+        confidence: Inferred
+        fills: { c22-export: prepared later }
+      - label: No export option found
+        reading: "No self-service export. One may exist on request through support."
+        confidence: Observed
+        fills: { c22-export: not found }
+
+  - id: P22.10
+    name: Store listing against behavior
+    do:
+      - Open the app's page in the store and read its privacy listing.
+      - List the data types it declares.
+      - Compare them with the permissions and consent choices the app showed you in the earlier probes.
+    watch: Whether everything the app asked for is declared, and how much is declared that you never saw requested.
+    outcomes:
+      - label: Everything the app asked for is declared, and little else
+        reading: "The listing and the observed requests agree."
+        confidence: Observed
+        fills: { c22-listing: consistent }
+      - label: The listing declares much that you never saw requested
+        reading: "Collection that needs no permission, such as identifiers, usage and purchases. The listing is your only view of it."
+        confidence: Observed
+        fills: { c22-listing: listing declares more }
+      - label: The app asked for something the listing does not declare
+        reading: "The listing is out of date, or a third-party component asks on its own account."
+        confidence: Speculative
+        fills: { c22-listing: app asks for more }
+
+signals:
+  - { signal: Several system prompts before the first screen, design: Requests made at launch from startup code, confidence: Observed }
+  - { signal: The app's own screen with a not-now option before a system prompt, design: Explanation screen that protects the single system prompt, confidence: Inferred }
+  - { signal: No prompt when attaching a photo, design: System picker with no library access, confidence: Inferred }
+  - { signal: A typed address works where location was refused, design: Fallback with a place-lookup service on the backend, confidence: Inferred }
+  - { signal: A feature does nothing after a refusal, design: No branch for the denied state, confidence: Inferred }
+  - { signal: A link to device settings after a refusal, design: The app reads the denied state and knows the prompt is spent, confidence: Inferred }
+  - { signal: A map keeps a frozen position after revocation, design: Permission state read once and cached, confidence: Inferred }
+  - { signal: The app restarts at its first screen after a settings change, design: Process ended by the operating system and no state restoration, confidence: Inferred }
+  - { signal: Location features work on approximate location, design: Backend queries that accept a region, confidence: Inferred }
+  - { signal: The app suggests people you know after a contacts grant, design: Address book uploaded and matched on the backend, confidence: Inferred }
+  - { signal: The consent screen returns after a reinstall, design: Consent stored on the device only, confidence: Inferred }
+  - { signal: Consent choices appear already set on a second device, design: Consent record on the backend tied to the account, confidence: Inferred }
+  - { signal: Everyone is asked to consent again after a policy change, design: Consent record that carries a version of the text, confidence: Inferred }
+  - { signal: A consent screen appears in one region and not in another, design: "Rules chosen per region. How the region is determined cannot be told from outside", confidence: Speculative }
+  - { signal: Deletion states a waiting period, design: Soft deletion with a scheduled erasure job, confidence: Inferred }
+  - { signal: An export arrives hours later by link, design: Asynchronous job that gathers data across services, confidence: Inferred }
+  - { signal: A feature such as text recognition works in airplane mode, design: Processing on the device, confidence: Inferred }
+  - { signal: The store listing declares data the app never asked for, design: Collection that needs no permission, confidence: Speculative }
+
+worksheet:
+  - { id: c22-permissions, label: Permissions requested and the feature each serves }
+  - { id: c22-timing, label: Request timing, options: [in context, onboarding with explanation, at launch] }
+  - { id: c22-explanation, label: Explanation screen before the system prompt, options: ["yes", "no"] }
+  - { id: c22-denied, label: When denied, options: [fallback, blocked with explanation, silent failure, app blocked] }
+  - { id: c22-reask, label: Asking again after a refusal, options: [own screen with settings link, system prompt again, nothing] }
+  - { id: c22-revoke, label: After revocation in settings, options: [handled in place, restarts, stale or broken] }
+  - { id: c22-location, label: Approximate location, options: [works with approximate, keeps asking, requires precise, not used] }
+  - { id: c22-photos, label: Photo access, options: [system picker, limited selection accepted, requires full access, not used] }
+  - { id: c22-tracking, label: After declining tracking and non-essential use, options: [no visible effect, asks again, features withheld, never asked] }
+  - { id: c22-consent-store, label: Where consent is stored, options: [device, account, unknown] }
+  - { id: c22-region, label: Regional differences seen }
+  - { id: c22-deletion, label: Account deletion path, options: [in app with grace period, in app and immediate, web or support, not found] }
+  - { id: c22-export, label: Data export, options: [immediate file, prepared later, not found] }
+  - { id: c22-listing, label: Store listing against behavior, options: [consistent, listing declares more, app asks for more] }
+  - { id: c22-processing, label: Features processed on the device }
+  - { id: c22-failures, label: Failure modes seen }

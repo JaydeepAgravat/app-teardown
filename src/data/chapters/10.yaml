@@ -1,0 +1,263 @@
+chapter: 10
+title: API shape
+link: /part-2-concerns/10-api-shape/
+
+probes:
+  - id: P10.1
+    name: First paint of a composite screen
+    do:
+      - Pick a screen built from several kinds of data, such as an item screen with a seller, reviews and related items.
+      - On a normal connection, open an instance of that screen you have not opened before, so that nothing is cached.
+      - Repeat with three or four other instances.
+    watch: Whether the text content appears all at once or in parts, and whether the parts always arrive in the same order. Ignore images, which load separately in every design.
+    outcomes:
+      - label: The whole screen appears in one piece
+        reading: "The screen's data arrived together. One screen-shaped response, one query, a batch, or parallel requests that the client waits on. P10.2 narrows it."
+        confidence: Speculative
+        fills: { c10-first-paint: one piece }
+      - label: A header appears first, then the other sections
+        reading: "The later sections depend on the first response, or are fetched separately. The client composes the screen."
+        confidence: Inferred
+        fills: { c10-first-paint: staged, c10-composition: client }
+      - label: The top appears, then everything further down in one step
+        reading: "A deliberate two-part load. One request for the visible part and one for the rest."
+        confidence: Inferred
+        fills: { c10-first-paint: two parts }
+
+  - id: P10.2
+    name: The same screen on a weak connection
+    do:
+      - Find a weak connection, for example the edge of wireless coverage, or turn on a low-data or data-saver setting if your carrier slows the connection with it.
+      - Open several instances of the same screen that you have not opened before.
+    watch: How far apart the parts arrive. On a weak connection, separate requests separate by seconds.
+    outcomes:
+      - label: A long wait, then the whole screen at once
+        reading: "One round trip carries the screen. The backend composes it, or the client sends one query or one batch."
+        confidence: Inferred
+        fills: { c10-slow-network: all at once, c10-composition: backend }
+      - label: Sections arrive seconds apart
+        reading: "One request per section. The client composes the screen from separate responses."
+        confidence: Inferred
+        fills: { c10-slow-network: sections seconds apart, c10-composition: client }
+      - label: Rows of a list fill in one by one
+        reading: "One request per row. The list response under-fetches and the client asks again for each item."
+        confidence: Inferred
+        fills: { c10-slow-network: row by row, c10-composition: client }
+
+  - id: P10.3
+    name: Failure unit
+    do:
+      - Stay on the weak connection from P10.2.
+      - Open instances of the screen repeatedly until a load fails in some way. Walking toward and away from the edge of coverage helps.
+      - If a retry control appears, use it and note what reloads.
+    watch: Whether the failure covers the whole screen or one section, whether a section is missing with no error, and what a retry reloads.
+    outcomes:
+      - label: The whole screen shows one error
+        reading: "The screen is fetched as one unit, and the response is all or nothing."
+        confidence: Inferred
+        fills: { c10-failure-unit: whole screen }
+      - label: One section shows its own error or retry
+        reading: "Sections are fetched separately, or one response carries partial results with the gaps marked."
+        confidence: Inferred
+        fills: { c10-failure-unit: section with its own error }
+      - label: A section is missing, with no error and no gap
+        reading: "A composition layer on the backend dropped the section it could not fill."
+        confidence: Inferred
+        fills: { c10-failure-unit: section dropped silently, c10-composition: backend }
+
+  - id: P10.4
+    name: List against detail
+    do:
+      - In a list, note the values shown for one item, such as its title, price, count and availability.
+      - Open the item and watch the detail screen as it appears.
+      - Compare each value with what the list showed.
+      - Go back, refresh the list, and compare again.
+    watch: Which parts of the detail screen are present in the first frame, and whether any value differs between list and detail.
+    outcomes:
+      - label: The list's values show at once, and the rest loads after
+        reading: "The detail screen reuses the list's data and fetches what the list response lacked. Each endpoint returns a different cut of the item."
+        confidence: Inferred
+        fills: { c10-list-detail: detail extends list data }
+      - label: The detail screen is complete at once, with no loading
+        reading: "The list response already held everything, or the detail was prefetched. The list over-fetches, or Chapter 11 applies."
+        confidence: Speculative
+        fills: { c10-list-detail: detail complete at once }
+      - label: The detail screen is blank, then loads everything
+        reading: "The detail screen ignores the list's data and makes its own request."
+        confidence: Inferred
+        fills: { c10-list-detail: detail reloads everything }
+      - label: A value differs between list and detail after refreshing both
+        reading: "The list and the detail are served from different backend sources that are updated at different times."
+        confidence: Inferred
+        fills: { c10-list-detail: list and detail disagree }
+
+  - id: P10.5
+    name: Change without an update
+    do:
+      - Note the app's version number from its settings or about screen, or from the store listing.
+      - Take screenshots of the home screen and two other main screens.
+      - Repeat on several days over two or more weeks, checking each time that the version number has not changed.
+      - Compare the screenshots for structure, not for content.
+    watch: Whether sections appear, disappear or change order, and whether labels and button text change, while the version stays the same.
+    outcomes:
+      - label: Sections appear, disappear or reorder
+        reading: "The backend decides which sections a screen has. A screen-describing response, or remote config that switches built-in sections. Chapter 31 separates them."
+        confidence: Speculative
+        fills: { c10-change-without-update: layout changes }
+      - label: Labels or rules change, and the layout does not
+        reading: "The backend sends finished text or decisions for a layout the client owns. A screen-shaped response or remote config."
+        confidence: Speculative
+        fills: { c10-change-without-update: text or rules change }
+      - label: Only the content changes
+        reading: "No evidence that the backend controls anything beyond data. The client owns layout, text and rules for this screen."
+        confidence: Inferred
+        fills: { c10-change-without-update: content only }
+
+  - id: P10.6
+    name: Old version
+    do:
+      - Find a device whose copy of the app has not been updated for a long time, or stop updating the app on a spare device and wait some months.
+      - Open the old version next to a current one, signed in to the same account.
+      - Visit the same screens on both, and look at content created recently with newer features.
+    watch: Whether the old version works, what it shows for content it does not understand, and whether it asks you to update.
+    outcomes:
+      - label: The old version works, and shows a placeholder for some new content
+        reading: "The interface evolves by adding types, and the client has a designed fallback for types it does not know."
+        confidence: Inferred
+        fills: { c10-old-version: works with fallbacks }
+      - label: The old version works, with blank or missing items
+        reading: "The interface evolves by adding types, and the old client drops what it cannot read."
+        confidence: Inferred
+        fills: { c10-old-version: works with gaps }
+      - label: The old version looks and behaves like the current one
+        reading: "Either nothing visible changed, or the backend decides enough of the screen that old clients follow along."
+        confidence: Speculative
+        fills: { c10-old-version: matches current version }
+      - label: A prompt blocks the app until you update
+        reading: "The backend refuses versions older than a set minimum. Compatibility has an enforced limit."
+        confidence: Observed
+        fills: { c10-old-version: forced update }
+
+  - id: P10.7
+    name: What an action returns
+    do:
+      - Find an action that affects several things on one screen. Adding an item to a cart may change a badge, a subtotal, a delivery estimate and a suggestions row.
+      - Perform the action on a normal connection and watch every affected part.
+      - Repeat on a weak connection.
+    watch: Whether the affected parts change together or one after another, and whether the screen reloads.
+    outcomes:
+      - label: Every affected part changes together
+        reading: "The action's response carries the new state of everything it touched. The backend knows what depends on what."
+        confidence: Inferred
+        fills: { c10-action-result: all parts together }
+      - label: The acted-on part changes, then the screen reloads
+        reading: "The action returns little, and the client fetches the screen again to learn the effects."
+        confidence: Inferred
+        fills: { c10-action-result: screen reloads }
+      - label: Other parts stay old until you refresh
+        reading: "The action returns only its own result, and the client does not fetch the rest."
+        confidence: Observed
+        fills: { c10-action-result: other parts stale }
+
+  - id: P10.8
+    name: Who computes
+    do:
+      - Find a value computed from inputs you control, such as a cart total, a fee, a fare estimate or a character limit.
+      - Turn on airplane mode.
+      - Change an input, for example a quantity. Do not submit anything.
+      - Turn the network back on and watch the value.
+    watch: Whether the computed value changes while offline, and whether it changes again when the network returns.
+    outcomes:
+      - label: The value updates offline and stays the same online
+        reading: "The rule runs on the client. The backend may check it later, and you cannot see that."
+        confidence: Inferred
+        fills: { c10-rules: client computes }
+      - label: The value updates offline and is corrected online
+        reading: "The client estimates and the backend is the source of truth for this value."
+        confidence: Inferred
+        fills: { c10-rules: client estimates and backend corrects }
+      - label: The value does not update offline
+        reading: "The rule runs on the backend. Each change of input is a round trip."
+        confidence: Inferred
+        fills: { c10-rules: backend computes }
+
+  - id: P10.9
+    name: Rejected input
+    do:
+      - Find a form on your own account where the backend must reject some values, such as a display name that is already taken or a promotion code that does not exist.
+      - Submit a value that is well formed and that you expect to be rejected.
+      - Read the message and note where it appears.
+    watch: Whether the message names a reason, and whether it is attached to the field that caused it.
+    outcomes:
+      - label: A specific reason appears beside the field
+        reading: "The error response identifies the field and the reason in a structured form."
+        confidence: Inferred
+        fills: { c10-errors: reason attached to the field }
+      - label: A specific reason appears in a banner or dialog
+        reading: "The error response carries a reason, and nothing ties it to a field."
+        confidence: Speculative
+        fills: { c10-errors: reason without a field }
+      - label: A generic failure message appears
+        reading: "The client receives or keeps only success or failure."
+        confidence: Speculative
+        fills: { c10-errors: generic message }
+
+  - id: P10.10
+    name: Language switch
+    caution: This probe changes a language setting. Use the app's own language setting or the per-app language setting if one exists. If you must change the device language, restore it when you finish.
+    do:
+      - Open several screens and let them load.
+      - Change the app's language to one you can recognize.
+      - Return to the app and revisit the same screens before refreshing them.
+      - Refresh each screen and look again.
+    watch: Which text changes language at once, which changes only after a refresh, and which never changes.
+    outcomes:
+      - label: All labels, prices and dates change at once
+        reading: "Text is built and formatted on the client from raw values."
+        confidence: Inferred
+        fills: { c10-text: built on the client }
+      - label: Some labels stay in the old language until the screen is refreshed
+        reading: "Those labels were sent by the backend as finished strings."
+        confidence: Inferred
+        fills: { c10-text: some sent by the backend }
+      - label: Some labels stay in the old language after a refresh
+        reading: "That text is stored content, or the backend formats it from a language held in the account and not from the request."
+        confidence: Speculative
+        fills: { c10-text: some fixed after refresh }
+
+signals:
+  - { signal: A header appears first and dependent sections follow, design: Client composes the screen from requests in sequence, confidence: Inferred }
+  - { signal: Sections arrive seconds apart on a weak connection, design: One request per section, confidence: Inferred }
+  - { signal: The whole screen arrives at once even on a weak connection, design: "One round trip per screen. Screen-shaped response, query or batch", confidence: Inferred }
+  - { signal: The whole screen arrives at once on a fast connection, design: "No evidence. Separate requests can land within one frame", confidence: Speculative }
+  - { signal: Text in list rows fills in row by row, design: One request per row after an under-fetching list response, confidence: Inferred }
+  - { signal: One section shows its own error and retry, design: Sections fetched separately or a response with partial results, confidence: Inferred }
+  - { signal: A section is absent on some visits with no error, design: Backend composition layer that drops a section it cannot fill, confidence: Inferred }
+  - { signal: Detail screen opens complete with no loading state, design: "List response over-fetches, or the detail was prefetched", confidence: Speculative }
+  - { signal: List and detail disagree after both are refreshed, design: Two endpoints served from different backend sources, confidence: Inferred }
+  - { signal: Sections appear or reorder with no app update, design: "Backend decides the screen's structure. Screen-describing response or remote config", confidence: Speculative }
+  - { signal: Button text or eligibility changes with no app update, design: Backend sends finished text and decisions, confidence: Speculative }
+  - { signal: An old version shows a placeholder for new content, design: Additive interface with a client fallback for unknown types, confidence: Inferred }
+  - { signal: A prompt blocks an old version until it is updated, design: Backend enforces a minimum client version, confidence: Observed }
+  - { signal: A total updates with the network off, design: Rule computed on the client, confidence: Inferred }
+  - { signal: A total is corrected when the network returns, design: Client estimate with the backend as source of truth, confidence: Inferred }
+  - { signal: Loaded text stays in the old language after a language change, design: Backend sends finished strings, confidence: Inferred }
+  - { signal: An action updates every affected part of the screen together, design: Mutation response returns the new state of everything it touched, confidence: Inferred }
+  - { signal: A button is shown and the backend refuses the action, design: Rule held on both client and backend with the two out of step, confidence: Inferred }
+
+worksheet:
+  - { id: c10-shape, label: API shape for this screen, options: [resource-oriented, query interface, remote procedure calls, screen-shaped, screen-describing, mixed, unknown] }
+  - { id: c10-composition, label: Who composes the screen, options: [client, backend, mixed, unknown] }
+  - { id: c10-first-paint, label: First paint on a normal connection, options: [one piece, staged, two parts] }
+  - { id: c10-slow-network, label: Load on a weak connection, options: [all at once, sections seconds apart, row by row] }
+  - { id: c10-failure-unit, label: Failure unit, options: [whole screen, section with its own error, section dropped silently, not seen] }
+  - { id: c10-list-detail, label: List against detail, options: [detail extends list data, detail complete at once, detail reloads everything, list and detail disagree] }
+  - { id: c10-change-without-update, label: Change without an app update, options: [layout changes, text or rules change, content only] }
+  - { id: c10-old-version, label: Old version behavior, options: [works with fallbacks, works with gaps, matches current version, forced update, not tested] }
+  - { id: c10-action-result, label: What an action returns, options: [all parts together, screen reloads, other parts stale] }
+  - { id: c10-rules, label: Where computed values are decided, options: [client computes, client estimates and backend corrects, backend computes] }
+  - { id: c10-errors, label: Rejected input, options: [reason attached to the field, reason without a field, generic message] }
+  - { id: c10-text, label: Where display text is built, options: [built on the client, some sent by the backend, some fixed after refresh] }
+  - { id: c10-backend, label: Backend components implied }
+  - { id: c10-speculative, label: Claims left Speculative }
+  - { id: c10-failures, label: Failure modes seen }

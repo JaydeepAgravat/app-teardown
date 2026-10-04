@@ -1,0 +1,90 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { loadChapters } from '../lib/data.mjs';
+
+const chapters = loadChapters()
+  .filter((chapter: any) => chapter.probes?.length)
+  .sort((a: any, b: any) => a.chapter - b.chapter);
+const total = chapters.reduce((sum: number, chapter: any) => sum + chapter.probes.length, 0);
+
+// The anchor the site gives a heading "### P12.1 Offline read".
+const anchor = (probe: any) =>
+  `${probe.id} ${probe.name}`
+    .toLowerCase()
+    .replace(/[^a-z0-9 -]/g, '')
+    .replace(/\s+/g, '-');
+---
+
+<StarlightPage
+  frontmatter={{
+    title: 'Appendix A. Probe catalog',
+    description: 'Every probe in the handbook, with what to watch for and where it is explained.',
+    tableOfContents: false,
+  }}
+>
+  <p>
+    All {total} probes in the handbook. Each one is an experiment you can run as a normal user. Filter by what you want
+    to do or what you want to learn, then open the probe in its chapter to record what you saw.
+  </p>
+
+  <div class="lookup not-content">
+    <input
+      type="search"
+      id="probe-query"
+      placeholder="For example: airplane mode, second device, force-quit"
+      aria-label="Filter probes"
+      autocomplete="off"
+    />
+    <p id="probe-count" aria-live="polite"></p>
+  </div>
+
+  {
+    chapters.map((chapter: any) => (
+      <section class="probe-group">
+        <h2>
+          {chapter.chapter}. {chapter.title}
+        </h2>
+        <table class="contents">
+          <tbody>
+            {chapter.probes.map((probe: any) => (
+              <tr data-text={`${probe.id} ${probe.name} ${probe.do.join(' ')} ${probe.watch}`.toLowerCase()}>
+                <td class="num">{probe.id}</td>
+                <td>
+                  <a href={`${chapter.link}#${anchor(probe)}`}>{probe.name}</a>
+                  {probe.caution && <span class="conf conf-speculative">Changes a setting</span>}
+                  <br />
+                  <small>{probe.watch}</small>
+                </td>
+                <td class="status">{probe.do.length} steps</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+    ))
+  }
+</StarlightPage>
+
+<script>
+  const query = document.querySelector<HTMLInputElement>('#probe-query')!;
+  const count = document.querySelector<HTMLElement>('#probe-count')!;
+  const rows = [...document.querySelectorAll<HTMLElement>('.probe-group tr')];
+  const groups = [...document.querySelectorAll<HTMLElement>('.probe-group')];
+
+  const run = () => {
+    const tokens = query.value.toLowerCase().split(/\s+/).filter(Boolean);
+    let shown = 0;
+    rows.forEach((row) => {
+      const visible = tokens.every((token) => row.dataset.text!.includes(token));
+      row.hidden = !visible;
+      if (visible) shown++;
+    });
+    groups.forEach((group) => {
+      group.hidden = group.querySelectorAll('tr:not([hidden])').length === 0;
+    });
+    count.textContent = `${shown} of ${rows.length} probes`;
+  };
+
+  query.addEventListener('input', run);
+  run();
+</script>

@@ -1,0 +1,229 @@
+chapter: 52
+title: Games
+link: /part-3-archetypes/52-games/
+
+probes:
+  - id: P52.1
+    name: First launch download
+    caution: This probe can download a large amount of data. Run it on an unmetered connection.
+    do:
+      - Note the download size on the store listing.
+      - Install the game on a device that has never had it, and note the app figure in the device's storage settings before the first launch.
+      - Launch the game and watch every loading screen until you can play the first level or match.
+      - Note the app figure again.
+      - Play for twenty minutes, opening a new chapter, mode or character where you can, and note the figure a third time.
+    watch: Whether a download with a progress indicator runs before the first play, and whether the figure keeps growing as you reach new content.
+    outcomes:
+      - label: Play starts with no further download, and the figure stays fixed
+        reading: "Every asset is in the install. The store delivered the whole game, and new content needs a store update."
+        confidence: Inferred
+        fills: { c52-assets: all in the install }
+      - label: A download with a progress indicator runs before the first play
+        reading: "The install is a shell with the engine. Assets are on-demand resources fetched from asset delivery in one step at first launch."
+        confidence: Inferred
+        fills: { c52-assets: one download before first play }
+      - label: Play starts quickly, and further downloads run as you reach new content
+        reading: "On-demand resources fetched in stages. The first levels come early, and the rest follows in the background or at the door of each new area."
+        confidence: Inferred
+        fills: { c52-assets: downloaded in stages }
+
+  - id: P52.2
+    name: Play in airplane mode
+    do:
+      - Play online until the game is fully loaded and you are past the tutorial.
+      - Force-quit the game and turn on airplane mode.
+      - Launch the game and try to start a level or a match.
+      - If play starts, open the shop, an event screen and a reward screen.
+    watch: How far the game gets with no network, and which screens are missing or disabled.
+    outcomes:
+      - label: The game plays in full, and only the shop or ads are missing
+        reading: "The rules and the saved progress are on the device. The backend is needed only for purchases and ads."
+        confidence: Observed
+        fills: { c52-offline: plays fully }
+      - label: Levels play, while events, rewards or currency screens are disabled
+        reading: "Play runs on the device, and anything that carries value waits for the backend."
+        confidence: Observed
+        fills: { c52-offline: plays core only }
+      - label: The game stops at a connection screen and nothing can be played
+        reading: "The backend takes part in every session. The game is at Level 0 by choice, whatever the device could do alone."
+        confidence: Observed
+        fills: { c52-offline: connection required }
+
+  - id: P52.3
+    name: Offline progress after reconnect
+    caution: Progress made during this probe can be lost. Use a level whose result you do not mind losing.
+    do:
+      - Run this probe only if P52.2 let you play offline.
+      - Note your level, your score and every currency balance while online.
+      - Turn on airplane mode, finish one level in normal play and note the new figures.
+      - Force-quit the game, turn the network back on and launch it.
+      - Compare the figures with both sets of notes.
+    watch: Whether the level result and the rewards earned offline are still there once the backend has been reached.
+    outcomes:
+      - label: The offline result and its rewards are still there
+        reading: "The device result was accepted. Either the client decides, or the backend replayed or checked the queued result and agreed with it."
+        confidence: Observed
+        fills: { c52-offline-progress: kept after reconnect }
+      - label: The level counts as finished, but the rewards are gone or smaller
+        reading: "Progress is trusted from the device and value is not. The backend recomputed the reward from its own rules."
+        confidence: Inferred
+        fills: { c52-offline-progress: progress kept and rewards recomputed }
+      - label: The figures return to what they were before going offline
+        reading: "The backend copy is the source of truth and the offline session was never sent or was refused."
+        confidence: Inferred
+        fills: { c52-offline-progress: discarded after reconnect }
+
+  - id: P52.4
+    name: Progress on a second device
+    do:
+      - Play on one device until you have clear progress, and note it.
+      - Look in the game's settings for an account, a link or a save control, and note what it offers.
+      - Install the game on a second device that uses the same platform account.
+      - Launch it and do not sign in to anything the game offers. Note the progress shown.
+      - Then sign in to the game's own account, if it has one, and note the progress again.
+    watch: At which step your progress appears on the second device, if it appears at all.
+    outcomes:
+      - label: Progress appears before any sign-in to the game
+        reading: "The save follows the platform account. The game stores it through a platform service and has no need of an account of its own."
+        confidence: Inferred
+        fills: { c52-save-home: platform account }
+      - label: Progress appears only after sign-in to the game's account
+        reading: "The backend holds the save against the game's own account. The save can also follow you to the other platform."
+        confidence: Inferred
+        fills: { c52-save-home: game account on the backend }
+      - label: The game starts from the beginning whatever you do
+        reading: "The save lives on the first device only. Removing the game or losing the device loses the progress."
+        confidence: Observed
+        fills: { c52-save-home: device only }
+
+  - id: P52.5
+    name: Two devices, two saves
+    caution: One of the two saves is usually discarded. Run this probe on a second account or on progress you do not mind losing.
+    do:
+      - Run this probe only if P52.4 showed the same progress on two devices, A and B.
+      - Put A in airplane mode and finish two levels on it.
+      - On B, online, finish one different level or spend some currency.
+      - Close the game on B. Turn the network back on at A and launch the game there.
+      - Note any prompt, then compare progress and balances on both devices.
+    watch: Whether the game asks you to choose, and which device's session survives.
+    outcomes:
+      - label: A prompt shows both saves and asks which to keep
+        reading: "The save is one record with a version. The backend detected two changes from the same base and left the decision to you."
+        confidence: Observed
+        fills: { c52-save-conflict: asks which to keep }
+      - label: One save replaces the other with no message
+        reading: "LWW on the whole save, or a rule such as furthest progress wins. Which rule it is needs a second run with the order reversed."
+        confidence: Inferred
+        fills: { c52-save-conflict: one save wins silently }
+      - label: A's offline levels are gone and B's session stands
+        reading: "The backend copy is the source of truth. A device that was offline loads the backend state and drops its own."
+        confidence: Inferred
+        fills: { c52-save-conflict: backend copy wins }
+      - label: Levels from both devices are finished, with one consistent balance
+        reading: "Progress is merged per item, and currency is a ledger of grants and spends on the backend, not a number in the save."
+        confidence: Inferred
+        fills: { c52-save-conflict: merged }
+
+  - id: P52.6
+    name: An event begins
+    do:
+      - Find an event, a season or an offer with a visible countdown to its start or end.
+      - Note the game's version on the store listing.
+      - Have the game open on its home screen when the countdown reaches zero, and wait two minutes without touching it.
+      - If nothing changes, go into a level and back. If still nothing changes, force-quit and launch again.
+      - Check the store listing for a new version.
+    watch: Which action makes the change appear, and whether a download step runs first.
+    outcomes:
+      - label: The change appears on the open home screen at zero
+        reading: "The schedule was delivered ahead of time with the backend's clock, or it is applied live. The content was already on the device."
+        confidence: Inferred
+        fills: { c52-liveops: applied while open }
+      - label: The change appears on return to the home screen or at the next launch
+        reading: "Remote config and event data are fetched at fixed moments. A short download at that moment is the event's assets arriving."
+        confidence: Inferred
+        fills: { c52-liveops: applied on return or launch }
+      - label: The change appears only after a store update
+        reading: "Events ship inside releases. The game has no live operations path, or this event needed new code."
+        confidence: Observed
+        fills: { c52-liveops: only with a store update }
+
+  - id: P52.7
+    name: Movement on a weak connection
+    caution: You may lose the match. Use a practice mode, a match against computer opponents or an unranked match, so that no other player's ranking is affected.
+    do:
+      - Run this probe only on a game with real-time matches.
+      - Play one match on a good connection and note how your own character and the others move.
+      - Move to a place with a weak connection, or to the edge of your network's range, and play another match.
+      - Watch your own character first, then the other players.
+    watch: Whether your own character still answers every touch at once, and what happens to it and to the others when the connection falters.
+    outcomes:
+      - label: Your character answers at once and now and then snaps back or slides to another position
+        reading: "The backend owns the match state. The client predicts your movement from your input and corrects itself when the backend disagrees."
+        confidence: Inferred
+        fills: { c52-movement: predicted with corrections }
+      - label: Your character answers late to every touch
+        reading: "The client draws only what the backend has confirmed. Every input makes a round trip before it shows."
+        confidence: Inferred
+        fills: { c52-movement: waits for the backend }
+      - label: The whole match freezes for everyone, then continues
+        reading: "Every device runs the same simulation and waits for every player's input before it advances."
+        confidence: Inferred
+        fills: { c52-movement: all devices wait together }
+
+  - id: P52.8
+    name: Leave a match and return
+    caution: You may lose the match. Use a practice mode, a match against computer opponents or an unranked match.
+    do:
+      - Start a match of a kind that P52.7 allows.
+      - Switch to another app for thirty seconds and come back.
+      - Note what the game shows.
+      - In a later match, force-quit the game, launch it again within a minute and note what it offers.
+    watch: Whether the match went on without you, waited for you or ended.
+    outcomes:
+      - label: You return to the same match, and it has moved on without you
+        reading: "The match runs on the backend. The client is a view that reconnects and catches up to the current state."
+        confidence: Inferred
+        fills: { c52-match-return: rejoins a running match }
+      - label: The match is exactly where you left it
+        reading: "The match runs on the device, or it is turn-based and nothing is due until you act."
+        confidence: Inferred
+        fills: { c52-match-return: match waited }
+      - label: The match is over and you are at the home screen
+        reading: "The connection was the match. Either the backend removes a player who disconnects, or the match was hosted between the players' devices."
+        confidence: Speculative
+        fills: { c52-match-return: match lost }
+
+signals:
+  - { signal: The screen reader finds one region or nothing on every screen including menus, design: A game engine draws the whole app as one surface, confidence: Inferred }
+  - { signal: The device warms on the home screen and in menus with nothing moving, design: The engine redraws every frame at full rate with no reduced rate for idle screens, confidence: Inferred }
+  - { signal: A download with a progress indicator runs at first launch and the app figure grows several times over, design: On-demand resources from asset delivery, confidence: Inferred }
+  - { signal: A short download runs at launch on a day with no store update and new content follows, design: Assets and event data delivered outside the store by version of the content, confidence: Inferred }
+  - { signal: A connection screen blocks a game that has no multiplayer, design: The backend decides progress and currency and the client holds no trusted state, confidence: Inferred }
+  - { signal: A reward counter animates at once and the final balance settles a moment later, design: Optimistic update of a balance that the backend owns, confidence: Speculative }
+  - { signal: A purchase interrupted by a crash is granted at the next launch with no second charge, design: Receipt verification on the backend with an idempotent grant and a pending purchase recovered at startup, confidence: Inferred }
+  - { signal: Currency bought on one platform is absent on the other while progress is present, design: Purchased currency is kept per platform and earned progress per account. A product or store policy and not a fault, confidence: Speculative }
+  - { signal: Your own character moves at once and sometimes snaps back on a weak connection, design: Client prediction with correction against a backend that owns the match, confidence: Inferred }
+  - { signal: Other players stop then jump forward while your own character stays smooth, design: Other players are drawn slightly in the past between received states, confidence: Inferred }
+  - { signal: A hit that looked certain on your screen does not count, design: The backend decided the outcome from its own state and not from what the client drew, confidence: Inferred }
+  - { signal: You return from another app into a match that went on without you, design: The match runs on the backend and the client rejoins by catch-up, confidence: Inferred }
+  - { signal: An event starts and ends for every player at the same moment whatever the device's time zone, design: Schedules run on the backend's clock and the client's clock is not trusted, confidence: Inferred }
+  - { signal: Two accounts see different prices or offers for the same item, design: Targeting or an experiment on the economy through remote config, confidence: Inferred }
+  - { signal: The rewarded ad control shows a count of views left today that survives a reinstall, design: The frequency limit is counted on the backend per account, confidence: Inferred }
+  - { signal: Matchmaking waits longer at quiet hours and opponents then vary more in strength, design: A queue that widens its criteria with waiting time, confidence: Speculative }
+  - { signal: A match is found at once at any hour in a low rank, design: "Computer opponents fill empty places. A large player pool explains it equally well", confidence: Speculative }
+  - { signal: A prompt shows two saves with their dates and levels and asks which to keep, design: A versioned save on the backend with the conflict left to the user, confidence: Inferred }
+
+worksheet:
+  - { id: c52-variant, label: Variant, options: [casual offline, live-service, real-time multiplayer, mixed] }
+  - { id: c52-assets, label: Asset delivery, options: [all in the install, one download before first play, downloaded in stages] }
+  - { id: c52-offline, label: Play with no network, options: [plays fully, plays core only, connection required] }
+  - { id: c52-offline-progress, label: Offline progress after reconnect, options: [kept after reconnect, progress kept and rewards recomputed, discarded after reconnect, not testable] }
+  - { id: c52-save-home, label: Where the save lives, options: [device only, platform account, game account on the backend] }
+  - { id: c52-save-conflict, label: Two saves from two devices, options: [asks which to keep, one save wins silently, backend copy wins, merged, not testable] }
+  - { id: c52-liveops, label: How an event arrives, options: [applied while open, applied on return or launch, only with a store update] }
+  - { id: c52-movement, label: Own movement in a real-time match, options: [predicted with corrections, waits for the backend, all devices wait together, no real-time matches] }
+  - { id: c52-match-return, label: Return to a match, options: [rejoins a running match, match waited, match lost, no real-time matches] }
+  - { id: c52-economy, label: "Currencies, what each buys and which are sold" }
+  - { id: c52-ads, label: Rewarded ads and what each grants }
+  - { id: c52-matchmaking, label: "Matchmaking: waiting time, what it seems to match on, computer opponents" }
+  - { id: c52-notes, label: Notes and open questions }

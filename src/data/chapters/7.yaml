@@ -1,0 +1,269 @@
+chapter: 7
+title: Launch and startup
+link: /part-2-concerns/7-launch-and-startup/
+
+probes:
+  - id: P7.1
+    name: Cold against warm
+    do:
+      - Force-quit the app.
+      - Launch it from its icon and count the seconds until real content is visible.
+      - Go to the device's home screen, wait five seconds, and return to the app.
+      - Repeat both steps twice, so that one slow network response does not mislead you.
+    watch: Whether a splash appears on each launch, and how long each takes by eye. A splash marks a cold start.
+    outcomes:
+      - label: The cold launch is clearly slower, and the return is instant
+        reading: "A cold start with visible initialization or a fetch, and a resume that does no work. P7.2 shows what the cold start waits for."
+        confidence: Observed
+        fills: { c7-cold-warm: cold clearly slower }
+      - label: Both feel instant
+        reading: "A light cold start that draws from the device. The first screen does not wait for the network."
+        confidence: Inferred
+        fills: { c7-cold-warm: no visible difference }
+      - label: The return also shows a splash or reloads the screen
+        reading: "The app rebuilds or refetches on every return to the foreground. It treats a resume like a launch."
+        confidence: Observed
+        fills: { c7-cold-warm: reloads on every return }
+
+  - id: P7.2
+    name: First-screen strategy
+    do:
+      - Force-quit the app.
+      - Launch it on a normal connection and do not touch the screen.
+      - Repeat on a slow connection if you can find one.
+    watch: What stands between the splash and real content, and whether the content changes after it first appears.
+    outcomes:
+      - label: The splash stays until a complete screen appears
+        reading: "Either a blocking fetch or local startup work behind a splash. P7.3 separates them. If the same splash ends in real content in airplane mode, the wait is local and the content was stored. If it ends in an error or never ends, the wait is the network."
+        confidence: Speculative
+      - label: The layout appears with placeholders, then fills in
+        reading: "Skeleton placeholders. The first frame does not wait, and the content does."
+        confidence: Observed
+        fills: { c7-first-screen: skeleton placeholders }
+      - label: Real content appears at once, then updates
+        reading: "Cached content first with a refresh behind it."
+        confidence: Inferred
+        fills: { c7-first-screen: cached content first }
+      - label: Real content appears at once and is already current
+        reading: "Either the content was prepared before launch, or nothing changed since the last run. Repeat after new content exists to separate the two."
+        confidence: Speculative
+
+  - id: P7.3
+    name: Launch in airplane mode
+    do:
+      - Use the app online for a minute, so that it has had the chance to store something.
+      - Force-quit it.
+      - Turn on airplane mode.
+      - Launch the app.
+    watch: How far the launch gets, and what the first screen contains.
+    outcomes:
+      - label: The normal first screen, with content
+        reading: "Session, config and content are all read from the device. No startup step blocks on the network."
+        confidence: Inferred
+        fills: { c7-offline-launch: cached content, c7-session-check: local then lazy }
+      - label: The app's layout, with an error or empty sections
+        reading: "Startup decisions are local. Content is not stored across launches."
+        confidence: Inferred
+        fills: { c7-offline-launch: shell with error, c7-session-check: local then lazy }
+      - label: The splash never ends, or a full-screen error offers a retry
+        reading: "At least one startup step blocks on a response. It may be the session check, config or the first content."
+        confidence: Observed
+        fills: { c7-offline-launch: blocked at startup }
+      - label: The sign-in screen
+        reading: "The session check needs the network and treats no answer as no session."
+        confidence: Inferred
+        fills: { c7-offline-launch: sent to sign-in, c7-session-check: blocking validation }
+
+  - id: P7.4
+    name: Where it lands
+    do:
+      - Navigate several screens deep, away from the app's home screen.
+      - Force-quit the app and launch it again at once. Note the screen you land on.
+      - Navigate deep again and go to the device's home screen without force-quitting.
+      - Leave the app unopened until the next day, then launch it. Note the screen you land on.
+    watch: Whether you land on the app's home screen or on the screen you left, in each case.
+    outcomes:
+      - label: Home in both cases
+        reading: "The app landed on its home screen after both cold starts. Either it does not persist the last screen, or it restores it only under a condition you did not meet, such as an account type, a platform or a time limit."
+        confidence: Inferred
+        fills: { c7-landing: always home }
+      - label: The screen you left in both cases
+        reading: "A persisted last screen, kept by the app itself, since it survived a force-quit."
+        confidence: Inferred
+        fills: { c7-landing: last screen }
+      - label: Home after the force-quit, the screen you left the next day
+        reading: "The last screen is restored through the operating system's saved state, which a force-quit clears, or the process simply survived the night. A splash on the second launch rules out the second reading."
+        confidence: Speculative
+        fills: { c7-landing: last screen unless force-quit }
+      - label: The screen you left after the force-quit, home the next day
+        reading: "A persisted last screen with a time limit, after which the app returns to home."
+        confidence: Inferred
+        fills: { c7-landing: last screen with a time limit }
+
+  - id: P7.5
+    name: Launch from a notification
+    do:
+      - Force-quit the app.
+      - Cause a notification that points at one item, for example by sending yourself a message from a second account.
+      - Tap the notification.
+    watch: Which screens appear, in order, before the target is shown.
+    outcomes:
+      - label: The target screen appears directly
+        reading: "The startup coordinator carries the launch target through startup and chooses the target as the first screen."
+        confidence: Inferred
+        fills: { c7-notification-launch: direct to target }
+      - label: The home screen flashes, then the target appears
+        reading: "The app starts normally and navigates afterwards. Startup and routing are separate steps."
+        confidence: Observed
+        fills: { c7-notification-launch: home then target }
+      - label: The app opens on its home screen and stays there
+        reading: "The launch target is lost on a cold start. Repeat with the app in the background to see whether routing works with a live process."
+        confidence: Observed
+        fills: { c7-notification-launch: home only }
+
+  - id: P7.6
+    name: Launch after a device restart
+    caution: Restarting the device closes every app. Save your work in other apps first.
+    do:
+      - Run P7.1 first, so that you know the ordinary cold start time.
+      - Restart the device.
+      - Wait one minute after unlocking, then launch the app.
+    watch: How the time to real content compares with the ordinary cold start.
+    outcomes:
+      - label: Clearly slower than an ordinary cold start
+        reading: "Heavy app initialization. After a restart nothing is held in memory, and the full cost of loading and setting up the app shows."
+        confidence: Inferred
+        fills: { c7-restart: slower than ordinary cold start }
+      - label: About the same as an ordinary cold start
+        reading: "Light initialization, or a launch time that is set by the network and not by the device."
+        confidence: Speculative
+        fills: { c7-restart: same as ordinary cold start }
+      - label: No splash, and content is already current
+        reading: "The app was started in the background after the restart, before you opened it."
+        confidence: Inferred
+        fills: { c7-restart: already running }
+
+  - id: P7.7
+    name: First launch after install
+    do:
+      - Install the app on a device that does not have it.
+      - Launch it and wait before touching anything.
+      - Continue to the first screen with real content, then force-quit and launch again.
+    watch: What the first launch waits for, whether content can be seen before signing in, and whether anything differs on the second launch.
+    outcomes:
+      - label: Onboarding or sign-in appears quickly
+        reading: "The first launch needs nothing from the backend before its first screen. Config, if any, starts from defaults shipped in the app."
+        confidence: Inferred
+        fills: { c7-first-install: onboarding or sign-in at once }
+      - label: A long loading screen comes before anything else
+        reading: "The first launch downloads config or resources and blocks on them."
+        confidence: Inferred
+        fills: { c7-first-install: blocking download }
+      - label: Content can be browsed before signing in
+        reading: "The app supports use without an account, which implies an anonymous session or public read endpoints."
+        confidence: Observed
+        fills: { c7-first-install: content before sign-in }
+
+  - id: P7.8
+    name: Launch after a long absence
+    do:
+      - Leave the app unopened for at least a week. An app you rarely use is a ready-made subject.
+      - Launch it on a normal connection.
+      - Compare with the launch in P7.2.
+    watch: Whether old content appears first, whether the launch waits longer than usual, and whether the app asks you to do anything.
+    outcomes:
+      - label: Old content appears at once, then refreshes
+        reading: "Cached content first, with a cache that does not expire by age."
+        confidence: Inferred
+        fills: { c7-long-absence: old content then refresh }
+      - label: A longer wait than usual, then fresh content
+        reading: "Stored content or config has an age limit, and beyond it the app blocks on a fetch."
+        confidence: Inferred
+        fills: { c7-long-absence: blocks on a fetch }
+      - label: A request to sign in again or to update
+        reading: "The session expired, or the version fell below the minimum while the app was unused."
+        confidence: Observed
+        fills: { c7-long-absence: sign-in or update required }
+
+  - id: P7.9
+    name: First launch after an update
+    do:
+      - Wait until the store offers an update for the app.
+      - Use the app once, so that it has recent local data.
+      - Install the update and launch the app.
+    watch: Whether the launch takes longer than usual, whether a message about updating appears, and whether your content and session are still there.
+    outcomes:
+      - label: No visible difference
+        reading: "No migration was needed, or it was small. This says little on its own."
+        confidence: Speculative
+        fills: { c7-after-update: no visible change }
+      - label: One long launch, or a message about updating
+        reading: "The local store was migrated in place before the first screen."
+        confidence: Inferred
+        fills: { c7-after-update: one-time migration delay }
+      - label: Content loads from scratch, or you are signed out
+        reading: "Local data was discarded instead of migrated. The backend holds everything the device held."
+        confidence: Inferred
+        fills: { c7-after-update: data reloaded or signed out }
+
+  - id: P7.10
+    name: Old version
+    do:
+      - Find a device on which the app has not been updated for a long time. A spare device with automatic updates turned off is ideal.
+      - Launch the app online.
+      - If a screen about updating appears, turn on airplane mode, force-quit and launch again.
+    watch: Whether the app works, suggests an update, or refuses to continue. In airplane mode, whether the refusal is still there.
+    outcomes:
+      - label: The app works normally
+        reading: "This version is still above the minimum. Nothing is learned about the gate."
+        confidence: Observed
+        fills: { c7-update-gate: none seen }
+      - label: A prompt to update that can be dismissed
+        reading: "A soft update prompt, driven by a version rule from the backend or the store."
+        confidence: Observed
+        fills: { c7-update-gate: soft prompt }
+      - label: A blocking update screen, online and in airplane mode
+        reading: "A forced-update gate whose rule is stored on the device."
+        confidence: Inferred
+        fills: { c7-update-gate: blocking and stored }
+      - label: A blocking update screen online, and none in airplane mode
+        reading: "A forced-update gate that is evaluated from a fresh response on each launch and is not stored."
+        confidence: Inferred
+        fills: { c7-update-gate: blocking and not stored }
+
+signals:
+  - { signal: A splash appears on launch, design: Cold start. No process existed, confidence: Observed }
+  - { signal: The splash lasts longer on a slow connection, design: A startup step blocks on a response, confidence: Inferred }
+  - { signal: The splash has the same maximum length on any bad connection, design: Blocking fetch with a timeout and a fallback to stored values, confidence: Speculative }
+  - { signal: The layout appears with gray placeholders that fill in, design: Skeleton placeholders with fetch after first frame, confidence: Observed }
+  - { signal: Content appears at once and changes a moment later, design: Cached content first with a background refresh, confidence: Inferred }
+  - { signal: The app opens on the screen you left after a force-quit, design: Last screen persisted by the app itself, confidence: Inferred }
+  - { signal: "The last screen returns after a short absence, home after a long one", design: Persisted last screen with a time limit, confidence: Inferred }
+  - { signal: A cold start in airplane mode shows the normal first screen, design: "Session, config and content are read from the device", confidence: Inferred }
+  - { signal: A cold start in airplane mode shows the sign-in screen, design: Session validated against the backend before the first screen, confidence: Inferred }
+  - { signal: The sign-in screen flashes before the home screen, design: First frame drawn before the session read completes, confidence: Inferred }
+  - { signal: The home screen flashes before a notification's target, design: Routing runs after a normal startup instead of inside it, confidence: Observed }
+  - { signal: The first scroll after launch stutters and later scrolls are smooth, design: Deferred initialization running on the drawing thread, confidence: Speculative }
+  - { signal: "A feature is slow to open the first time after each force-quit, and fast after that", design: Lazy initialization of that feature, confidence: Inferred }
+  - { signal: A tab or section appears on the second launch after install, design: Remote config cached and applied on the next launch, confidence: Inferred }
+  - { signal: A section appears or vanishes seconds after launch, design: Remote config applied live, confidence: Inferred }
+  - { signal: An update screen appears in the middle of use, design: Version rule checked on responses and not only at startup, confidence: Inferred }
+  - { signal: A message about updating or optimizing on the first launch after an update, design: Local store migrated in place, confidence: Inferred }
+  - { signal: The app closes at every launch after an update until reinstalled, design: Failed migration of the local store, confidence: Speculative }
+
+worksheet:
+  - { id: c7-first-screen, label: First-screen strategy, options: [blocking fetch, skeleton placeholders, cached content first, persisted last screen, prepared before launch] }
+  - { id: c7-cold-warm, label: Cold start against return, options: [cold clearly slower, no visible difference, reloads on every return] }
+  - { id: c7-offline-launch, label: Cold start with no network, options: [cached content, shell with error, blocked at startup, sent to sign-in] }
+  - { id: c7-session-check, label: Session check at startup, options: [local then lazy, blocking validation, unknown] }
+  - { id: c7-config, label: Remote config at startup, options: [fetch then start, cached and applied next launch, applied live, unknown] }
+  - { id: c7-landing, label: Landing rule, options: [always home, last screen, last screen unless force-quit, last screen with a time limit] }
+  - { id: c7-notification-launch, label: Launch from a notification, options: [direct to target, home then target, home only] }
+  - { id: c7-restart, label: Launch after a device restart, options: [slower than ordinary cold start, same as ordinary cold start, already running] }
+  - { id: c7-first-install, label: First launch after install, options: [onboarding or sign-in at once, blocking download, content before sign-in] }
+  - { id: c7-long-absence, label: Launch after a long absence, options: [old content then refresh, blocks on a fetch, sign-in or update required] }
+  - { id: c7-after-update, label: First launch after an update, options: [no visible change, one-time migration delay, data reloaded or signed out] }
+  - { id: c7-update-gate, label: Update gate, options: [none seen, soft prompt, blocking and stored, blocking and not stored] }
+  - { id: c7-deferred, label: Evidence of deferred or lazy initialization }
+  - { id: c7-backend, label: Backend components implied }
+  - { id: c7-failures, label: Failure modes seen }

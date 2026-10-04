@@ -1,0 +1,231 @@
+chapter: 21
+title: Security and trust
+link: /part-2-concerns/21-security-and-trust/
+
+probes:
+  - id: P21.1
+    name: Offline refusal
+    do:
+      - Turn on airplane mode.
+      - Try an action whose result depends on a rule and costs nothing, such as opening content your plan includes, checking a remaining quota or applying a discount code you own.
+      - Try to change an account detail, such as your display name.
+    watch: Whether each action is refused, accepted as pending, or completed with a final result while offline.
+    outcomes:
+      - label: Each action is refused or disabled until the network returns
+        reading: "The backend decides. The client holds no copy of the rule or the entitlement that it is willing to act on."
+        confidence: Inferred
+        fills: { c21-offline-actions: refused }
+      - label: The action is accepted and marked as pending
+        reading: "The client queues intent and the backend will decide later. A rejection after reconnecting confirms that the decision is made on the backend."
+        confidence: Inferred
+        fills: { c21-offline-actions: queued }
+      - label: The action completes offline with a final result
+        reading: "The client holds the rule or a cached entitlement. For paid content this is usually a deliberate cache with a time limit."
+        confidence: Inferred
+        fills: { c21-offline-actions: completed on the client }
+
+  - id: P21.2
+    name: Screenshot of a sensitive screen
+    do:
+      - Open a screen the maker would rank as sensitive, such as a balance, a card, a private message or a one-time code.
+      - Take a screenshot with the device's normal gesture.
+      - Open the screenshot in the device's photo viewer.
+      - Repeat on an ordinary screen of the same app, as a baseline.
+    watch: Whether the capture is refused, comes out blank, or works, and whether the app reacts to it.
+    outcomes:
+      - label: The screenshot shows the screen and the app does not react
+        reading: "No capture control on this screen. The team did not class it as sensitive, or accepts the exposure."
+        confidence: Observed
+        fills: { c21-screenshot: allowed }
+      - label: The screenshot is refused or comes out blank
+        reading: "The screen is marked as protected from capture. If the baseline screen captures normally, protection is applied per screen."
+        confidence: Observed
+        fills: { c21-screenshot: blocked }
+      - label: The screenshot works and the app shows a notice or tells the other party
+        reading: "Capture detection in place of blocking. The app reacts to an event the operating system reports."
+        confidence: Observed
+        fills: { c21-screenshot: detected }
+
+  - id: P21.3
+    name: App switcher
+    do:
+      - Open the same sensitive screen.
+      - Open the device's app switcher and look at the app's card.
+      - Return to the app.
+    watch: Whether the card shows the live screen or a cover, and whether returning asks for an unlock.
+    outcomes:
+      - label: The card shows the screen's content
+        reading: "No cover. The operating system's picture of the app includes the sensitive data."
+        confidence: Observed
+        fills: { c21-switcher: content visible }
+      - label: The card shows a logo, a blur or a blank
+        reading: "The app covers its content when it leaves the foreground."
+        confidence: Observed
+        fills: { c21-switcher: covered }
+
+  - id: P21.4
+    name: Second proof
+    caution: Stop before the final confirmation of each action. The goal is to see what the app asks for, not to change your account.
+    do:
+      - Start a sensitive action, such as changing the account email, showing a full card number or opening the account deletion screen.
+      - Note what the app asks for before it lets you continue. Then cancel.
+      - If it asked for a fingerprint, face or passcode, repeat the same step in airplane mode.
+    watch: Whether any further proof is demanded, and whether it is one the device can check alone or one that only the backend could verify.
+    outcomes:
+      - label: No further proof is asked
+        reading: "The session alone authorizes the action, or the risk score for this request was low. Try a second action before concluding."
+        confidence: Observed
+        fills: { c21-step-up: none }
+      - label: A device unlock is asked, and it also passes offline
+        reading: "A local gate. The backend does not take part in this proof."
+        confidence: Inferred
+        fills: { c21-step-up: local gate }
+      - label: A password, a one-time code or approval on another device is asked
+        reading: "A step-up proof that the backend issues and verifies."
+        confidence: Inferred
+        fills: { c21-step-up: backend proof }
+
+  - id: P21.5
+    name: One-time code limit
+    caution: This probe can block sign-in or code delivery to your number or address for a period. Stop at the first limit message. Do not try to get around it.
+    do:
+      - On your own account, reach a screen that sends a one-time code to your phone or email.
+      - Request the code, then use the resend control each time the app allows it, up to five times.
+      - Enter the last code correctly to finish.
+    watch: The first restriction you meet. A wait that grows, a message that names a limit, or a challenge that asks you to prove a person is present.
+    outcomes:
+      - label: The wait before each resend grows
+        reading: "A delay that increases per target or per session. The countdown is client UI, and the limit behind it is on the backend."
+        confidence: Inferred
+        fills: { c21-code-limit: growing wait }
+      - label: A message says too many attempts and names a period
+        reading: "A hard limit with a penalty window, enforced by the backend."
+        confidence: Observed
+        fills: { c21-code-limit: hard limit }
+      - label: A challenge to prove a person is present appears
+        reading: "The limit escalates to a human check before it refuses."
+        confidence: Observed
+        fills: { c21-code-limit: human challenge }
+      - label: Five codes arrive with a constant wait and no message
+        reading: "No limit within five requests. A higher limit may exist, and this handbook does not go looking for it."
+        confidence: Speculative
+        fills: { c21-code-limit: none seen }
+
+  - id: P21.6
+    name: Sign-out residue
+    caution: This probe signs you out. Make sure you can sign in again, and that pending changes have been sent.
+    do:
+      - Use several screens while signed in, including any downloads the app offers.
+      - Sign out with the app's own control.
+      - Turn on airplane mode, force-quit the app and open it again.
+      - Look at the sign-in screen, the notification list and any widget the app has.
+    watch: What of your account is still visible on the device.
+    outcomes:
+      - label: Nothing of the account is visible
+        reading: "Sign out clears the session, the local store and the caches, or locks them."
+        confidence: Inferred
+        fills: { c21-residue: nothing }
+      - label: Only your name, avatar or email on the sign-in screen
+        reading: "An identifier is kept on purpose to speed up the next sign-in."
+        confidence: Observed
+        fills: { c21-residue: identifier only }
+      - label: "Account content is still visible in the app, a notification or a widget"
+        reading: "At least one store was not cleared by sign out. The surface where the content appears names the store."
+        confidence: Observed
+        fills: { c21-residue: account content }
+
+  - id: P21.7
+    name: Validation timing
+    do:
+      - Open a form, such as profile editing or sign-up.
+      - Make honest mistakes one at a time. Leave a required field empty, or enter a value that is too short.
+      - Note how quickly each message appears.
+      - Repeat in airplane mode.
+    watch: Which messages appear at once and offline, and which appear only after a wait.
+    outcomes:
+      - label: Every message appears at once and also offline
+        reading: "Client checks for these rules. Whether the backend repeats them cannot be seen with honest input."
+        confidence: Inferred
+        fills: { c21-validation: client checks seen }
+      - label: Some messages appear at once and others after a wait
+        reading: "Layered validation. Format rules on the client, and rules that need backend data, such as uniqueness, on the backend."
+        confidence: Inferred
+        fills: { c21-validation: client and backend }
+      - label: Messages appear only after a wait, and offline gives a connection error
+        reading: "The backend holds the rules and the client forwards the form."
+        confidence: Inferred
+        fills: { c21-validation: backend only }
+
+  - id: P21.8
+    name: Intercepting network
+    do:
+      - Wait until you are on a captive network in the normal course of life, such as a hotel or cafe, before you have accepted its terms.
+      - Open the app and try to load a screen.
+      - Do not install or accept anything the network offers beyond its usual sign-in page.
+      - Accept the network's terms as you normally would and try again.
+    watch: What the app shows while the network is intercepting its requests.
+    outcomes:
+      - label: The app shows its own connection error
+        reading: "The client rejected the intercepted response. Default trust and certificate restriction both produce this, so the trust design stays unknown."
+        confidence: Speculative
+        fills: { c21-intercept: own error }
+      - label: The app shows cached content with an offline notice
+        reading: "The client rejected the response and fell back to its cache. The trust design stays unknown."
+        confidence: Speculative
+        fills: { c21-intercept: cached content }
+      - label: The app shows the network's page or garbled content inside its own screens
+        reading: "Some request in the app accepts whatever comes back and displays it. That path does not check what it receives."
+        confidence: Inferred
+        fills: { c21-intercept: shows intercepted page }
+
+  - id: P21.9
+    name: Stated device requirements
+    do:
+      - Read the app's store listing and its help pages.
+      - Search them for statements about modified devices, unsupported operating system versions or device checks.
+    watch: Whether the maker states that the app refuses to run, or limits features, on devices it considers modified.
+    outcomes:
+      - label: The maker states such a requirement
+        reading: "An integrity check exists. Whether it is a local check or a verdict the backend verifies cannot be told from the statement."
+        confidence: Observed
+        fills: { c21-integrity: stated }
+      - label: No statement found
+        reading: "No published requirement. A check may still exist without one."
+        confidence: Speculative
+        fills: { c21-integrity: not stated }
+
+signals:
+  - { signal: Actions with value are disabled or refused offline, design: The backend decides prices and entitlements and limits, confidence: Inferred }
+  - { signal: A paid feature keeps working offline for days, design: Entitlement cached on the client with a time limit, confidence: Inferred }
+  - { signal: A total changes at the confirmation step, design: Display total computed on the client and charged total computed on the backend, confidence: Inferred }
+  - { signal: A validation message appears instantly and in airplane mode, design: Client check, confidence: Inferred }
+  - { signal: A validation message appears only after a round trip, design: Backend check for a rule that needs backend data, confidence: Inferred }
+  - { signal: The same rule differs between the app and the web version, design: "Rule implemented once per client. What the backend enforces is unknown", confidence: Speculative }
+  - { signal: Screenshots of some screens come out blank, design: Capture protection applied per screen, confidence: Observed }
+  - { signal: The app's card in the app switcher is a logo or a blur, design: Content covered when the app leaves the foreground, confidence: Observed }
+  - { signal: The other party is told about a screenshot, design: Capture detection reported to the backend, confidence: Inferred }
+  - { signal: A second proof passes in airplane mode, design: Local gate that the backend does not verify, confidence: Inferred }
+  - { signal: A second proof appears for a new payee or new device only, design: Adaptive posture with risk scoring, confidence: Inferred }
+  - { signal: A resend countdown that grows with each request, design: Rate limit with increasing delay on the send endpoint, confidence: Inferred }
+  - { signal: A message that names a lockout period, design: Hard rate limit with a penalty window at the backend, confidence: Observed }
+  - { signal: A new sign-in produces an email or a notice on other devices, design: Device history per account and an out-of-session notification channel, confidence: Inferred }
+  - { signal: Account content visible after sign out, design: A store or surface that sign out does not clear, confidence: Observed }
+  - { signal: The session is absent after a restore to a new device, design: Credentials kept in secure hardware-backed storage that does not travel between devices, confidence: Inferred }
+  - { signal: An old version stops connecting on every network on one day, design: "Expired certificate restriction list, or a forced-update gate that failed to draw", confidence: Speculative }
+  - { signal: The maker states the app does not run on modified devices, design: "Integrity check, local or verified by the backend", confidence: Speculative }
+
+worksheet:
+  - { id: c21-posture, label: Posture for this feature, options: [the client decides, the backend decides, a hardened client, adaptive] }
+  - { id: c21-offline-actions, label: Actions with value while offline, options: [refused, queued, completed on the client] }
+  - { id: c21-validation, label: Validation, options: [client checks seen, client and backend, backend only] }
+  - { id: c21-screenshot, label: Screenshot of a sensitive screen, options: [allowed, blocked, detected] }
+  - { id: c21-switcher, label: App switcher card, options: [content visible, covered] }
+  - { id: c21-protected-screens, label: Screens with capture protection }
+  - { id: c21-step-up, label: Second proof before a sensitive action, options: [none, local gate, backend proof] }
+  - { id: c21-step-up-actions, label: Actions that ask for a second proof }
+  - { id: c21-code-limit, label: One-time code limit, options: [growing wait, hard limit, human challenge, none seen] }
+  - { id: c21-residue, label: Residue after sign out, options: [nothing, identifier only, account content] }
+  - { id: c21-intercept, label: Behavior on an intercepting network, options: [own error, cached content, shows intercepted page, not tested] }
+  - { id: c21-integrity, label: Device integrity requirement, options: [stated, not stated] }
+  - { id: c21-backend, label: Backend components implied }
+  - { id: c21-failures, label: Failure modes seen }

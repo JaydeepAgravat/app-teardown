@@ -1,0 +1,290 @@
+chapter: 37
+title: Accessibility and global reach
+link: /part-2-concerns/37-accessibility-and-global-reach/
+
+probes:
+  - id: P37.1
+    name: Large text
+    caution: This probe changes a device-wide setting. Every app will redraw with larger text. Restore your usual text size when you finish.
+    do:
+      - Raise the system text size to its largest ordinary step in the device's display settings.
+      - If the accessibility settings offer still larger sizes, try the largest of those as a second run.
+      - "Open the app's main screens: a list, a detail screen, a form and a settings screen."
+      - Try to read every label and reach every control.
+    watch: Whether text grows, whether rows grow taller and labels wrap, and whether any text is clipped, overlapped or cut off with no way to read the rest.
+    outcomes:
+      - label: Text grows and the layout reflows, with everything readable
+        reading: "The app uses the system's text styles and flexible layouts. Platform-driven text scaling, carried through."
+        confidence: Observed
+        fills: { c37-text-scaling: reflows }
+      - label: Text grows, and some of it is clipped, overlapped or truncated
+        reading: "System text styles on fixed-height layouts. The same screens are likely to break under long translations."
+        confidence: Observed
+        fills: { c37-text-scaling: grows and breaks }
+      - label: Text grows on some screens only, or stops growing early
+        reading: "Uneven adoption, a cap on scaling, or screens drawn by a different path (Chapter 32)."
+        confidence: Inferred
+        fills: { c37-text-scaling: partial }
+      - label: Nothing grows
+        reading: "Fixed font sizes. The app does not read the setting."
+        confidence: Observed
+        fills: { c37-text-scaling: none }
+
+  - id: P37.2
+    name: Screen reader task
+    caution: This probe turns on the device's screen reader, which changes how every touch works. Learn the gesture or shortcut that turns it off before you turn it on.
+    do:
+      - Choose the app's main task, such as sending a message, finding an item or playing something.
+      - Turn on the screen reader.
+      - Complete the task by swiping from element to element and activating the focused one. Do not look for shortcuts by sight.
+      - Note every control with no name, every jump in order, and every place you could not reach.
+      - Turn the screen reader off.
+    watch: Whether every control is announced with a name and a role, whether list rows are one stop or many, and whether errors and loading results are announced.
+    outcomes:
+      - label: The task completes, and every control has a name and a sensible order
+        reading: "The team maintains the accessibility structure and tests with a screen reader."
+        confidence: Inferred
+        fills: { c37-screen-reader: complete }
+      - label: The task completes, with unnamed controls or a confusing order on the way
+        reading: "Platform controls give a baseline for free. Icon buttons and custom controls were not labeled."
+        confidence: Observed
+        fills: { c37-screen-reader: gaps }
+      - label: The task cannot be completed
+        reading: "A control on the main path publishes no structure, or focus cannot reach it. A custom control or a drawn surface."
+        confidence: Observed
+        fills: { c37-screen-reader: blocked }
+
+  - id: P37.3
+    name: Dark appearance
+    caution: This probe changes a device-wide setting. Restore your usual appearance when you finish.
+    do:
+      - Open the app, then switch the device between light and dark appearance while the app is in the foreground or just behind the settings screen.
+      - Return to the app without restarting it.
+      - Visit several screens, including help, terms, checkout and any screen you suspect is web content.
+      - Look in the app's own settings for a theme option.
+    watch: Whether the app switches at once, whether every screen switches, and whether any text becomes hard to read against its background.
+    outcomes:
+      - label: Every screen follows the system at once
+        reading: "Colors are defined by purpose with a light and a dark value. Platform-driven appearance."
+        confidence: Inferred
+        fills: { c37-dark: follows system }
+      - label: The app changes only through its own theme setting
+        reading: "App-driven appearance. The app keeps its own preference and does not read the system's."
+        confidence: Observed
+        fills: { c37-dark: in-app setting only }
+      - label: Most screens switch, and some stay light
+        reading: "The screens that stay light sit outside the shared color definitions. Often embedded web content or a third-party screen."
+        confidence: Inferred
+        fills: { c37-dark: partial }
+      - label: The app has no dark appearance
+        reading: "Fixed colors."
+        confidence: Observed
+        fills: { c37-dark: none }
+
+  - id: P37.4
+    name: Reduced motion
+    caution: This probe changes a device-wide setting. Turn it off again when you finish if you do not normally use it.
+    do:
+      - With the setting off, note the app's large movements. Look at screen transitions, expanding cards, parallax, animated reactions and autoplaying media.
+      - Turn on the system's reduced-motion setting.
+      - Repeat the same actions.
+    watch: Whether large movements are replaced by a fade or removed, and whether autoplay stops.
+    outcomes:
+      - label: Large movements are replaced or removed
+        reading: "The app reads the setting, which implies one central definition of its animations."
+        confidence: Inferred
+        fills: { c37-reduced-motion: respected }
+      - label: Only the system's own transitions change, and the app's custom motion stays
+        reading: "The platform's controls adapt by themselves. The app's own animations do not read the setting."
+        confidence: Observed
+        fills: { c37-reduced-motion: system transitions only }
+      - label: Nothing changes
+        reading: "The setting is not read. If the app has almost no motion, this outcome carries no information."
+        confidence: Observed
+        fills: { c37-reduced-motion: ignored }
+
+  - id: P37.5
+    name: Switch the language
+    caution: This probe changes a language setting. Use the per-app language setting if the device offers one, or the app's own language setting. If you must change the device language, note the path back first and restore it when you finish.
+    do:
+      - Choose a language the store listing says the app supports.
+      - Turn on airplane mode, switch the language, and open the app. Note which text changed.
+      - Turn airplane mode off and refresh each screen. Note which further text changed.
+      - Trigger an error, such as a failed form, and read its language.
+      - Sign out and in again if some text is still in the old language. Check any notification that arrives afterwards.
+    watch: Three groups of text. What changed at once offline, what changed after a refresh, and what stayed in the old language.
+    outcomes:
+      - label: Everything changes, labels at once and content after a refresh
+        reading: "Bundled text for labels, and backend text keyed to the language the client sends."
+        confidence: Inferred
+        fills: { c37-language-split: all follows the device }
+      - label: Labels change, and some sections, errors or notifications stay in the old language
+        reading: "Those parts are backend text keyed to the account's stored language, or text with no translation. The screen is partly composed by the backend."
+        confidence: Inferred
+        fills: { c37-language-split: labels only }
+      - label: Labels stay in the old language until the app is online, then change
+        reading: "The string table itself is downloaded from the backend and cached. The team can fix translations without a release."
+        confidence: Inferred
+        fills: { c37-language-split: labels follow the backend }
+      - label: Nothing changes
+        reading: "The app does not ship that language and fell back to its default, or it has its own language setting that overrides the device."
+        confidence: Observed
+        fills: { c37-language-split: nothing changes }
+
+  - id: P37.6
+    name: Right-to-left
+    caution: This probe changes a language setting to a script you may not read. Use the per-app language setting if the device offers one. Before you start, note the position of each step on the path back to your own language.
+    do:
+      - Check the store listing for a right-to-left language the app supports. If there is none, record that and stop.
+      - Switch the app to that language.
+      - "Visit the main screens and compare each with a screenshot taken beforehand."
+      - Look at the back control, list alignment, arrows and chevrons, progress bars, swipe gestures and screen transitions.
+    watch: Whether the whole layout mirrors, and which elements stay on the side they were on.
+    outcomes:
+      - label: Everything mirrors, including navigation, gestures and directional icons
+        reading: "Layouts are declared with leading and trailing edges throughout, and the team tests in a right-to-left language."
+        confidence: Inferred
+        fills: { c37-rtl: full mirror }
+      - label: Text aligns right, and some layout, icons or animations do not mirror
+        reading: "Hard-coded directions remain. The screens that fail are usually older, or custom drawn."
+        confidence: Observed
+        fills: { c37-rtl: partial }
+      - label: The app supports no right-to-left language
+        reading: "Not applicable. The app has not entered those markets, which is itself a fact about its reach."
+        confidence: Observed
+        fills: { c37-rtl: not supported }
+
+  - id: P37.7
+    name: Change the region
+    caution: This probe changes a device-wide setting. Change only the region used for formats, not the country of your store account, which can affect purchases and subscriptions. Restore the region when you finish.
+    do:
+      - Note how the app shows a date, a large number, a price and the first day of the week in any calendar.
+      - Change the device's region setting to a country with different formats. Keep the language the same.
+      - Open the app and look at the same values. Refresh and look again.
+      - Look for any change in currency, catalog or available features.
+    watch: Whether formats change, whether they change before or after a refresh, and whether anything beyond formats changes.
+    outcomes:
+      - label: Formats change at once, and nothing else does
+        reading: "The client formats with the platform's formatters. Region rules are keyed to something other than this setting."
+        confidence: Inferred
+        fills: { c37-region: formats change on the client }
+      - label: Formats change only after a refresh
+        reading: "The backend formats values, using the region the client sends."
+        confidence: Inferred
+        fills: { c37-region: formats change after refresh }
+      - label: Currency, catalog or features change as well
+        reading: "The backend trusts the device's region setting for a region rule. A weak basis, since any user can change it."
+        confidence: Observed
+        fills: { c37-region: content changes too }
+      - label: Nothing changes
+        reading: "Formats are tied to the language, fixed in the client, or made on the backend from the account. These three cannot be separated by this probe."
+        confidence: Speculative
+        fills: { c37-region: nothing changes }
+
+  - id: P37.8
+    name: Change the time zone
+    caution: This probe changes a device-wide setting. Alarms, calendar entries and other apps follow the new zone while it is set. Restore automatic time zone when you finish.
+    do:
+      - Note the displayed time of three things. Use a past item such as a message or an order, a future event if the app has one, and anything described as today.
+      - Turn off automatic time zone and choose a zone at least six hours away.
+      - Return to the app without refreshing, and read the same three times.
+      - Refresh, and read them again.
+    watch: Whether past timestamps shift by the zone difference, whether they shift before or after a refresh, and whether an event at a place keeps its local time and says so.
+    outcomes:
+      - label: Past timestamps shift at once
+        reading: "Instants are stored as absolute values and formatted on the client at display time."
+        confidence: Inferred
+        fills: { c37-time-zone: shifts at once }
+      - label: Past timestamps shift only after a refresh
+        reading: "The backend sends formatted times using the zone the client reports, or the client caches formatted strings."
+        confidence: Inferred
+        fills: { c37-time-zone: shifts after refresh }
+      - label: Past timestamps do not shift
+        reading: "Times are formatted for a zone stored on the account or fixed for the service, or they were saved as local text."
+        confidence: Speculative
+        fills: { c37-time-zone: does not shift }
+
+  - id: P37.9
+    name: Rotate or resize
+    do:
+      - Open a list and select an item, or start typing in a form.
+      - Rotate the device. On a foldable, unfold it. On a tablet, put the app beside another app and drag the divider.
+      - Rotate or fold back.
+    watch: Whether the layout changes structure or only stretches, and whether your selection, scroll position and typed text survive each change.
+    outcomes:
+      - label: The layout changes structure and keeps your place
+        reading: "An adaptive layout over one navigation state. State is held outside the views that were rebuilt."
+        confidence: Inferred
+        fills: { c37-layout: adaptive }
+      - label: The same layout stretches to fill the space
+        reading: "A phone layout with flexible widths. No separate design for large windows."
+        confidence: Observed
+        fills: { c37-layout: stretched }
+      - label: The app stays in portrait or in a fixed-size window
+        reading: "Orientation and size are locked. The cheapest way to avoid both layout and state work."
+        confidence: Observed
+        fills: { c37-layout: locked }
+      - label: The layout changes and your selection, position or text is lost
+        reading: "The screen was rebuilt for the new size and its state was not carried over (Chapter 9)."
+        confidence: Inferred
+        fills: { c37-layout: loses state }
+
+  - id: P37.10
+    name: Read the regional terms
+    do:
+      - Open the app's terms, privacy policy and privacy settings.
+      - Look for a named country or governing law, sections addressed to residents of particular regions, and a statement on where data is stored.
+      - Look in settings for region-specific controls, such as a data export, a deletion request or a consent manager.
+      - Compare with the store listing's list of countries and languages, if it shows one.
+    watch: Whether the documents and controls are written for your region specifically, or are one global text.
+    outcomes:
+      - label: Documents or controls are specific to your region
+        reading: "The backend holds legal text and settings per region and has placed your account in one."
+        confidence: Inferred
+        fills: { c37-regional-terms: region specific }
+      - label: One global document with sections per region
+        reading: "A single text for all users. Region rules, if any, are applied elsewhere."
+        confidence: Observed
+        fills: { c37-regional-terms: one global document }
+      - label: The maker states where data is stored
+        reading: "A published statement. Record its wording and source. It tells you what the maker claims, which is as far as an outside reader can go."
+        confidence: Observed
+        fills: { c37-regional-terms: storage location stated }
+
+signals:
+  - { signal: "An icon control is announced as button with no name", design: "A control with no accessibility label", confidence: Observed }
+  - { signal: "A list row takes several swipes to pass with the screen reader", design: "Row contents published as separate elements with no grouping", confidence: Observed }
+  - { signal: "Screen reader focus reaches the screen behind a modal", design: "A modal drawn over content that was not marked inactive", confidence: Inferred }
+  - { signal: "Text is clipped or overlaps at large text sizes", design: "System text styles on fixed-height layouts", confidence: Inferred }
+  - { signal: "Text grows a little and then stops", design: "A cap on text scaling set by the app", confidence: Inferred }
+  - { signal: "One screen stays light when the device is dark", design: "A screen outside the shared color definitions. Often embedded web content or a third-party screen", confidence: Inferred }
+  - { signal: "The app's theme changes only through its own setting", design: "App-driven appearance", confidence: Observed }
+  - { signal: "Custom animations continue with reduced motion on", design: "Motion defined per screen with no central setting", confidence: Inferred }
+  - { signal: "Labels change language at once offline", design: "Bundled text", confidence: Inferred }
+  - { signal: "Section titles stay in the old language after a language switch", design: "Backend text in a screen-describing response", confidence: Inferred }
+  - { signal: "Error messages stay in the old language", design: "Errors worded by the backend", confidence: Inferred }
+  - { signal: "A notification arrives in the old language", design: "Push text composed on the backend from a stored account language", confidence: Inferred }
+  - { signal: "A single label is in a different language from the rest of the screen", design: "Per-string fallback to the team's default language", confidence: Inferred }
+  - { signal: "An arrow or animation points the wrong way in a right-to-left language", design: "A hard-coded left or right in an otherwise mirrored layout", confidence: Observed }
+  - { signal: "A price ignores the device's region format", design: "Prices sent by the backend as finished strings", confidence: Inferred }
+  - { signal: "Timestamps do not shift when the time zone changes", design: "Times formatted on the backend or stored as local text", confidence: Speculative }
+  - { signal: "A date of birth or due date shows one day early", design: "A calendar date stored as an instant", confidence: Inferred }
+  - { signal: "Selection or typed text is lost on rotation or unfolding", design: "State held in views that are rebuilt on a size change", confidence: Inferred }
+
+worksheet:
+  - { id: c37-screen-reader, label: Main task with the screen reader, options: [complete, gaps, blocked] }
+  - { id: c37-text-scaling, label: Text scaling, options: [reflows, grows and breaks, partial, none] }
+  - { id: c37-dark, label: Dark appearance, options: [follows system, in-app setting only, partial, none] }
+  - { id: c37-reduced-motion, label: Reduced motion, options: [respected, system transitions only, ignored] }
+  - { id: c37-touch-targets, label: Touch targets that are too small or too close }
+  - { id: c37-language-split, label: Text after a language switch, options: [all follows the device, labels only, labels follow the backend, nothing changes] }
+  - { id: c37-backend-text, label: Text that comes from the backend }
+  - { id: c37-rtl, label: Right-to-left layout, options: [full mirror, partial, not supported] }
+  - { id: c37-region, label: Effect of the device region setting, options: [formats change on the client, formats change after refresh, content changes too, nothing changes] }
+  - { id: c37-time-zone, label: Timestamps after a time zone change, options: [shifts at once, shifts after refresh, does not shift] }
+  - { id: c37-place-times, label: Times at a place and day boundaries }
+  - { id: c37-layout, label: Larger or resized window, options: [adaptive, stretched, locked, loses state] }
+  - { id: c37-regional-terms, label: Legal terms by region, options: [region specific, one global document, storage location stated] }
+  - { id: c37-region-differences, label: Features that differ by region }
+  - { id: c37-data-residency, label: Regional data storage claim and its confidence }
+  - { id: c37-notes, label: Failure modes seen }

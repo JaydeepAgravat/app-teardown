@@ -1,0 +1,251 @@
+chapter: 26
+title: Payments and subscriptions
+link: /part-2-concerns/26-payments-and-subscriptions/
+
+probes:
+  - id: P26.1
+    name: Read the paywall
+    do:
+      - Open the screen where the app asks for money. This is the paywall for a subscription or the checkout for an order.
+      - Read every line, including the small print under the purchase button.
+      - Look for a restore purchases control, a billing period, a trial offer and a sentence that says who bills you.
+      - Do not tap the purchase button.
+    watch: What is being sold, and which party the text says will charge you. Small print that mentions your store account and automatic renewal belongs to store billing. A list of card brands or a card form belongs to an external payment provider.
+    outcomes:
+      - label: Digital goods, billed through your store account
+        reading: "The store billing route. The store collects the money and the app receives a receipt."
+        confidence: Observed
+        fills: { c26-goods: digital goods, c26-route: store billing }
+      - label: Physical goods or services, paid by card or wallet
+        reading: "The external payment provider route. The app's backend creates the payment and a provider collects the money."
+        confidence: Observed
+        fills: { c26-goods: physical goods or services, c26-route: external payment provider }
+      - label: The app sells both kinds, each with its own payment screen
+        reading: "Both routes exist side by side. The backend holds two payment integrations and one entitlement or order model above them."
+        confidence: Inferred
+        fills: { c26-goods: both, c26-route: both }
+      - label: Paid features exist but nothing can be bought in the app
+        reading: "The purchase happens outside the app, and the app only reads the entitlement for the account you sign in with."
+        confidence: Inferred
+        fills: { c26-goods: nothing in the app, c26-route: outside the app }
+
+  - id: P26.2
+    name: Start a checkout and cancel
+    caution: Stop at the first screen that asks you to confirm or authenticate, and cancel there. Do not confirm with a passcode, fingerprint, face or button press. This probe never needs a completed payment.
+    do:
+      - Tap the purchase or pay button once.
+      - Look at the surface that appears, without confirming anything.
+      - Note whether it belongs to the operating system, to a web page, or to the app's own screens.
+      - Cancel or close it.
+    watch: Who draws the surface that asks for the money. A sheet that slides over the app, shows your store account and looks the same in every app belongs to the operating system. A page with an address bar or a different visual style belongs to a provider.
+    outcomes:
+      - label: A system purchase sheet with your store account
+        reading: "Store billing. The client asked the platform services to run the purchase, and the app never sees a payment method."
+        confidence: Observed
+        fills: { c26-surface: system purchase sheet }
+      - label: A web page or web view in the provider's style
+        reading: "A hosted payment screen. Card details go from that page to the provider and never pass through the app's backend."
+        confidence: Inferred
+        fills: { c26-surface: provider web page }
+      - label: Card fields inside the app's own screen
+        reading: "Fields supplied by the provider and embedded in the app's layout, or less often the app's own fields. From outside the two look the same."
+        confidence: Speculative
+        fills: { c26-surface: fields in the app }
+      - label: A device wallet sheet with a saved card
+        reading: "The device's wallet produces a payment token for this one payment. The app and its backend receive the token and not the card number."
+        confidence: Inferred
+        fills: { c26-surface: device wallet sheet }
+
+  - id: P26.3
+    name: Look for the abandoned payment
+    do:
+      - Run P26.2 and cancel.
+      - Open the app's order history, purchase history or account screen.
+      - Force-quit the app, open it again and look once more.
+      - Check your email for a message about an unfinished order.
+    watch: Whether the app kept any record of the attempt you canceled.
+    outcomes:
+      - label: A pending, unpaid or canceled entry appears
+        reading: "The backend created the order or payment record before the payment surface opened. The payment is a stored state machine and this entry is in its first state."
+        confidence: Inferred
+        fills: { c26-created: before the payment surface }
+      - label: The cart or checkout returns as you left it, with no order entry
+        reading: "The cart is stored, but no payment record was created until confirmation, or the record is hidden from you."
+        confidence: Speculative
+        fills: { c26-created: unknown }
+      - label: No trace of the attempt
+        reading: "Either nothing was created before confirmation, or abandoned records are hidden. Store billing always looks like this, because the store holds the attempt."
+        confidence: Speculative
+        fills: { c26-created: unknown }
+
+  - id: P26.4
+    name: Paywall in airplane mode
+    caution: This probe changes a device-wide setting. Turn airplane mode off when you finish.
+    do:
+      - Force-quit the app.
+      - Turn on airplane mode.
+      - Open the app and go to the paywall or the checkout.
+      - Read the prices and tap the purchase button once.
+    watch: Whether the paywall draws, whether it shows prices, and what the purchase button does.
+    outcomes:
+      - label: The paywall draws with prices
+        reading: "The layout and the last known prices are stored on the device. The purchase button fails when tapped, because every payment needs the network."
+        confidence: Inferred
+        fills: { c26-prices: shown }
+      - label: The paywall draws, with prices missing or loading
+        reading: "The layout ships with the app or is cached, and prices are fetched live from the store's catalog or the backend each time."
+        confidence: Inferred
+        fills: { c26-prices: missing }
+      - label: The paywall does not draw
+        reading: "The paywall itself comes from the backend on each visit, which lets the team change offers without a release."
+        confidence: Inferred
+        fills: { c26-prices: paywall fails }
+
+  - id: P26.5
+    name: Restore purchases
+    do:
+      - Find the restore purchases control. It is usually on the paywall or in the account settings.
+      - Tap it.
+      - Note what the app asks for before it answers.
+    watch: Which identity the app uses to look for past purchases. The store account needs no sign-in to the app. The app account does.
+    outcomes:
+      - label: It answers at once, or after a store account prompt
+        reading: "The client asks the store for the purchases of the device's store account, then sends the receipts to the backend. Entitlements can exist without an app account."
+        confidence: Inferred
+        fills: { c26-restore: store account }
+      - label: It asks you to sign in to the app first
+        reading: "Entitlements are attached to the app account. Restoring is a matter of signing in, and the control exists mainly to satisfy a store rule."
+        confidence: Inferred
+        fills: { c26-restore: app account }
+      - label: There is no restore control
+        reading: "The app does not use store billing for lasting purchases, or it sells only items that are used up."
+        confidence: Inferred
+        fills: { c26-restore: no restore control }
+
+  - id: P26.6
+    name: Existing entitlement on a second device
+    do:
+      - Run this only if your account already has a purchase or subscription. Do not buy one for the probe.
+      - Sign in with the same app account on a second device, on the other platform if you have one.
+      - Open a paid feature before you touch any restore control.
+      - If it is locked, use restore purchases and try again.
+    watch: Whether the entitlement arrives with the sign-in, only after a restore, or not at all.
+    outcomes:
+      - label: Unlocked right after sign-in
+        reading: "The backend holds the entitlement against the app account and every client reads it from there."
+        confidence: Inferred
+        fills: { c26-cross-device: on sign-in }
+      - label: Unlocked only after restore purchases
+        reading: "The entitlement follows the store account. The backend learns of it only when a client presents the receipt."
+        confidence: Inferred
+        fills: { c26-cross-device: after restore }
+      - label: Locked on the other platform, whatever you do
+        reading: "The entitlement lives with one store and the backend does not carry it across platforms."
+        confidence: Inferred
+        fills: { c26-cross-device: not carried }
+
+  - id: P26.7
+    name: Existing entitlement offline
+    caution: This probe changes a device-wide setting. Turn airplane mode off when you finish.
+    do:
+      - Run this only if your account already has a purchase or subscription.
+      - Use a paid feature while online, then force-quit the app.
+      - Turn on airplane mode and open the app.
+      - Try the paid feature again, both with content already on the device and with content that is not.
+    watch: Whether the app still treats you as paid without being able to ask the backend.
+    outcomes:
+      - label: Paid features work offline
+        reading: "The client keeps a cached entitlement, usually with an expiry time. The backend remains the source of truth and the cache bridges the gap."
+        confidence: Inferred
+        fills: { c26-offline-entitlement: works offline }
+      - label: Paid features are locked offline
+        reading: "The entitlement is checked with the backend on each launch or each use, and nothing is trusted from the device."
+        confidence: Inferred
+        fills: { c26-offline-entitlement: locked offline }
+      - label: Only downloaded paid content works
+        reading: "The entitlement is bound to each downloaded item, with its own expiry, and not held as a general flag."
+        confidence: Inferred
+        fills: { c26-offline-entitlement: downloaded content only }
+
+  - id: P26.8
+    name: Where to manage or cancel
+    do:
+      - Find the control that manages or cancels a subscription, or the control that cancels an order. Look in account settings and in help pages.
+      - Tap it and note where you land.
+      - Read the screen and leave without changing anything.
+    watch: Whether you stay in the app, land in the store's own subscription settings, or land on a website.
+    outcomes:
+      - label: The store's subscription settings
+        reading: "The store owns the subscription. The app cannot cancel it, and the backend learns of a cancellation from the store."
+        confidence: Observed
+        fills: { c26-manage: store settings }
+      - label: A screen inside the app
+        reading: "The backend owns the subscription or order and can change it directly through the external payment provider."
+        confidence: Inferred
+        fills: { c26-manage: in the app }
+      - label: A website
+        reading: "The purchase was made outside the app, or the team keeps billing management in one web implementation for every platform."
+        confidence: Inferred
+        fills: { c26-manage: website }
+      - label: A message that names the platform you bought on
+        reading: "The backend records which route created each subscription and sends you back to that route to manage it."
+        confidence: Inferred
+        fills: { c26-manage: depends on where it was bought }
+
+  - id: P26.9
+    name: Saved payment methods
+    do:
+      - Open the payment methods screen, if the app has one.
+      - Read how each saved method is displayed.
+      - Tap the control that adds a method, look at the surface that appears, and close it without entering anything.
+    watch: How much of a saved card the app can show, and who draws the form that adds one.
+    outcomes:
+      - label: A list with a brand and the last four digits
+        reading: "The backend stores a payment token and display details for each method. The card number is held by the provider."
+        confidence: Inferred
+        fills: { c26-saved: masked card list }
+      - label: Only the device wallet is offered
+        reading: "No method is saved by the app. Each payment gets a fresh payment token from the device's wallet."
+        confidence: Inferred
+        fills: { c26-saved: device wallet only }
+      - label: No payment methods screen
+        reading: "Store billing only, or a hosted payment screen that asks for the card every time."
+        confidence: Speculative
+        fills: { c26-saved: none }
+
+signals:
+  - { signal: The paywall small print names your store account and automatic renewal, design: Store billing for digital goods, confidence: Observed }
+  - { signal: A system sheet that looks the same in every app asks you to confirm, design: The purchase runs in platform services and the app never sees a payment method, confidence: Observed }
+  - { signal: Checkout opens a page in a different visual style, design: Hosted payment screen run by an external payment provider, confidence: Inferred }
+  - { signal: A saved card is shown as a brand and four digits, design: Backend stores a payment token and display details, confidence: Inferred }
+  - { signal: The order shows as processing for a while after you pay, design: "Confirmation arrives later from the provider to the backend, and the client shows a pending state", confidence: Inferred }
+  - { signal: The order confirms while the app is on another screen or closed, design: "Provider callback to the backend, then a push hint or notification to the client", confidence: Inferred }
+  - { signal: Your bank's own screen or app interrupts the payment, design: Bank challenge handled as a waiting state of the payment, confidence: Observed }
+  - { signal: A canceled checkout leaves an unpaid order in history, design: Payment record created on the backend before the payment surface opens, confidence: Inferred }
+  - { signal: Tapping pay twice or retrying after a timeout produces one charge, design: Idempotency key on payment creation, confidence: Speculative }
+  - { signal: A purchase made on one platform unlocks the other after sign-in, design: Entitlements stored on the backend against the app account, confidence: Inferred }
+  - { signal: A second device stays locked until restore purchases is tapped, design: "Entitlement follows the store account, and the backend learns of it from a receipt", confidence: Inferred }
+  - { signal: Paid features keep working in airplane mode, design: Cached entitlement with an expiry time, confidence: Inferred }
+  - { signal: The app shows a renewal or expiry date that matches the store's settings, design: Backend mirrors subscription state from the store, confidence: Inferred }
+  - { signal: A banner asks you to update your payment method while features still work, design: Grace period after a failed renewal, confidence: Inferred }
+  - { signal: The cancel control leaves the app for the store's settings, design: The store owns the subscription lifecycle, confidence: Observed }
+  - { signal: The app says to manage the subscription where you bought it, design: Backend records the originating route for each subscription, confidence: Inferred }
+  - { signal: Prices are missing on the paywall when offline, design: Prices fetched live from the store's catalog or the backend, confidence: Inferred }
+  - { signal: A refund shows as pending for days, design: Refund is its own state machine at the provider and the bank, confidence: Inferred }
+
+worksheet:
+  - { id: c26-goods, label: What is sold, options: [digital goods, physical goods or services, both, nothing in the app] }
+  - { id: c26-route, label: Payment route, options: [store billing, external payment provider, both, outside the app] }
+  - { id: c26-surface, label: Payment surface, options: [system purchase sheet, provider web page, fields in the app, device wallet sheet, not reached] }
+  - { id: c26-created, label: Payment record created, options: [before the payment surface, at confirmation, unknown] }
+  - { id: c26-pending, label: Pending state and how it resolves }
+  - { id: c26-prices, label: Paywall prices offline, options: [shown, missing, paywall fails] }
+  - { id: c26-restore, label: Restore purchases keyed to, options: [store account, app account, no restore control] }
+  - { id: c26-cross-device, label: Entitlement on a second device, options: [on sign-in, after restore, not carried, not tested] }
+  - { id: c26-offline-entitlement, label: Entitlement offline, options: [works offline, locked offline, downloaded content only, not tested] }
+  - { id: c26-manage, label: Where a subscription is managed, options: [store settings, in the app, website, depends on where it was bought, not found] }
+  - { id: c26-lifecycle, label: Subscription lifecycle states seen }
+  - { id: c26-saved, label: Saved payment methods, options: [masked card list, device wallet only, none] }
+  - { id: c26-refund, label: Refund path and who grants it }
+  - { id: c26-backend, label: Backend components implied }
+  - { id: c26-failures, label: Failure modes seen }

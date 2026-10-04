@@ -1,0 +1,279 @@
+chapter: 16
+title: Images
+link: /part-2-concerns/16-images/
+
+probes:
+  - id: P16.1
+    name: Stand-in
+    do:
+      - Find a weak connection, for example the edge of wireless coverage or a spot with poor cellular signal.
+      - Open a list or feed of images you have not seen before.
+      - Look at the image areas in the first second, before any image arrives.
+      - Scroll to more unseen items and look again.
+    watch: What is drawn where each image will be. Compare several image areas with each other, and with the images that later fill them.
+    outcomes:
+      - label: Every image area is blank or the same flat color
+        reading: "The item data carries nothing about the image's content. The stand-in is fixed in the client."
+        confidence: Observed
+        fills: { c16-stand-in: blank or flat color }
+      - label: Each area has its own tint that matches the image that follows
+        reading: "A dominant color per image is computed at upload and carried in the item data."
+        confidence: Inferred
+        fills: { c16-stand-in: dominant color }
+      - label: Each area shows a soft blurred version of its image at once
+        reading: "A blurred preview is embedded in the item data and decoded on the client. No image request was needed for it."
+        confidence: Inferred
+        fills: { c16-stand-in: blurred preview }
+      - label: A coarse image arrives after a short wait and is later replaced by a sharp one
+        reading: "Low resolution first. A small variant is fetched before the full one, or the file is a progressive image. P16.2 separates the two."
+        confidence: Inferred
+        fills: { c16-stand-in: low resolution first }
+
+  - id: P16.2
+    name: Arrival pattern
+    do:
+      - Stay on the weak connection from P16.1.
+      - Open a single large image, such as a detail screen or a full-screen photo you have not viewed.
+      - Watch that one image from its first pixel to its last.
+    watch: How the real image fills in once it starts to arrive. Count the steps if it sharpens.
+    outcomes:
+      - label: Nothing, then the whole image at once
+        reading: "The loader waits for the complete file before decoding. A short fade is common."
+        confidence: Observed
+        fills: { c16-arrival: all at once }
+      - label: The image unrolls from top to bottom
+        reading: "The file is stored row by row and the client draws rows as bytes arrive."
+        confidence: Observed
+        fills: { c16-arrival: top to bottom }
+      - label: The whole image appears soft and sharpens in several small steps
+        reading: "A progressive image. One file stored as passes of increasing detail, drawn as each pass arrives."
+        confidence: Inferred
+        fills: { c16-arrival: coarse to sharp in steps }
+      - label: The whole image appears soft and becomes sharp in one jump
+        reading: "Two variants. A small one is shown enlarged and a large one replaces it."
+        confidence: Inferred
+        fills: { c16-arrival: one swap between variants }
+
+  - id: P16.3
+    name: Reserved space
+    do:
+      - Stay on the weak connection.
+      - Open a feed in which images have different heights, and that you have not seen before.
+      - Read the text of the first items while the images are still arriving.
+    watch: Whether the text and the rows move when an image lands.
+    outcomes:
+      - label: Nothing moves, and each image fills a frame that was already the right shape
+        reading: "The item data carries each image's dimensions or aspect ratio, so the layout is final before the image arrives."
+        confidence: Inferred
+        fills: { c16-space: reserved }
+      - label: Rows grow or content jumps when images land
+        reading: "The item data carries no dimensions. The view learns the image's shape from the file."
+        confidence: Inferred
+        fills: { c16-space: content jumps }
+      - label: Every image has the same fixed shape, cropped to fit
+        reading: "The layout fixes the frame and crops the image. This tells you nothing about dimensions in the data."
+        confidence: Observed
+        fills: { c16-space: fixed frame }
+
+  - id: P16.4
+    name: Zoom swap
+    do:
+      - On a weak connection, find an image in a list that you have not opened before.
+      - Tap it to open it full screen, and watch for a change in sharpness.
+      - Pinch to zoom in as far as the viewer allows, hold still, and watch again.
+    watch: Whether the image is soft at first and becomes sharp, and whether it sharpens again after zooming. Fine text or hair in the image makes the change easy to see.
+    outcomes:
+      - label: Soft at first, then sharp after a moment
+        reading: "A larger variant is swapped in. The backend holds more than one size of this image, and the viewer was seeded with the thumbnail."
+        confidence: Inferred
+        fills: { c16-zoom: larger variant swapped in }
+      - label: Soft, and it stays soft however long you wait
+        reading: "The same variant is enlarged. Either one size exists, or the viewer does not request a larger one."
+        confidence: Inferred
+        fills: { c16-zoom: same image enlarged }
+      - label: Sharp from the first moment, at full zoom too
+        reading: "The list already held an image large enough for the screen, or the large variant was fetched before you tapped. No swap can be seen either way."
+        confidence: Speculative
+        fills: { c16-zoom: sharp at once }
+      - label: Squares of the image sharpen one by one as you zoom or pan
+        reading: "Tiles loaded by region. The backend cut the image into tiles at several zoom levels."
+        confidence: Observed
+        fills: { c16-zoom: tiles by region }
+
+  - id: P16.5
+    name: Offline revisit
+    do:
+      - While online, scroll through a screen of images and let them all load.
+      - Go to another screen, then turn on airplane mode.
+      - Return to the first screen and note which images appear, and whether a stand-in shows first.
+      - Force-quit the app, open it again while still in airplane mode, and return to the same screen.
+    watch: Images only, apart from text. Note whether they appear on each of the two offline visits, and whether they appear in the same frame as the screen or after a brief stand-in.
+    outcomes:
+      - label: Images appear on both offline visits
+        reading: "Images are kept in a disk cache. A brief stand-in after the force-quit is the cost of reading and decoding from disk."
+        confidence: Inferred
+        fills: { c16-image-cache: memory and disk }
+      - label: Images appear before the force-quit and not after
+        reading: "Images are held in a memory cache only. Every cold start fetches them again."
+        confidence: Inferred
+        fills: { c16-image-cache: memory only }
+      - label: Images appear on neither visit
+        reading: "No image cache was seen. Each display of the screen fetches its images."
+        confidence: Observed
+        fills: { c16-image-cache: none }
+
+  - id: P16.6
+    name: Thumbnail to detail offline
+    do:
+      - While online, open a list of images you have not seen before and let the thumbnails load. Do not open any item.
+      - Wait ten seconds, then turn on airplane mode.
+      - Open one item to its detail screen or full-screen viewer.
+    watch: Whether a large image appears, and how sharp it is compared with the thumbnail.
+    outcomes:
+      - label: A sharp full-size image appears
+        reading: "The large image was on the device before you asked. Either the list uses the large variant itself, or the app prefetches it."
+        confidence: Inferred
+        fills: { c16-detail-variant: large image on device before open }
+      - label: A soft enlarged thumbnail appears and never sharpens
+        reading: "The detail screen is seeded with the thumbnail from the memory cache and requests a separate, larger variant."
+        confidence: Inferred
+        fills: { c16-detail-variant: seeded from thumbnail }
+      - label: A stand-in or an error appears, with no image
+        reading: "The detail screen requests its own variant and receives nothing from the list."
+        confidence: Inferred
+        fills: { c16-detail-variant: fetched on open }
+
+  - id: P16.7
+    name: Fast scroll then stop
+    do:
+      - Use a moderate or weak connection, so that image loading takes a visible time.
+      - Open a long list of images you have not seen before, and note roughly how long the first screen of images takes to fill.
+      - Fling the list as fast as you can through many screens, then stop it with a touch.
+      - Time how long the rows you stopped on take to fill.
+      - Scroll slowly back up through the rows you skipped.
+    watch: Whether the rows you stopped on fill about as quickly as the first screen did, and whether the skipped rows already have their images. Also watch for any image that appears in a row and is then replaced by another.
+    outcomes:
+      - label: The rows you stopped on fill quickly, and the skipped rows are empty
+        reading: "Requests for rows that left the screen are canceled, or visible rows are given priority. The two cannot be told apart from outside."
+        confidence: Inferred
+        fills: { c16-scroll: visible rows first }
+      - label: The rows you stopped on wait much longer than the first screen did, and the skipped rows have images
+        reading: "Requests are served in the order they were made, with no cancellation. The loader fetched every row you passed."
+        confidence: Inferred
+        fills: { c16-scroll: in scroll order }
+      - label: The rows you stopped on already have their images
+        reading: "Images are prefetched ahead of the visible range, or the list response was small and loaded earlier. Repeat with a faster and longer fling to find where prefetching ends."
+        confidence: Speculative
+        fills: { c16-scroll: already loaded }
+
+  - id: P16.8
+    name: Data-saver mode
+    caution: This probe changes a device-wide setting. Other apps also reduce their data use and background activity while data-saver mode is on. Turn it off when you finish.
+    do:
+      - Look in the app's own settings for a control over image quality or data use, and note its positions.
+      - With data-saver mode off, browse a screen of unseen images on cellular data and note how sharp they are and how fast they arrive.
+      - Turn on data-saver mode in the device settings.
+      - Browse a different screen of unseen images on the same connection.
+    watch: Whether images look softer, arrive faster, or do not load until you tap them. Compare fine detail in images of the same kind.
+    outcomes:
+      - label: No difference in sharpness or behavior
+        reading: "The image pipeline does not read the device's data-saver setting."
+        confidence: Observed
+        fills: { c16-data-saver: no change }
+      - label: Images are visibly softer or arrive faster
+        reading: "The client asks for a smaller or lower-quality variant when data-saver mode is on. The backend can serve several qualities."
+        confidence: Inferred
+        fills: { c16-data-saver: lower quality }
+      - label: Images stay as stand-ins until tapped
+        reading: "Image loading is made manual under data-saver mode."
+        confidence: Observed
+        fills: { c16-data-saver: load on tap }
+      - label: The device setting changes nothing, and the app's own setting does
+        reading: "The team treats image data cost as a choice inside the app. Test each position of the setting."
+        confidence: Observed
+        fills: { c16-data-saver: app setting only }
+
+  - id: P16.9
+    name: Storage growth
+    do:
+      - Open the device's storage settings and note the figure for the app's data, separate from the app's own size.
+      - Browse image-heavy content for ten minutes without revisiting anything.
+      - Note the figure again.
+      - Repeat the browsing and the note two or three more times.
+    watch: Whether the figure keeps rising at the same rate, rises and then levels off, or hardly moves.
+    outcomes:
+      - label: The figure rises, then levels off or drops back
+        reading: "An image disk cache with a bound and eviction. The level it settles at estimates the bound."
+        confidence: Inferred
+        fills: { c16-size-bound: bounded }
+      - label: The figure keeps rising with no ceiling seen
+        reading: "Either no bound, or a bound larger than you reached. More browsing can confirm a bound and can never rule one out."
+        confidence: Speculative
+        fills: { c16-size-bound: no bound seen }
+      - label: The figure hardly moves
+        reading: "Few image files are written to disk. Images are held in memory, or the disk cache is very small."
+        confidence: Inferred
+        fills: { c16-size-bound: little stored }
+
+  - id: P16.10
+    name: Upload round trip
+    caution: Use a photo whose content and location you do not mind sharing, and send it only to yourself, to a second account of your own or to a private space.
+    do:
+      - Take a photo with the device camera with location tagging on, and note its pixel dimensions and location in the photo library's information view.
+      - Send or post the photo through the app, to yourself or to a private space.
+      - On the same or a second device of your own, save the received image from the app to the photo library.
+      - Open the information view for the saved copy.
+    watch: The pixel dimensions and the location of the saved copy, compared with the original.
+    outcomes:
+      - label: Smaller dimensions and no location
+        reading: "The image was resized and its metadata removed, on the client, on the backend or both."
+        confidence: Observed
+        fills: { c16-upload-prep: resized and metadata removed }
+      - label: The same dimensions and no location
+        reading: "Metadata is removed and the full resolution is kept."
+        confidence: Observed
+        fills: { c16-upload-prep: metadata removed only }
+      - label: Smaller dimensions, and the location is still there
+        reading: "The image is resized and its metadata is kept. Recipients can read where the photo was taken."
+        confidence: Observed
+        fills: { c16-upload-prep: resized only }
+      - label: The same dimensions and the location is still there
+        reading: "The original file is passed through untouched."
+        confidence: Observed
+        fills: { c16-upload-prep: untouched }
+
+signals:
+  - { signal: Image areas show a different tint each before the image arrives, design: Dominant color carried in the item data, confidence: Inferred }
+  - { signal: A blurred version of an unseen image shows while offline, design: Blurred preview embedded in the item data, confidence: Inferred }
+  - { signal: Rows hold still while images of varying shape arrive, design: Image dimensions or aspect ratio carried in the item data, confidence: Inferred }
+  - { signal: Content jumps when an image lands, design: No image dimensions in the item data, confidence: Inferred }
+  - { signal: An image sharpens in several small steps on a weak connection, design: Progressive image in a single file, confidence: Inferred }
+  - { signal: A full-screen image is soft and then sharp in one jump, design: Thumbnail seeded from the memory cache and a larger variant swapped in, confidence: Inferred }
+  - { signal: Zooming in never gets sharper, design: "One variant per image, enlarged on the device", confidence: Inferred }
+  - { signal: Small thumbnails load as slowly as full images, design: One stored size served to every view, confidence: Speculative }
+  - { signal: A revisited screen shows images in the same frame with no stand-in, design: Decoded images held in a memory cache, confidence: Inferred }
+  - { signal: Images appear offline after a force-quit, design: Encoded files held in a disk cache, confidence: Inferred }
+  - { signal: Images appear offline and the text around them does not, design: Image disk cache kept apart from the response cache, confidence: Inferred }
+  - { signal: After a fast scroll the rows you stop on fill first, design: Cancellation or priority for visible rows in the request queue, confidence: Inferred }
+  - { signal: An image flashes in the wrong row during a fast scroll, design: View recycling with no cancellation and no check on arrival, confidence: Inferred }
+  - { signal: Scrolling stutters only while images are arriving, design: Decoding or resizing on the thread that draws the UI, confidence: Speculative }
+  - { signal: The app is ended while browsing image-heavy screens, design: "Images decoded at file size instead of view size, or a memory cache with no bound", confidence: Speculative }
+  - { signal: Images keep loading while other screens show backend errors, design: Media delivery runs apart from the gateway and services, confidence: Inferred }
+  - { signal: An avatar stays old on some screens after it was changed, design: Image address reused for new content, confidence: Inferred }
+  - { signal: A photo you sent has smaller dimensions and no location when saved from the app, design: Resize and metadata removal before or after upload, confidence: Observed }
+
+worksheet:
+  - { id: c16-sizing, label: Image sizing design, options: [one stored size, fixed set of variants, variants on request, more than one variant, unknown] }
+  - { id: c16-stand-in, label: Stand-in before arrival, options: [blank or flat color, dominant color, blurred preview, low resolution first] }
+  - { id: c16-arrival, label: How an image fills in, options: [all at once, top to bottom, coarse to sharp in steps, one swap between variants] }
+  - { id: c16-space, label: Space before arrival, options: [reserved, content jumps, fixed frame] }
+  - { id: c16-zoom, label: Full-screen and zoom, options: [larger variant swapped in, same image enlarged, sharp at once, tiles by region] }
+  - { id: c16-image-cache, label: Image cache tiers, options: [none, memory only, memory and disk] }
+  - { id: c16-detail-variant, label: Detail image source, options: [large image on device before open, seeded from thumbnail, fetched on open] }
+  - { id: c16-scroll, label: Fast scroll behavior, options: [visible rows first, in scroll order, already loaded] }
+  - { id: c16-data-saver, label: Images under data-saver mode, options: [no change, lower quality, load on tap, app setting only] }
+  - { id: c16-size-bound, label: Image disk cache bound, options: [bounded, no bound seen, little stored] }
+  - { id: c16-upload-prep, label: Preparation before upload, options: [resized and metadata removed, metadata removed only, resized only, untouched] }
+  - { id: c16-formats, label: Format and quality evidence }
+  - { id: c16-backend, label: Backend support implied }
+  - { id: c16-failures, label: Failure modes seen }

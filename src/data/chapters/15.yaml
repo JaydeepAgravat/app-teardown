@@ -1,0 +1,276 @@
+chapter: 15
+title: "Lists, feeds and pagination"
+link: /part-2-concerns/15-lists-feeds-and-pagination/
+
+probes:
+  - id: P15.1
+    name: Scroll rhythm
+    do:
+      - Open the list on a good connection and scroll down at reading speed for a minute.
+      - Then fling as fast as you can toward the bottom, several times.
+      - Note any control at the end, such as a button to load more or a row of page numbers.
+    watch: Where loading indicators or placeholders appear, how regularly, and whether you ever reach them at reading speed.
+    outcomes:
+      - label: An indicator appears at the end of each batch, even at reading speed
+        reading: "Endless scroll that requests the next page only when the end is reached."
+        confidence: Inferred
+        fills: { c15-presentation: endless scroll, c15-prefetch: at the end }
+      - label: An indicator appears only during a fast fling
+        reading: "Endless scroll that requests the next page ahead of the end."
+        confidence: Inferred
+        fills: { c15-presentation: endless scroll, c15-prefetch: ahead of the end }
+      - label: A load-more control or page numbers appear
+        reading: "Paging is explicit. Page numbers need a method that can jump, which favors offset paging."
+        confidence: Observed
+        fills: { c15-presentation: explicit control }
+      - label: The end is reached with no indicator at any speed
+        reading: "The list is loaded whole, or read from a local store that already holds it."
+        confidence: Inferred
+        fills: { c15-presentation: everything at once }
+
+  - id: P15.2
+    name: Page size
+    do:
+      - Move to a weak connection, or turn on the device's data-saver mode, so that page boundaries become visible.
+      - Reopen the list and scroll down slowly.
+      - Count the items between one loading indicator and the next. Do this for the first four batches.
+    watch: Whether the count is the same for every batch, and whether the first batch differs from the rest.
+    outcomes:
+      - label: The same count every time
+        reading: "A fixed page size. Record the number."
+        confidence: Observed
+      - label: A smaller first batch, then a constant larger one
+        reading: "A small first page for a fast first screen, then a standard page size."
+        confidence: Inferred
+      - label: The count varies from batch to batch
+        reading: "Pages are filtered after fetching, assembled from several sources, or sized by the client. These cannot be separated from outside."
+        confidence: Speculative
+      - label: No batch boundaries can be seen
+        reading: "The next page arrives too far ahead to observe, or the list is not paged."
+        confidence: Observed
+
+  - id: P15.3
+    name: Insert while scrolling
+    do:
+      - Choose a time-ordered list that a second device or account can add to, such as a shared list or your own posts.
+      - On device A, open the list, scroll down until two batches have loaded, and stop. Note the last three items on screen.
+      - On device B, add three new items, which belong at the top.
+      - On A, continue scrolling down, without refreshing.
+    watch: Whether items you noted appear a second time in the next batch, or whether the next batch looks shorter than usual.
+    outcomes:
+      - label: Items you had already seen appear again
+        reading: "Offset paging. The insertion shifted every position by three."
+        confidence: Inferred
+        fills: { c15-paging-method: offset }
+      - label: No repeats, and the next batch is shorter by about three
+        reading: "Offset paging, with a client that drops items it already holds."
+        confidence: Speculative
+        fills: { c15-paging-method: offset }
+      - label: No repeats, and the next batch is its usual size
+        reading: "Cursor paging or keyset paging. The two cannot be told apart from outside."
+        confidence: Inferred
+        fills: { c15-paging-method: cursor or keyset }
+      - label: The list reloads or jumps to the top
+        reading: "The list is reloaded when it changes, so paging across a change is never attempted."
+        confidence: Observed
+        fills: { c15-paging-method: reloads on change }
+
+  - id: P15.4
+    name: Remove while scrolling
+    caution: This probe deletes items. Use items you created for the test.
+    do:
+      - Create a run of numbered test items in a time-ordered list, more than three batches long.
+      - On device A, open the list, scroll down until one batch has loaded, and stop.
+      - On device B, delete three of the items near the top that A has already loaded.
+      - On A, continue scrolling down, and read the numbers as they pass.
+    watch: Whether any number is missing on A that still exists on B, and whether the deleted items remain visible on A.
+    outcomes:
+      - label: Items that still exist on B never appear on A
+        reading: "Offset paging. The removal shifted positions and the next page skipped three items. A client cannot hide this."
+        confidence: Inferred
+        fills: { c15-paging-method: offset }
+      - label: Nothing is skipped, and the deleted items stay visible on A
+        reading: "Cursor paging or keyset paging. Loaded pages are not updated until a refresh."
+        confidence: Inferred
+        fills: { c15-paging-method: cursor or keyset }
+      - label: Nothing is skipped, and the deleted items vanish from A
+        reading: "Cursor paging or keyset paging, with changes to loaded items delivered live or through a local store."
+        confidence: Inferred
+        fills: { c15-paging-method: cursor or keyset }
+
+  - id: P15.5
+    name: Refresh a ranked feed twice
+    do:
+      - Open a feed that is not in time order, such as a home or discovery feed.
+      - Write down or screenshot the first ten items.
+      - Pull to refresh and record the first ten again.
+      - Pull to refresh once more and record them a third time.
+    watch: How many items stay, and whether those that stay keep their order.
+    outcomes:
+      - label: The same items in the same order each time
+        reading: "The order is stable between requests. The list is time-ordered after all, or the ranking is cached for a period."
+        confidence: Inferred
+        fills: { c15-rank-stability: stable }
+      - label: Mostly the same items in a different order
+        reading: "Ranking is recomputed on each request over a similar set of candidates."
+        confidence: Inferred
+        fills: { c15-rank-stability: reordered }
+      - label: Mostly different items each time
+        reading: "Each refresh builds a new feed and holds back what was already shown. The backend records what you have seen."
+        confidence: Inferred
+        fills: { c15-rank-stability: new items each time }
+
+  - id: P15.6
+    name: New items while reading
+    do:
+      - On device A, open a list that others can add to, and scroll down a little so that the top item is off screen.
+      - On device B, add two or three items that belong at the top.
+      - Watch A for two minutes without touching it.
+      - Then scroll to the top of A without refreshing.
+    watch: Whether a control announcing new items appears, whether the content you were reading moves, and whether the new items are at the top when you scroll up.
+    outcomes:
+      - label: A control announcing new items appears and nothing moves
+        reading: "The client learns of new items without inserting them. That needs a poll for a count or an event over a held connection."
+        confidence: Observed
+        fills: { c15-refresh: new-items control }
+      - label: Nothing moves, and the new items are at the top when you scroll up
+        reading: "Silent merge with the scroll offset corrected."
+        confidence: Inferred
+        fills: { c15-refresh: silent merge }
+      - label: The content you were reading shifts down
+        reading: "Silent merge with no correction of the scroll offset."
+        confidence: Observed
+        fills: { c15-refresh: content shifts }
+      - label: Nothing appears until you pull to refresh
+        reading: "The list is refreshed only by gesture or on open."
+        confidence: Observed
+        fills: { c15-refresh: gesture only }
+
+  - id: P15.7
+    name: Leave and return
+    do:
+      - Scroll at least five batches deep and note the item at the top of the screen.
+      - Open an item's detail screen and go back. Check the position.
+      - Go to the home screen for one minute and return. Check the position.
+      - Leave the app unopened for several hours, use other apps meanwhile, and return. Check the position and whether the items are the same.
+    watch: At which of the three returns, if any, the list goes back to the top or shows different content.
+    outcomes:
+      - label: The position is kept at all three returns
+        reading: "Position and items are saved and restored. For a ranked feed this means the loaded items are stored on the device."
+        confidence: Inferred
+        fills: { c15-return-short: kept, c15-return-long: kept }
+      - label: Kept after the detail screen and the short absence, reset after the long one
+        reading: "A freshness time limit, or process death with no restore. These two cannot be separated by this probe."
+        confidence: Speculative
+        fills: { c15-return-short: kept, c15-return-long: reset }
+      - label: Reset after the short absence or the detail screen
+        reading: "The list is refetched or rebuilt whenever it reappears."
+        confidence: Inferred
+        fills: { c15-return-short: reset, c15-return-long: reset }
+
+  - id: P15.8
+    name: Gap after absence
+    do:
+      - Choose a busy time-ordered list, one that gains several screens of items a day.
+      - Open it, scroll through two or three batches so they are loaded, and then leave the app unopened for a day or more.
+      - Open the list again and scroll down slowly from the newest item, reading the timestamps.
+    watch: What happens at the boundary between the items that arrived while you were away and the items you had loaded before.
+    outcomes:
+      - label: A gap row or a loading row appears in the middle, with older items beyond it
+        reading: "The client keeps the stored run, records the gap and fills it on demand."
+        confidence: Observed
+        fills: { c15-gap: gap recorded and filled }
+      - label: The list is continuous and loads batch by batch as on a first visit
+        reading: "The stored items were discarded when the newest page did not meet them, or the list was never stored."
+        confidence: Speculative
+        fills: { c15-gap: stored items discarded }
+      - label: The list is continuous with no loading at all
+        reading: "Everything missed was pulled in one catch-up. This is a local replica fed by a sync engine."
+        confidence: Inferred
+        fills: { c15-gap: full catch-up }
+      - label: The timestamps jump, with nothing marking the missing stretch
+        reading: "The newest page and the stored run were joined without a check. Items in between are missing until a full reload."
+        confidence: Observed
+        fills: { c15-gap: silent hole }
+
+  - id: P15.9
+    name: Landing mid-list
+    do:
+      - Find a way to enter a long list at an old item. Search inside a conversation and tap a result from long ago, or open a link to one comment in a long thread.
+      - Note how long the item takes to appear.
+      - Scroll toward newer items, then toward older items.
+      - Use any control that jumps to the latest item, and watch what loads.
+    watch: Whether the item appears inside the list, whether loading occurs in both directions, and whether the view holds still while it does.
+    outcomes:
+      - label: The item appears quickly in the list, and both directions load as you scroll
+        reading: "Paging in both directions around an anchor."
+        confidence: Inferred
+        fills: { c15-anchor: both directions }
+      - label: The item appears alone or on a separate screen
+        reading: "The list cannot be entered at an anchor. The item is fetched on its own."
+        confidence: Observed
+        fills: { c15-anchor: item shown alone }
+      - label: A long wait that grows with the item's age, then the item appears in the list
+        reading: "The list pages in one direction only and loads everything from the newest item to the target."
+        confidence: Inferred
+        fills: { c15-anchor: loads from newest }
+
+  - id: P15.10
+    name: List against detail
+    do:
+      - Scroll a few batches deep in a list.
+      - Open an item and change something that its row also shows, such as a reaction, a saved state or a title.
+      - Go back to the list without refreshing.
+      - If the item appears in another list, for example a search result or a profile, check it there too.
+    watch: Whether the row shows the change at once, whether the list reloads, and whether the position is kept.
+    outcomes:
+      - label: The row shows the change at once and the position is kept
+        reading: "List and detail read one stored copy of the item."
+        confidence: Inferred
+        fills: { c15-list-detail: one copy }
+      - label: The row is unchanged until a refresh
+        reading: "List and detail hold separate copies, one per endpoint."
+        confidence: Inferred
+        fills: { c15-list-detail: two copies }
+      - label: The list reloads on return
+        reading: "The list is refetched whenever it reappears. It is current, at the cost of a request and often the position."
+        confidence: Observed
+        fills: { c15-list-detail: refetch on return }
+
+signals:
+  - { signal: A loading indicator at regular intervals of items, design: Fixed page size with the next page requested at the end, confidence: Inferred }
+  - { signal: No indicator at reading speed and one during a fast fling, design: Next page requested ahead of the end, confidence: Inferred }
+  - { signal: Page numbers or a jump to any page, design: Offset paging, confidence: Speculative }
+  - { signal: An item repeats a page later after others were added, design: Offset paging with no check for repeats on the client, confidence: Inferred }
+  - { signal: An item that exists elsewhere never appears while scrolling after others were removed, design: Offset paging, confidence: Inferred }
+  - { signal: No repeats and no skips while the list changes, design: "Cursor paging or keyset paging. The two cannot be told apart from outside", confidence: Inferred }
+  - { signal: A whole batch appears twice after a fast scroll, design: Paging state with no guard against a second request, confidence: Inferred }
+  - { signal: Mostly different items after each refresh, design: Ranked feed that excludes items already shown, confidence: Inferred }
+  - { signal: A ranked feed shows the same items after the app was restarted, design: Loaded items stored on the device, confidence: Inferred }
+  - { signal: A control announcing new items, design: New-items control fed by a count poll or a held connection, confidence: Observed }
+  - { signal: Content shifts down while being read, design: Silent merge with no correction of the scroll offset, confidence: Observed }
+  - { signal: A gap row or loading row in the middle of a list, design: Stored runs with a recorded gap filled on demand, confidence: Observed }
+  - { signal: The list is at the top with fresh content after a long absence only, design: Freshness time limit or process death with no restore, confidence: Speculative }
+  - { signal: An old item opens inside its list and both directions load, design: Paging in both directions around an anchor, confidence: Inferred }
+  - { signal: Placeholders through the whole list and a scroll indicator of constant size, design: Total count or full list of IDs delivered up front, confidence: Inferred }
+  - { signal: Scrolling far back shows loading states for content seen earlier, design: Distant pages dropped from memory, confidence: Inferred }
+  - { signal: A row is stale after its detail screen changed the item, design: Separate copies for list and detail, confidence: Inferred }
+  - { signal: The list ends and a refresh reveals more, design: A short filtered page read as the end of the list, confidence: Speculative }
+
+worksheet:
+  - { id: c15-order, label: List order, options: [time-ordered, ranked, user-sorted, mixed] }
+  - { id: c15-presentation, label: Paging presentation, options: [endless scroll, explicit control, everything at once] }
+  - { id: c15-page-size, label: Page size counted }
+  - { id: c15-prefetch, label: Next page requested, options: [at the end, ahead of the end, unknown] }
+  - { id: c15-paging-method, label: Paging method, options: [offset, cursor or keyset, reloads on change, unknown] }
+  - { id: c15-rank-stability, label: Ranking stability on refresh, options: [stable, reordered, new items each time, not ranked] }
+  - { id: c15-refresh, label: How new items arrive, options: [gesture only, new-items control, silent merge, content shifts] }
+  - { id: c15-return-short, label: Position after a short absence, options: [kept, reset] }
+  - { id: c15-return-long, label: Position after a long absence, options: [kept, reset] }
+  - { id: c15-gap, label: Gap handling, options: [gap recorded and filled, stored items discarded, full catch-up, silent hole, not tested] }
+  - { id: c15-anchor, label: Entry at an anchor, options: [both directions, item shown alone, loads from newest, not available] }
+  - { id: c15-placeholders, label: Placeholders and scroll indicator }
+  - { id: c15-stored-pages, label: List available offline }
+  - { id: c15-list-detail, label: List and detail consistency, options: [one copy, two copies, refetch on return] }
+  - { id: c15-backend, label: Backend components implied }
+  - { id: c15-failures, label: Failure modes seen }

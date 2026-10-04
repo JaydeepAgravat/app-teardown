@@ -1,0 +1,271 @@
+chapter: 24
+title: "Location, sensors and hardware"
+link: /part-2-concerns/24-location-sensors-and-hardware/
+
+probes:
+  - id: P24.1
+    name: Location indicator on screen
+    do:
+      - Find where your device shows that an app is using location, usually a marker in the status area.
+      - Open the app on a screen that has nothing to do with location and watch the indicator for thirty seconds.
+      - Open a screen that uses your position, such as a map or a nearby list, and watch for a minute.
+      - Go back to the unrelated screen and watch for another minute.
+    watch: On which screens the indicator is on, and whether it turns off after you leave the location screen.
+    outcomes:
+      - label: On while the location screen is open and off after leaving it
+        reading: "Continuous updates owned by that screen. The subscription starts and stops with it."
+        confidence: Inferred
+        fills: { c24-fg-mode: continuous on that screen }
+      - label: On briefly when the location screen opens and then off
+        reading: "One reading. The app asks for a position, uses it and stops."
+        confidence: Inferred
+        fills: { c24-fg-mode: one reading }
+      - label: On for every screen while the app is open
+        reading: "The subscription belongs to the whole app, or it was started and never stopped."
+        confidence: Inferred
+        fills: { c24-fg-mode: continuous app wide }
+      - label: Never on although the app shows local content
+        reading: "No device location. The position comes from a typed address or from the network address on the backend."
+        confidence: Inferred
+        fills: { c24-fg-mode: no device location }
+
+  - id: P24.2
+    name: Location indicator in the background
+    do:
+      - Open a feature of the app that uses your position, then go to the home screen.
+      - Watch the location indicator for two minutes.
+      - Lock the device and check again after ten minutes, and note any persistent notification or marker the system shows for the app.
+      - Open the device's location settings and read which permission level the app holds.
+    watch: Whether the indicator stays on after the app leaves the screen, and what the system shows about it.
+    outcomes:
+      - label: Off within seconds and it stays off
+        reading: "No location use in the background for this feature."
+        confidence: Observed
+        fills: { c24-bg-mode: none }
+      - label: On continuously with a persistent marker or notification
+        reading: "Continuous background location, declared as user-visible work."
+        confidence: Observed
+        fills: { c24-bg-mode: continuous }
+      - label: Off but it appears briefly from time to time
+        reading: "Region monitoring or coarse movement updates. The indicator alone cannot separate them."
+        confidence: Speculative
+        fills: { c24-bg-mode: occasional wakes }
+
+  - id: P24.3
+    name: Approximate location only
+    caution: This probe changes the app's location permission in the device settings. Restore it when you finish.
+    do:
+      - In the device settings, change the app's location permission from precise to approximate. Skip this probe if your device has no such option.
+      - Force-quit the app, open it again and go to a feature that shows or uses your position.
+      - Compare where the app places you with where you are.
+      - Restore the precise setting.
+    watch: Whether the feature works at area level, asks for more, or shows a wrong position as if it were exact.
+    outcomes:
+      - label: It works and shows an area or nearby results without a pinpoint
+        reading: "The feature reads the precision it was given and adapts to it."
+        confidence: Observed
+        fills: { c24-approx: works at area level }
+      - label: It explains that it needs a precise position and offers the setting
+        reading: "The feature checks the precision and declines to run on an approximate one."
+        confidence: Observed
+        fills: { c24-approx: asks for precise }
+      - label: It shows a pinpoint in the wrong place with no warning
+        reading: "The app treats an approximate position as precise. It does not check which kind it received."
+        confidence: Inferred
+        fills: { c24-approx: treats approximate as exact }
+
+  - id: P24.4
+    name: Location denied
+    caution: This probe turns off the app's location permission in the device settings. Restore it when you finish.
+    do:
+      - In the device settings, set the app's location permission to never.
+      - Force-quit the app, open it again and go to a feature that normally uses your position.
+      - Note what the feature shows and whether it still knows roughly where you are.
+      - Restore the permission.
+    watch: Whether the feature offers another way in, still shows local content, or stops.
+    outcomes:
+      - label: It asks you to type an address or pick a place
+        reading: "A manual path exists beside device location. The feature needs a position, not the permission."
+        confidence: Observed
+        fills: { c24-denied: manual entry }
+      - label: It still shows content for your city or region without asking
+        reading: "The backend guesses a region from the network address, or reuses a position saved to your account earlier."
+        confidence: Inferred
+        fills: { c24-denied: backend guess }
+      - label: It shows only a request to turn the permission on
+        reading: "No fallback. The feature is built on device location alone."
+        confidence: Observed
+        fills: { c24-denied: blocked }
+
+  - id: P24.5
+    name: Move in the background
+    do:
+      - Start a feature that records or shares your position over time, such as a tracked activity or a shared trip.
+      - Go to the home screen, lock the device and put it in a pocket.
+      - Walk for at least ten minutes on a route with a few turns, including one stretch where you stand still for a minute.
+      - Open the app and look at the recorded route closely.
+    watch: Whether the route covers the whole walk, whether turns are followed, and what the line looks like where you stood still.
+    outcomes:
+      - label: A complete route that follows every turn
+        reading: "Continuous background location with readings kept through the whole period."
+        confidence: Inferred
+        fills: { c24-bg-trace: complete }
+      - label: A route with straight segments that cut across turns or blocks
+        reading: "Readings are sparse or were missed for a while. Coarse movement updates, a long sampling interval or a process that was removed and restarted all fit."
+        confidence: Speculative
+        fills: { c24-bg-trace: gaps or coarse }
+      - label: Nothing recorded between leaving the app and returning
+        reading: "Location is read only while the app is on screen."
+        confidence: Observed
+        fills: { c24-bg-trace: none }
+
+  - id: P24.6
+    name: Record offline
+    caution: This probe uses airplane mode, which interrupts calls and other apps on that device.
+    do:
+      - Outdoors, start a recording of your position in the app.
+      - Turn on airplane mode and walk for five minutes.
+      - Turn airplane mode off, wait two minutes, and finish the recording.
+      - Open the same account on a second device or on the web and look at the route.
+    watch: Whether the part walked offline is present on the other device.
+    outcomes:
+      - label: The whole route is present on the other device
+        reading: "Readings are written to the local store and uploaded in batches after the network returns."
+        confidence: Inferred
+        fills: { c24-buffer: buffered and uploaded }
+      - label: The offline part is missing or is one straight line
+        reading: "Readings are uploaded as they happen and are not buffered. A straight line is the backend or the client joining the two ends."
+        confidence: Inferred
+        fills: { c24-buffer: lost while offline }
+      - label: The app stops or refuses to record without a network
+        reading: "Recording depends on the backend. This feature is at offline Level 0."
+        confidence: Observed
+        fills: { c24-buffer: refuses offline }
+
+  - id: P24.7
+    name: Battery after a session
+    do:
+      - Charge the device, then use the app's hardware feature for thirty minutes as you normally would.
+      - Leave the app and use the device normally for a few hours.
+      - Open the device's battery screen and find the app in the per-app list.
+      - Note its share, and how the screen splits its time between on screen and in the background if it shows that.
+    watch: The app's share of battery use, and how much of its activity was in the background.
+    outcomes:
+      - label: A large share with much of the activity in the background
+        reading: "Hardware stays in use after the app leaves the screen. Continuous background location, or a subscription that is never stopped."
+        confidence: Inferred
+        fills: { c24-battery: high with background use }
+      - label: A share in line with the time on screen and little in the background
+        reading: "Hardware use is tied to the screen. Background modes, if any, are the low-power ones."
+        confidence: Inferred
+        fills: { c24-battery: in line with screen time }
+      - label: A very small share
+        reading: "The feature uses single readings or data the platform already collected."
+        confidence: Inferred
+        fills: { c24-battery: negligible }
+
+  - id: P24.8
+    name: Capture path
+    do:
+      - Find a place in the app where you add a photo, and choose to take a new one.
+      - Note whether a permission prompt for the camera appears, and whether the capture screen looks like the app or like the device's own camera.
+      - Look for overlays, custom buttons or a frame guide.
+      - Cancel, and choose an existing photo instead. Note whether a prompt for the photo library appears and whether the grid is drawn by the app.
+    watch: Who draws the capture screen and the photo grid, and which permission prompts appear.
+    outcomes:
+      - label: The device's own capture screen and picker with no permission prompts
+        reading: "The app hands capture and selection to the system and receives only the result."
+        confidence: Observed
+        fills: { c24-camera: system capture screen }
+      - label: A camera inside the app with its own controls
+        reading: "An in-app camera. The app holds the camera permission and manages the preview itself."
+        confidence: Observed
+        fills: { c24-camera: in-app camera }
+      - label: No capture and only a choice of existing photos
+        reading: "The app does not use the camera for this feature."
+        confidence: Observed
+        fills: { c24-camera: library only }
+
+  - id: P24.9
+    name: Scan offline
+    caution: This probe uses airplane mode, which interrupts calls and other apps on that device.
+    do:
+      - Find the app's scanner for codes or documents and have something to scan that the app normally accepts.
+      - Scan it once with a network and note how long the result takes.
+      - Turn on airplane mode and scan it again.
+      - Turn airplane mode off.
+    watch: Whether the scanner reacts to the item offline, and whether it shows a result.
+    outcomes:
+      - label: It recognizes the item and shows the full result offline
+        reading: "Recognition runs on the device and the content is self-contained or already in the local store."
+        confidence: Inferred
+        fills: { c24-scan: works offline }
+      - label: It recognizes the item and then reports that it cannot continue
+        reading: "Recognition runs on the device. Resolution of what was read needs the backend."
+        confidence: Inferred
+        fills: { c24-scan: recognizes then needs network }
+      - label: It does not react to the item offline
+        reading: "Frames or images are sent to the backend for recognition, or the scanner is disabled without a network."
+        confidence: Speculative
+        fills: { c24-scan: no recognition offline }
+
+  - id: P24.10
+    name: Hardware unavailable
+    caution: This probe switches off a radio for the whole device. Accessories such as headphones disconnect until you switch it back on.
+    do:
+      - Find a feature that depends on a short-range radio, such as connecting to an accessory or finding a nearby device.
+      - Switch that radio off in the device settings.
+      - Open the feature and wait thirty seconds.
+      - Switch the radio back on and watch whether the feature recovers without a restart.
+    watch: What the feature shows with the radio off, and whether it recovers when the radio returns.
+    outcomes:
+      - label: It explains what is off and recovers when the radio returns
+        reading: "The app watches the state of the hardware and treats unavailability as a normal state."
+        confidence: Observed
+        fills: { c24-hardware-off: explains and recovers }
+      - label: It keeps searching or fails with a general error
+        reading: "The app does not check the state of the hardware before using it."
+        confidence: Inferred
+        fills: { c24-hardware-off: searches or fails }
+      - label: It keeps working by another route
+        reading: "A second path exists, usually through the accessory's own network connection and the backend."
+        confidence: Inferred
+        fills: { c24-hardware-off: works by another path }
+
+signals:
+  - { signal: The location indicator appears briefly when a screen opens, design: One reading on demand, confidence: Inferred }
+  - { signal: The location indicator is on only while one screen is open, design: Continuous updates owned by that screen, confidence: Inferred }
+  - { signal: The location indicator stays on for every screen, design: "An app-wide subscription, or one that is never stopped", confidence: Inferred }
+  - { signal: A persistent location marker while the app is in the background, design: Continuous background location as user-visible work, confidence: Observed }
+  - { signal: Brief occasional location use while the app is unopened, design: Region monitoring or coarse movement updates, confidence: Speculative }
+  - { signal: A place-based reminder that fires late or a few streets away, design: Region monitoring from low-power sources, confidence: Inferred }
+  - { signal: Local content with location denied and no address asked for, design: Region guessed on the backend from the network address, confidence: Inferred }
+  - { signal: A pinpoint in the wrong place when only approximate location is granted, design: No check of the precision received, confidence: Inferred }
+  - { signal: A recorded route with a scribble of points where you stood still, design: No filter on accuracy or minimum distance, confidence: Inferred }
+  - { signal: The saved route follows the road where you cut a corner, design: Points snapped to roads on the backend after upload, confidence: Inferred }
+  - { signal: A watched marker freezes and then jumps to a new place, design: "Readings not buffered, or only the latest position forwarded", confidence: Inferred }
+  - { signal: A route walked offline appears in full on another device, design: Readings buffered in the local store and uploaded in batches, confidence: Inferred }
+  - { signal: Steps for days before the app was installed, design: Step history read from platform services, confidence: Inferred }
+  - { signal: A step count that differs from the device's own health screen, design: Steps counted in the app from raw motion data, confidence: Inferred }
+  - { signal: The device's own capture screen appears inside the app with no camera prompt, design: Capture handed to the system, confidence: Observed }
+  - { signal: A code is recognized offline and then an error appears, design: Recognition on the device and resolution on the backend, confidence: Inferred }
+  - { signal: Accessory data is already present on opening the app, design: Background wake when the accessory is in range or has data, confidence: Inferred }
+  - { signal: A password is required after enrolling a new fingerprint or face, design: Key in secure hardware-backed storage bound to the enrolled set, confidence: Inferred }
+
+worksheet:
+  - { id: c24-hardware, label: Hardware and permissions the app uses }
+  - { id: c24-fg-mode, label: Location mode on screen, options: [no device location, one reading, continuous on that screen, continuous app wide] }
+  - { id: c24-bg-mode, label: Location in the background, options: [none, occasional wakes, continuous] }
+  - { id: c24-approx, label: With approximate location only, options: [works at area level, asks for precise, treats approximate as exact] }
+  - { id: c24-denied, label: With location denied, options: [manual entry, backend guess, blocked] }
+  - { id: c24-bg-trace, label: Route recorded in the background, options: [complete, gaps or coarse, none] }
+  - { id: c24-buffer, label: Readings taken offline, options: [buffered and uploaded, lost while offline, refuses offline] }
+  - { id: c24-battery, label: Battery share after a session, options: [high with background use, in line with screen time, negligible] }
+  - { id: c24-motion, label: Source of step and motion data }
+  - { id: c24-camera, label: Capture path, options: [system capture screen, in-app camera, library only] }
+  - { id: c24-scan, label: Scanning offline, options: [works offline, recognizes then needs network, no recognition offline] }
+  - { id: c24-hardware-off, label: With hardware unavailable, options: [explains and recovers, searches or fails, works by another path] }
+  - { id: c24-radios, label: Accessories and tap interactions }
+  - { id: c24-biometric, label: Biometric check and what it protects }
+  - { id: c24-backend, label: Backend components implied }
+  - { id: c24-failures, label: Failure modes seen }

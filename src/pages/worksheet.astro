@@ -1,0 +1,161 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import TeardownBar from '../components/TeardownBar.astro';
+import WorksheetForm from '../components/WorksheetForm.astro';
+import { loadChapters } from '../lib/data.mjs';
+
+// Everything the browser needs to list probe results and export the worksheet.
+const data = loadChapters().map((chapter: any) => ({
+  chapter: chapter.chapter,
+  title: chapter.title,
+  link: chapter.link,
+  fields: (chapter.worksheet ?? []).map((f: any) => ({ id: f.id, label: f.label })),
+  probes: (chapter.probes ?? []).map((p: any) => ({
+    id: p.id,
+    name: p.name,
+    outcomes: p.outcomes.map((o: any) => ({ label: o.label, reading: o.reading, confidence: o.confidence })),
+  })),
+}));
+---
+
+<StarlightPage
+  frontmatter={{
+    title: 'Teardown worksheet',
+    description: 'Record what you learn about an app, probe by probe, and export it.',
+    tableOfContents: false,
+  }}
+>
+  <p>
+    One worksheet per app or feature. Probe results you select in a chapter fill in fields here, and you can edit any
+    field by hand. Everything is saved in this browser only.
+  </p>
+
+  <TeardownBar manage />
+
+  <h2>Fields</h2>
+  <WorksheetForm />
+
+  <h2>Probe results</h2>
+  <ul id="probe-results" class="probe-results not-content"></ul>
+
+  <h2>Export</h2>
+  <div class="export not-content">
+    <button type="button" id="export-copy">Copy as Markdown</button>
+    <button type="button" id="export-download">Download .md file</button>
+    <button type="button" id="export-json">Download .json file</button>
+    <label class="import-label">
+      Import a .json teardown
+      <input type="file" id="import-json" accept="application/json,.json" />
+    </label>
+    <span id="export-status" aria-live="polite"></span>
+  </div>
+
+  <script type="application/json" id="worksheet-data" set:html={JSON.stringify(data)} />
+</StarlightPage>
+
+<script>
+  import { current, importTeardown, CHANGE_EVENT } from '../lib/store';
+
+  type Outcome = { label: string; reading: string; confidence: string };
+  type Chapter = {
+    chapter: number;
+    title: string;
+    link: string;
+    fields: { id: string; label: string }[];
+    probes: { id: string; name: string; outcomes: Outcome[] }[];
+  };
+
+  const chapters: Chapter[] = JSON.parse(document.querySelector('#worksheet-data')!.textContent!);
+  const results = document.querySelector<HTMLElement>('#probe-results')!;
+  const status = document.querySelector<HTMLElement>('#export-status')!;
+
+  const paint = () => {
+    const app = current();
+    const rows: HTMLElement[] = [];
+    for (const chapter of chapters) {
+      for (const probe of chapter.probes) {
+        const outcome = probe.outcomes[app.probes[probe.id]];
+        const row = document.createElement('li');
+        row.className = outcome ? 'done' : 'todo';
+        const link = document.createElement('a');
+        link.href = chapter.link;
+        link.textContent = `${probe.id} ${probe.name}`;
+        const text = document.createElement('span');
+        text.textContent = outcome ? `${outcome.label}. ${outcome.reading} (${outcome.confidence})` : 'Not run yet';
+        row.append(link, text);
+        rows.push(row);
+      }
+    }
+    results.replaceChildren(...rows);
+  };
+
+  const toMarkdown = () => {
+    const app = current();
+    const lines = [`# Teardown: ${app.name}`, ''];
+    for (const chapter of chapters) {
+      const fields = chapter.fields.filter((f) => app.fields[f.id]);
+      const probes = chapter.probes.filter((p) => app.probes[p.id] !== undefined);
+      if (fields.length === 0 && probes.length === 0) continue;
+      lines.push(`## ${chapter.chapter}. ${chapter.title}`, '');
+      for (const field of fields) lines.push(`- **${field.label}:** ${app.fields[field.id]}`);
+      if (probes.length > 0) {
+        lines.push('', '### Probe results', '');
+        for (const probe of probes) {
+          const outcome = probe.outcomes[app.probes[probe.id]];
+          lines.push(`- **${probe.id} ${probe.name}:** ${outcome.label}. ${outcome.reading} (${outcome.confidence})`);
+        }
+      }
+      lines.push('');
+    }
+    return lines.join('\n');
+  };
+
+  document.querySelector('#export-copy')!.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(toMarkdown());
+      status.textContent = 'Copied.';
+    } catch {
+      status.textContent = 'Copying is blocked in this browser. Use the download button.';
+    }
+  });
+
+  document.querySelector('#export-download')!.addEventListener('click', () => {
+    const url = URL.createObjectURL(new Blob([toMarkdown()], { type: 'text/markdown' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${current().name.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'teardown'}.md`;
+    link.click();
+    URL.revokeObjectURL(url);
+    status.textContent = 'Downloaded.';
+  });
+
+  const download = (text: string, type: string, extension: string) => {
+    const url = URL.createObjectURL(new Blob([text], { type }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${current().name.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'teardown'}.${extension}`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // The same format the command line tool writes, so teardowns move both ways.
+  document.querySelector('#export-json')!.addEventListener('click', () => {
+    const { name, probes, fields } = current();
+    download(JSON.stringify({ name, probes, fields }, null, 2), 'application/json', 'json');
+    status.textContent = 'Downloaded.';
+  });
+
+  document.querySelector<HTMLInputElement>('#import-json')!.addEventListener('change', async (event) => {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    try {
+      importTeardown(JSON.parse(await file.text()));
+      status.textContent = 'Imported.';
+    } catch {
+      status.textContent = 'That file is not a teardown in JSON format.';
+    }
+  });
+
+  window.addEventListener(CHANGE_EVENT, paint);
+  paint();
+</script>

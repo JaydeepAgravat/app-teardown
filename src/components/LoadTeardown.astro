@@ -1,0 +1,31 @@
+---
+// Offers a recorded teardown from the repository's teardowns folder to the reader's own worksheet.
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+interface Props {
+  /** Folder name under teardowns/. */
+  name: string;
+}
+
+const data = JSON.parse(readFileSync(join(process.cwd(), 'teardowns', Astro.props.name, 'teardown.json'), 'utf8'));
+const payload = { name: `${data.name} ${data.version ?? ''} (example)`.trim(), probes: data.probes, fields: data.fields };
+---
+
+<div class="load-teardown not-content" data-teardown={JSON.stringify(payload)}>
+  <button type="button">Load this teardown into my worksheet</button>
+  <span aria-live="polite">
+    {Object.keys(data.probes).length} probe outcomes and {Object.keys(data.fields).length} worksheet fields.
+  </span>
+</div>
+
+<script>
+  import { importTeardown } from '../lib/store';
+
+  document.querySelectorAll<HTMLElement>('.load-teardown').forEach((box) => {
+    box.querySelector('button')!.addEventListener('click', () => {
+      importTeardown(JSON.parse(box.dataset.teardown!));
+      box.querySelector('span')!.innerHTML = 'Loaded. <a href="/worksheet/">Open the worksheet</a> to see it.';
+    });
+  });
+</script>

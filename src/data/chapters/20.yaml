@@ -1,0 +1,269 @@
+chapter: 20
+title: Identity and sessions
+link: /part-2-concerns/20-identity-and-sessions/
+
+probes:
+  - id: P20.1
+    name: Offline while signed in
+    do:
+      - Use the app while signed in and online.
+      - Turn on airplane mode.
+      - Force-quit the app and launch it again.
+      - Turn the network back on and confirm you are still signed in.
+    watch: Which screen the app opens on with no network, and whether it still treats you as signed in when the network returns.
+    outcomes:
+      - label: The app opens on its signed-in screens
+        reading: "The stored session is trusted locally. A failed check or renewal is treated as a network fault, not as a refusal."
+        confidence: Inferred
+        fills: { c20-offline-session: trusted locally }
+      - label: The app opens on the sign-in screen
+        reading: "The client treats an unreachable backend as no session. If you are signed in again once the network returns, the session was never lost, only hidden."
+        confidence: Observed
+        fills: { c20-offline-session: treated as signed out }
+      - label: The app stays on a loading screen or shows a connection error
+        reading: "Launch waits for the backend to confirm the session. The app verifies before it shows anything."
+        confidence: Inferred
+        fills: { c20-offline-session: blocks on check }
+
+  - id: P20.2
+    name: Return after idle
+    do:
+      - If the app offers an unlock by fingerprint, face or passcode, turn it on in the app's own settings.
+      - Use the app, then leave it in the background for 15 minutes.
+      - Return to it online and note what it asks for.
+      - Repeat in airplane mode.
+    watch: Whether you return straight to your screen, meet an unlock prompt, or meet a full sign-in. With an unlock prompt, note whether it succeeds offline.
+    outcomes:
+      - label: Straight back to the screen, with no prompt
+        reading: "No idle gate. The session is trusted for as long as the renewal credential lasts."
+        confidence: Observed
+        fills: { c20-idle: no gate, c20-biometric: none }
+      - label: An unlock prompt that also succeeds offline
+        reading: "A local gate. The operating system confirms the owner is present and the backend is not involved."
+        confidence: Inferred
+        fills: { c20-idle: local unlock, c20-biometric: local gate }
+      - label: An unlock prompt that leads nowhere offline
+        reading: "Either the unlock is a proof made to the backend with a device-bound credential, or it is a local gate in front of an app with no offline content."
+        confidence: Speculative
+        fills: { c20-idle: local unlock, c20-biometric: needs network }
+      - label: A full sign-in with password or code
+        reading: "A short idle lifetime enforced by the backend. The session itself ended."
+        confidence: Inferred
+        fills: { c20-idle: full sign-in }
+
+  - id: P20.3
+    name: Many devices
+    caution: This probe can sign you out of your first device. Make sure you can sign in again before you start.
+    do:
+      - Stay signed in on device A and keep the app open.
+      - Sign in to the same account on device B, or on the web version.
+      - Look at A, and check the account's email inbox.
+      - If you have a third device, sign in there too.
+    watch: Whether A stays signed in, and whether A or your inbox reports the new sign-in.
+    outcomes:
+      - label: Every device stays signed in and nothing is reported
+        reading: "Independent sessions per device with no limit reached and no sign-in notice."
+        confidence: Observed
+        fills: { c20-concurrency: unlimited and silent }
+      - label: Every device stays signed in and the new sign-in is reported
+        reading: "Independent sessions, and the backend treats a new device as an event worth telling the owner about."
+        confidence: Observed
+        fills: { c20-concurrency: unlimited with notice }
+      - label: An earlier device is signed out
+        reading: "A limit on concurrent sessions. A new sign-in revokes the oldest session, or the only other one."
+        confidence: Observed
+        fills: { c20-concurrency: limited }
+
+  - id: P20.4
+    name: Revoke from the device list
+    caution: This probe signs you out of one of your devices.
+    do:
+      - Sign in on devices A and B.
+      - On A, find the list of signed-in devices in the account or security settings.
+      - Open the app on B and leave it on a screen without touching it.
+      - On A, remove B from the list. Watch B for 30 seconds.
+      - If B has not changed, tap something on B that needs the backend. If it still works, try again every few minutes.
+    watch: How long B keeps working after it is removed, and what B shows when it stops.
+    outcomes:
+      - label: B signs out within seconds, untouched
+        reading: "Revocation is pushed to the device over a persistent connection or by platform push."
+        confidence: Inferred
+        fills: { c20-device-list: present, c20-revocation-speed: seconds }
+      - label: B fails on the first tap after removal
+        reading: "The gateway checks the session record on every request."
+        confidence: Inferred
+        fills: { c20-device-list: present, c20-revocation-speed: next request }
+      - label: B keeps working for minutes or longer, then fails
+        reading: "A self-contained access credential. Revocation lands at the next renewal, and the delay approximates the access credential's lifetime."
+        confidence: Inferred
+        fills: { c20-device-list: present, c20-revocation-speed: at renewal }
+      - label: The app has no device list
+        reading: "Sessions may still be tracked per device, and the app does not show them. Revocation of one device cannot be tested."
+        confidence: Observed
+        fills: { c20-device-list: absent, c20-revocation-speed: not testable }
+
+  - id: P20.5
+    name: Password change elsewhere
+    caution: This probe changes your password and can sign you out everywhere. Record the new password before you start.
+    do:
+      - Sign in on devices A and B.
+      - Change the account password on A. Note any option about other devices that the screen offers.
+      - Use the app on B.
+    watch: Whether B is signed out, and whether B explains why.
+    outcomes:
+      - label: B is signed out
+        reading: "A password change revokes the other sessions. A message on B that names the cause means the refusal carries a reason."
+        confidence: Observed
+        fills: { c20-password-change: others signed out }
+      - label: B stays signed in
+        reading: "Sessions are independent of the password. A stolen session survives a password change in this design."
+        confidence: Observed
+        fills: { c20-password-change: others stay signed in }
+      - label: The account has no password
+        reading: "Sign-in is by one-time code, identity provider or device-bound credential only. Use P20.4 for revocation."
+        confidence: Observed
+        fills: { c20-password-change: no password }
+
+  - id: P20.6
+    name: Long absence
+    do:
+      - Sign in on a spare device, or pick an app you can leave alone.
+      - Do not open the app for as long as you can afford. Several weeks is ideal.
+      - Open it online.
+    watch: Whether you are still signed in, and if not, how much the app remembers about you.
+    outcomes:
+      - label: Still signed in
+        reading: "The idle lifetime is longer than your absence, or there is none."
+        confidence: Observed
+        fills: { c20-lifetime: still signed in }
+      - label: Asked to confirm with one tap, an unlock or a password, with your account shown
+        reading: "The session ended and the device kept an identifier. A renewal credential with an idle lifetime shorter than your absence."
+        confidence: Inferred
+        fills: { c20-lifetime: reconfirm }
+      - label: An empty sign-in screen
+        reading: "The session ended and nothing identifying was kept, or sign-out on expiry clears everything."
+        confidence: Inferred
+        fills: { c20-lifetime: full sign-in }
+
+  - id: P20.7
+    name: Reinstall
+    caution: Deleting the app removes its data on this device. Confirm that anything you care about has reached the backend first.
+    do:
+      - While signed in, delete the app from the device.
+      - Install it again from the store and open it.
+    watch: Whether you are signed in, recognized, or unknown. Note whether a filled-in sign-in form was filled by the app or offered by the operating system's password manager.
+    outcomes:
+      - label: Signed in at once
+        reading: "The credential outlived the app, in secure hardware-backed storage that survives an uninstall or in storage shared with another app from the same maker."
+        confidence: Inferred
+        fills: { c20-reinstall: signed in }
+      - label: The app shows your name or account and asks for a proof
+        reading: "An identifier or a device-bound credential survived, and the session did not."
+        confidence: Inferred
+        fills: { c20-reinstall: account remembered }
+      - label: An empty sign-in screen
+        reading: "Nothing of the session survived, or the app wipes stored credentials on a first launch."
+        confidence: Observed
+        fills: { c20-reinstall: clean }
+
+  - id: P20.8
+    name: Guest to account
+    do:
+      - On a fresh install, use the app without signing in, if it allows that.
+      - Create some state that costs nothing, such as a saved item, a cart entry or a setting.
+      - Sign in to your existing account, or create one.
+    watch: Whether the guest state is present in the account afterwards, and whether the app asks you what to do with it.
+    outcomes:
+      - label: The guest state appears in the account
+        reading: "Guest state is merged at conversion, either from a guest session on the backend or by upload from the device."
+        confidence: Observed
+        fills: { c20-guest: merged }
+      - label: The guest state is gone
+        reading: "Guest state lived on the device only and was discarded, or the merge rule lets the account win."
+        confidence: Inferred
+        fills: { c20-guest: discarded }
+      - label: The app cannot be used without an account
+        reading: "No guest use. Identity is required before any content."
+        confidence: Observed
+        fills: { c20-guest: no guest use }
+
+  - id: P20.9
+    name: Recovery path
+    caution: Stop before the final step. Completing recovery changes your credentials and can sign you out everywhere.
+    do:
+      - Sign out, or use the web version in a private window.
+      - Choose the option for a forgotten password or lost access.
+      - Read each screen and note what proof is asked for. Do not complete the last step.
+    watch: How many separate proofs stand between a stranger and your account on this path.
+    outcomes:
+      - label: One link or code to the registered email or phone
+        reading: "Single-channel recovery. The account is as strong as that channel."
+        confidence: Observed
+        fills: { c20-recovery: single channel }
+      - label: A further proof, a recovery code, another device or a waiting period
+        reading: "Recovery is guarded by more than one channel. The backend keeps recovery state per account."
+        confidence: Observed
+        fills: { c20-recovery: extra proof }
+      - label: No self-service path, only a route to support
+        reading: "Recovery is a human process. Expect identity checks outside the app."
+        confidence: Observed
+        fills: { c20-recovery: support only }
+
+  - id: P20.10
+    name: Several accounts
+    do:
+      - Look for an option to add a second account in the app's account menu.
+      - If it exists, add a second account of your own and switch back and forth.
+      - Switch once more in airplane mode.
+    watch: Whether a switch asks for credentials, how long it takes, and whether it works offline.
+    outcomes:
+      - label: Switching is instant and asks for nothing
+        reading: "A session and a partition of the local store per account, kept side by side. If the switch also works offline, each partition holds its own data."
+        confidence: Inferred
+        fills: { c20-multi-account: instant switch }
+      - label: Switching asks for a password, code or unlock
+        reading: "One live session at a time. The app remembers identifiers and signs in again on each switch."
+        confidence: Inferred
+        fills: { c20-multi-account: switch with credentials }
+      - label: Only one account, with sign out as the only way to change
+        reading: "A single-account design. All stored data belongs to the one session."
+        confidence: Observed
+        fills: { c20-multi-account: one account }
+
+signals:
+  - { signal: Sign-in opens a sheet that belongs to another party, design: Identity provider. The app's backend checks a signed statement and issues its own session, confidence: Inferred }
+  - { signal: Sign-in asks for a system unlock and nothing typed, design: Device-bound credential held in secure hardware-backed storage, confidence: Inferred }
+  - { signal: A code field with a resend control and no password, design: "One-time code. Every sign-in proves control of a channel", confidence: Observed }
+  - { signal: The app opens as signed in with no network, design: Stored session trusted locally and verified later, confidence: Inferred }
+  - { signal: The app shows the sign-in screen when offline and is signed in again when online, design: An unreachable backend is treated as a refusal, confidence: Inferred }
+  - { signal: Signed out with a message that names the cause, design: The backend's refusal carries a reason and the network client passes it to the UI, confidence: Inferred }
+  - { signal: Every action fails until the app is restarted, design: Renewal was refused and the UI was not told, confidence: Inferred }
+  - { signal: Signed out at random and more often on a weak network, design: Rotation of the renewal credential without protection against concurrent or lost renewals, confidence: Speculative }
+  - { signal: A revoked device signs out within seconds while idle, design: Revocation pushed through async delivery, confidence: Inferred }
+  - { signal: A revoked device fails on its next request, design: Session record checked at the gateway on every request, confidence: Inferred }
+  - { signal: A revoked device keeps working for minutes, design: Self-contained access credential checked only at renewal, confidence: Inferred }
+  - { signal: The device list shows last-active times to the minute, design: Session record written on every request, confidence: Speculative }
+  - { signal: A new sign-in signs out an older device, design: Limit on concurrent sessions per account, confidence: Observed }
+  - { signal: A biometric unlock succeeds in airplane mode, design: Local gate. The backend is not involved, confidence: Inferred }
+  - { signal: The app asks for a full sign-in after the device's enrolled fingerprints or faces change, design: Key in secure hardware that is invalidated when biometrics change, confidence: Inferred }
+  - { signal: Signed in immediately after a reinstall, design: Credential kept in storage that survives an uninstall, confidence: Inferred }
+  - { signal: A guest receives a notification about saved items, design: Guest session on the backend with a push registration, confidence: Inferred }
+  - { signal: Account switching works offline and at once, design: Session and local store partitioned per account, confidence: Inferred }
+
+worksheet:
+  - { id: c20-methods, label: "Sign-in methods offered, by moment" }
+  - { id: c20-second-factor, label: Second factor at sign-in, options: [none seen, optional, required] }
+  - { id: c20-offline-session, label: Session with no network, options: [trusted locally, treated as signed out, blocks on check] }
+  - { id: c20-idle, label: Return after idle, options: [no gate, local unlock, full sign-in] }
+  - { id: c20-biometric, label: Biometric unlock, options: [none, local gate, needs network] }
+  - { id: c20-concurrency, label: Concurrent devices, options: [unlimited and silent, unlimited with notice, limited] }
+  - { id: c20-device-list, label: Device list, options: [present, absent] }
+  - { id: c20-revocation-speed, label: Revocation reaches the device, options: [seconds, next request, at renewal, not testable] }
+  - { id: c20-password-change, label: Password change elsewhere, options: [others signed out, others stay signed in, no password] }
+  - { id: c20-lifetime, label: After a long absence, options: [still signed in, reconfirm, full sign-in] }
+  - { id: c20-reinstall, label: After a reinstall, options: [signed in, account remembered, clean] }
+  - { id: c20-guest, label: Guest state at conversion, options: [merged, discarded, no guest use] }
+  - { id: c20-recovery, label: Account recovery, options: [single channel, extra proof, support only] }
+  - { id: c20-multi-account, label: Several accounts, options: [instant switch, switch with credentials, one account] }
+  - { id: c20-backend, label: Backend components implied }
+  - { id: c20-failures, label: Failure modes seen }

@@ -1,0 +1,247 @@
+chapter: 11
+title: Local storage, caching and prefetching
+link: /part-2-concerns/11-local-storage-caching-and-prefetching/
+
+probes:
+  - id: P11.1
+    name: Memory or disk
+    do:
+      - Open a content screen while online and let it finish loading.
+      - Go to another screen, then turn on airplane mode.
+      - Return to the first screen and note what appears.
+      - Force-quit the app, open it again while still in airplane mode, and return to the same screen.
+    watch: Whether the content appears on each of the two offline visits. Look at text and images separately, since they are often cached by different components.
+    outcomes:
+      - label: Content appears on both offline visits
+        reading: "The screen's data is in a disk cache or a local store. It survived process death."
+        confidence: Inferred
+        fills: { c11-cache-tier: memory and disk }
+      - label: Content appears before the force-quit and not after
+        reading: "The data was held in a memory cache only. Nothing for this screen is written to disk."
+        confidence: Inferred
+        fills: { c11-cache-tier: memory only }
+      - label: Content appears on neither visit
+        reading: "The screen reads from the network every time and does not fall back to a local copy."
+        confidence: Observed
+        fills: { c11-cache-tier: none }
+
+  - id: P11.2
+    name: Read policy
+    do:
+      - Pick a screen whose content you can change from elsewhere, for example your own profile edited on a second device or on the web.
+      - Open the screen on the test device, then leave it.
+      - Change the content from the other device.
+      - "Return to the screen on the test device, online, within a minute. Do not pull to refresh."
+      - If nothing changes, wait and return again at intervals, and then pull to refresh.
+    watch: Whether a loading state appears, whether old content appears first, and when the new content replaces it.
+    outcomes:
+      - label: A loading state, then the new content
+        reading: "Network only or network first. The cache is not read while the network works. P11.1 tells the two apart."
+        confidence: Inferred
+        fills: { c11-read-policy: network only or network first }
+      - label: Old content at once, then it changes to the new content by itself
+        reading: "Stale-while-revalidate. The cache is shown and a background fetch replaces it."
+        confidence: Observed
+        fills: { c11-read-policy: stale-while-revalidate }
+      - label: Old content stays until some time has passed or you refresh by hand
+        reading: "Cache then network. An entry younger than a time limit is shown without a fetch. The interval at which the new content finally appears estimates the limit."
+        confidence: Inferred
+        fills: { c11-read-policy: cache then network }
+      - label: New content is already there, with no loading state
+        reading: "The change was delivered before you returned, by push or a persistent connection, into a store the screen reads. This is the read side of cache only."
+        confidence: Inferred
+        fills: { c11-read-policy: cache only }
+
+  - id: P11.3
+    name: Late revisit
+    do:
+      - Run P11.1 first, on a screen that appeared offline after a force-quit.
+      - Do not open the app online for at least a day. Several days is better.
+      - Turn on airplane mode, open the app and go to that screen.
+    watch: Whether the old content is still shown, and whether the app says how old it is.
+    outcomes:
+      - label: The old content appears, with no remark
+        reading: "Expired entries are served when the network is unavailable, and the app does not surface their age."
+        confidence: Observed
+        fills: { c11-stale-offline: shown }
+      - label: The old content appears with a notice of its age or of being offline
+        reading: "Expired entries are served offline and the client tracks when each was stored."
+        confidence: Observed
+        fills: { c11-stale-offline: shown with notice }
+      - label: The content is gone
+        reading: "Either a hard time limit that applies offline too, or the entry was evicted in the meantime. Repeat with a shorter gap to tell them apart."
+        confidence: Speculative
+        fills: { c11-stale-offline: refused }
+
+  - id: P11.4
+    name: Storage growth
+    do:
+      - Open the device's storage settings and note the figure for the app's data, separate from the app's own size.
+      - Browse media-heavy content for ten minutes without revisiting anything.
+      - Note the figure again.
+      - Repeat the browsing and the note two or three more times, across a day or more if you can.
+    watch: Whether the figure keeps rising at the same rate, rises and then levels off, or hardly moves.
+    outcomes:
+      - label: The figure rises, then levels off or drops back
+        reading: "A disk cache with a bound and eviction. The level it settles at estimates the bound."
+        confidence: Inferred
+        fills: { c11-size-bound: bounded }
+      - label: The figure keeps rising with no ceiling seen
+        reading: "Either no bound, or a bound larger than you reached. More browsing can only confirm a bound, never rule one out."
+        confidence: Speculative
+        fills: { c11-size-bound: no bound seen }
+      - label: The figure hardly moves
+        reading: "Little is written to disk. Content is held in memory, or the cache is very small."
+        confidence: Inferred
+        fills: { c11-size-bound: little stored }
+
+  - id: P11.5
+    name: Clear cache
+    caution: Use only a control inside the app that is labeled as clearing the cache. Do not use the device-level control that clears all of the app's data, which signs you out and can delete drafts and downloads.
+    do:
+      - Look in the app's settings for a storage screen or a clear-cache control.
+      - If one exists, note the storage figure, use the control, and note the figure again.
+      - Check whether you are still signed in, and whether settings, drafts and downloads are intact.
+      - Revisit a screen you had open before.
+    watch: What the control removes and what it leaves.
+    outcomes:
+      - label: There is no such control
+        reading: "No evidence either way. Many apps with well-separated caches do not expose them."
+        confidence: Observed
+        fills: { c11-clear-control: none }
+      - label: The figure drops, you stay signed in, and settings and downloads are intact
+        reading: "Cached data is stored apart from data that cannot be recreated. Screens reload from the backend."
+        confidence: Inferred
+        fills: { c11-clear-control: cache only }
+      - label: The control also removes downloads, drafts or settings
+        reading: "Cached data and user data share a store or an area, or the control is broader than its label."
+        confidence: Observed
+        fills: { c11-clear-control: clears user data too }
+
+  - id: P11.6
+    name: Unvisited detail
+    do:
+      - On an unmetered network, open a list you have not seen before and let it finish loading. Do not open any item.
+      - Wait ten seconds, then turn on airplane mode.
+      - Open an item you have never opened.
+    watch: Which parts of the detail screen appear. Compare them with what the list row already showed.
+    outcomes:
+      - label: Nothing appears, or an error
+        reading: "The detail screen fetches everything on open and receives nothing from the list."
+        confidence: Observed
+        fills: { c11-detail-source: fetched on open }
+      - label: Only what the list row showed appears, and the rest fails to load
+        reading: "Seeding. The detail screen starts from the list item or from a shared entity cache. No detail request was made ahead."
+        confidence: Inferred
+        fills: { c11-detail-source: seeded from list }
+      - label: Content the list row did not show appears, such as full text or a large image
+        reading: "Either the detail was prefetched, or the list response already carried the full items. Both mean the data was on the device before you asked."
+        confidence: Inferred
+        fills: { c11-detail-source: on device before open }
+
+  - id: P11.7
+    name: Metered and unmetered
+    do:
+      - Run P11.6 on an unmetered wireless network and note the outcome.
+      - Turn wireless off so the device uses cellular data.
+      - Run P11.6 again on a different list.
+      - Also compare how media behaves on each network, for example whether the next video starts without buffering.
+      - Look in the app's settings for a control over data use.
+    watch: Whether less is ready ahead of time on the metered network.
+    outcomes:
+      - label: The same content is ready ahead of time on both networks
+        reading: "Prefetching is not conditioned on the network type, or there is no prefetching to condition."
+        confidence: Observed
+        fills: { c11-prefetch-condition: same on both }
+      - label: Less is ready ahead of time on the metered network
+        reading: "Prefetching is limited on metered networks. The client reads the network type from platform services."
+        confidence: Inferred
+        fills: { c11-prefetch-condition: reduced on metered }
+      - label: The app has its own setting that governs this
+        reading: "The team treats data cost as a user-facing choice. Test each position of the setting."
+        confidence: Observed
+        fills: { c11-prefetch-condition: user setting }
+
+  - id: P11.8
+    name: Sign out and in
+    caution: Signing out can discard unsent changes and offline downloads. Check that nothing is pending before you start, and make sure you know your credentials.
+    do:
+      - Note the app's storage figure in device settings.
+      - Sign out and note the figure again.
+      - Sign in again with the same account, online.
+      - Go to screens you had visited before signing out.
+    watch: How far the storage figure drops at sign out, and whether screens appear at once or reload after sign in.
+    outcomes:
+      - label: The figure drops sharply and every screen reloads
+        reading: "Sign out deletes the user's local data and caches."
+        confidence: Inferred
+        fills: { c11-sign-out: cleared }
+      - label: The figure hardly drops and screens appear at once
+        reading: "Cached data survives sign out. If it is user-specific, it is exposed to the next person who uses the device."
+        confidence: Inferred
+        fills: { c11-sign-out: kept }
+      - label: The figure drops partly, and data reloads while images appear at once
+        reading: "Selective deletion. User data is removed and shared media is kept."
+        confidence: Inferred
+        fills: { c11-sign-out: partly kept }
+
+  - id: P11.9
+    name: Ahead of opening
+    do:
+      - Use the app normally for a few days so the operating system learns that you open it.
+      - Leave the device on an unmetered network and charging overnight, with the app not opened.
+      - In the morning, turn on airplane mode before opening the app.
+      - Open the app and look for content newer than your last visit.
+      - Repeat on a night when the device is not charging and is on cellular data.
+    watch: Whether content published after you last closed the app is present with no network.
+    outcomes:
+      - label: New content is present on both nights
+        reading: "The app fetches ahead of opening, through a background task or a push hint, without a charging or network condition."
+        confidence: Inferred
+        fills: { c11-background-fetch: "yes" }
+      - label: New content is present only after the night on power and unmetered network
+        reading: "The app fetches ahead of opening, and the work is conditioned on charging or on an unmetered network."
+        confidence: Inferred
+        fills: { c11-background-fetch: only when charging or unmetered }
+      - label: Only the content from your last visit is present
+        reading: "No fetch ahead of opening was seen. The operating system may also have declined to run the task, so one night is weak evidence."
+        confidence: Speculative
+        fills: { c11-background-fetch: "no" }
+
+signals:
+  - { signal: A revisited screen appears with no loading state, design: The screen reads a cache or local store before the network, confidence: Inferred }
+  - { signal: A loading state on every visit to a screen, design: Network only or network first read policy, confidence: Inferred }
+  - { signal: Content appears at once and then changes a moment later, design: Stale-while-revalidate, confidence: Observed }
+  - { signal: Content changed elsewhere stays old for a fixed period, design: Cache then network with a time limit, confidence: Inferred }
+  - { signal: Offline content survives a force-quit, design: Disk cache or local store, confidence: Inferred }
+  - { signal: Offline content is lost after a force-quit, design: Memory cache only, confidence: Inferred }
+  - { signal: Your own change shows on every screen without a refresh, design: "Entity cache, one record per item observed by all screens", confidence: Inferred }
+  - { signal: Two screens show different values for the same item, design: Response cache with incomplete invalidation on write, confidence: Inferred }
+  - { signal: Frequent refreshes with low mobile data use, design: "Validators, so unchanged data is confirmed without a body", confidence: Speculative }
+  - { signal: The app's storage figure levels off during long browsing, design: Disk cache with a size bound and eviction, confidence: Inferred }
+  - { signal: Cached content is gone after the device ran low on space while settings remain, design: Cached data kept in the area the operating system may clear, confidence: Inferred }
+  - { signal: A never-opened detail screen shows only the fields its list row had, design: Seeding from the list item, confidence: Inferred }
+  - { signal: A never-opened detail screen is complete while offline, design: Prefetched detail or a list response that carries full items, confidence: Inferred }
+  - { signal: Scrolling at normal speed never reaches a loading indicator, design: Next page prefetched before the end of the list, confidence: Inferred }
+  - { signal: The next video is ready on an unmetered network and buffers on cellular, design: Prefetching conditioned on network type, confidence: Inferred }
+  - { signal: Fresh content is present at launch in airplane mode, design: Fetch ahead of opening by a background task or push hint, confidence: Inferred }
+  - { signal: The previous account's data shows briefly after a new sign in, design: Sign out leaves a store or memory cache uncleared, confidence: Inferred }
+  - { signal: The app signs you in by itself after a reinstall, design: Session token in secure storage that outlives the app's data, confidence: Speculative }
+
+worksheet:
+  - { id: c11-storage-kinds, label: Kinds of storage in evidence }
+  - { id: c11-cache-tier, label: Cache tiers, options: [none, memory only, memory and disk] }
+  - { id: c11-read-policy, label: Read policy, options: [network only or network first, cache then network, stale-while-revalidate, cache only] }
+  - { id: c11-time-limit, label: Estimated time limit }
+  - { id: c11-stale-offline, label: Expired data offline, options: [shown, shown with notice, refused] }
+  - { id: c11-cache-shape, label: Cache shape, options: [response cache, entity cache, unknown] }
+  - { id: c11-invalidation, label: Invalidation in evidence, options: [time limit only, on write, by push, on write and by push] }
+  - { id: c11-size-bound, label: Disk cache bound, options: [bounded, no bound seen, little stored] }
+  - { id: c11-clear-control, label: Clear-cache control, options: [none, cache only, clears user data too] }
+  - { id: c11-detail-source, label: Detail screen data source, options: [fetched on open, seeded from list, on device before open] }
+  - { id: c11-prefetch-forms, label: Prefetch forms seen }
+  - { id: c11-prefetch-condition, label: Prefetch on metered network, options: [same on both, reduced on metered, user setting] }
+  - { id: c11-background-fetch, label: Fetch ahead of opening, options: ["yes", only when charging or unmetered, "no"] }
+  - { id: c11-sign-out, label: Local data at sign out, options: [cleared, kept, partly kept] }
+  - { id: c11-backend, label: Backend support implied }
+  - { id: c11-failures, label: Failure modes seen }

@@ -1,0 +1,240 @@
+chapter: 38
+title: "Modularity, SDKs and team scale"
+link: /part-2-concerns/38-modularity-sdks-and-team-scale/
+
+probes:
+  - id: P38.1
+    name: Read the licenses screen
+    do:
+      - Look through the app's settings for a screen titled licenses, acknowledgments, open-source notices or legal notices. It is often under an about or legal entry.
+      - Read the list of names. You do not need to read the license texts.
+      - Sort the names you recognize into categories, such as networking, images, storage, UI toolkit, animation, analytics and media.
+      - Note any name that suggests a cross-platform toolkit or a shared-logic runtime.
+    watch: How long the list is, which categories appear, and whether one category has two entries doing the same job.
+    outcomes:
+      - label: A long list across many categories
+        reading: "The maker states that the app includes these components. A broad list is usual for a large app, and two libraries for one job suggests teams that chose separately."
+        confidence: Observed
+        fills: { c38-licenses: long list }
+      - label: A short list
+        reading: "The maker lists few open-source components. The team builds on the platform's own libraries, or the list is incomplete. Commercial SDKs do not appear here in either case."
+        confidence: Observed
+        fills: { c38-licenses: short list }
+      - label: No such screen can be found
+        reading: "No conclusion. The notices may be on a website or in a place you did not find."
+        confidence: Observed
+        fills: { c38-licenses: not found }
+
+  - id: P38.2
+    name: Read the store's privacy listing
+    do:
+      - Open the app's page in the store and find the section in which the maker declares the data the app collects.
+      - "Read three things: which kinds of data, whether each is linked to your identity, and whether any is used for third-party advertising or for tracking across other companies' apps."
+      - Compare with the categories you found in P38.1.
+    watch: Whether the declaration mentions tracking or third-party advertising, and whether it mentions diagnostics.
+    outcomes:
+      - label: Data used for tracking or third-party advertising is declared
+        reading: "The maker states it. An advertising or attribution SDK in the app is the usual reason."
+        confidence: Inferred
+        fills: { c38-privacy-listing: third-party tracking declared }
+      - label: Data is declared for the maker's own purposes only
+        reading: "The maker states that data is collected for its own analytics, diagnostics or function. SDKs may still be present, serving the maker."
+        confidence: Observed
+        fills: { c38-privacy-listing: own purposes only }
+      - label: No data collection is declared
+        reading: "The maker states that the app collects nothing. Consistent with an app that has no backend and no SDKs. You observe the statement, not its truth."
+        confidence: Observed
+        fills: { c38-privacy-listing: none declared }
+
+  - id: P38.3
+    name: Compare the look of each area
+    do:
+      - List the app's areas. Use the tabs, plus settings, search, checkout, help and any feature reached from a menu.
+      - "In each area, take a screenshot of the same four things: a primary button, a list row, an empty or loading state, and a screen title."
+      - Lay the screenshots side by side.
+    watch: Button height and corner shape, typeface and text sizes, spacing, icon style, and how loading is drawn.
+    outcomes:
+      - label: Every area matches
+        reading: "One shared module of UI components serves the whole app. A design system, and a team that maintains it."
+        confidence: Inferred
+        fills: { c38-visual-consistency: consistent }
+      - label: One or two areas differ from the rest
+        reading: "Those areas were built outside the design system. An older area, an acquired product, a third-party screen or a different UI family."
+        confidence: Inferred
+        fills: { c38-visual-consistency: a few areas differ }
+      - label: Most areas differ from each other
+        reading: "No shared component module, or one that teams do not adopt. Each team draws its own."
+        confidence: Inferred
+        fills: { c38-visual-consistency: most areas differ }
+
+  - id: P38.4
+    name: Compare the behavior of each area
+    caution: This probe uses airplane mode, which interrupts calls and other apps on that device.
+    do:
+      - "In each area from P38.3, try the same four actions and note what happens."
+      - Pull down to refresh.
+      - Turn on airplane mode, open the area, and read the error or offline state and its wording.
+      - Turn airplane mode off, change an item in one area that another area also shows, and visit the other area without refreshing.
+      - Use the system's back control from two screens deep.
+    watch: Whether refresh, offline behavior, error wording and back behave the same in every area, and whether a change made in one area is visible in another.
+    outcomes:
+      - label: Every area behaves the same, and changes carry across areas
+        reading: "The areas share a network client, a data layer and a navigation system. Strong shared modules under the features."
+        confidence: Inferred
+        fills: { c38-behavior-consistency: consistent }
+      - label: Behavior differs between areas, at the same borders where the look differs
+        reading: "Separate teams with separate conventions. Several differences that change at one border make a team boundary the best explanation."
+        confidence: Inferred
+        fills: { c38-behavior-consistency: differs at the same borders as the look }
+      - label: Behavior differs between areas that look the same
+        reading: "A shared design system over separate data layers. The UI was unified centrally and the logic was not."
+        confidence: Inferred
+        fills: { c38-behavior-consistency: differs under a consistent look }
+
+  - id: P38.5
+    name: First use of a feature
+    do:
+      - Note the app's size in the device's storage settings, the app itself and not its data.
+      - Open features you have never used on this device, starting with large and unusual ones, such as a scanner, an editor, a game, a camera effect or an accessory setup.
+      - Watch for a progress indicator and read any text beside it.
+      - Close and reopen each feature.
+      - Read the app's size again.
+    watch: Whether an indicator appears on the first open only, what its text says is being downloaded, and whether the app's own size grew.
+    outcomes:
+      - label: Every feature opens at once
+        reading: "No on-demand delivery was seen. Every feature you tried is in the installed package."
+        confidence: Observed
+        fills: { c38-on-demand: none seen }
+      - label: A download or installing indicator appears once, and the app grows
+        reading: "An on-demand module or a downloaded asset. The two cannot be separated from outside unless the indicator says which."
+        confidence: Speculative
+        fills: { c38-on-demand: downloaded once }
+      - label: A loading indicator appears every time the feature opens
+        reading: "The feature loads its content on each visit. Embedded web content, a hosted mini-program or ordinary data loading, and not an on-demand module."
+        confidence: Inferred
+        fills: { c38-on-demand: loads every time }
+
+  - id: P38.6
+    name: Read the version history
+    do:
+      - Open the app's version history in the store listing.
+      - Write down the dates of the last ten to twenty releases and the gaps between them.
+      - Read the notes. Sort them into notes that describe specific changes and notes that are the same generic sentence each time.
+      - If you can see the other platform's listing, compare its dates.
+    watch: Whether the gaps are regular, whether the notes are specific, and whether both platforms release on the same days.
+    outcomes:
+      - label: A regular rhythm of one or two weeks, with generic notes
+        reading: "Releases leave by the calendar and do not wait for features. This implies feature flags and automated checks, and a team large enough to need the process."
+        confidence: Inferred
+        fills: { c38-cadence: fixed rhythm }
+      - label: Irregular releases with specific notes
+        reading: "Releases are cut when a feature or fix is ready. Typical of a small team, where the release is the feature."
+        confidence: Inferred
+        fills: { c38-cadence: irregular }
+      - label: A few releases a year or fewer
+        reading: "Little active development on the client, or a product whose changes happen on the backend."
+        confidence: Speculative
+        fills: { c38-cadence: rare }
+
+  - id: P38.7
+    name: App size against feature count
+    do:
+      - Read the app's size from the store listing or the device's storage settings, the app itself and not its data.
+      - Count the app's distinct features roughly. Tabs, plus major functions reached from menus.
+      - Do the same for two or three apps of similar scope.
+      - If the version history shows sizes of past versions, note the trend.
+    watch: Whether the app is much larger or smaller than its peers for a similar feature count, and whether it grows with every release.
+    outcomes:
+      - label: Small for its feature count
+        reading: "A size budget that is enforced, or features that live on the backend as web content or hosted mini-programs."
+        confidence: Speculative
+        fills: { c38-size: small for scope }
+      - label: In line with its peers
+        reading: "No conclusion from size."
+        confidence: Observed
+        fills: { c38-size: in line with scope }
+      - label: Much larger than its peers
+        reading: "Accumulated modules and SDKs, a bundled engine, or bundled media and models. Size has too many sources to pick one."
+        confidence: Speculative
+        fills: { c38-size: large for scope }
+
+  - id: P38.8
+    name: Prompts at first launch
+    caution: This probe needs a fresh install. Deleting the app removes its local data, such as drafts and downloads. Check that nothing is unsent, and make sure you know your credentials.
+    do:
+      - Delete the app and install it again, or use a device that has never had it.
+      - Open it and count the seconds until the first frame.
+      - Note every prompt that appears before you reach the first real screen, such as consent to tracking, a privacy notice with a partner list, or a notification request.
+      - Decline where you can, and note whether the app continues normally.
+    watch: Which prompts appear before any feature is used, and whether a prompt for a capability appears only when you first use the feature that needs it.
+    outcomes:
+      - label: A tracking or consent prompt appears before the first screen
+        reading: "At least one SDK is set to start at launch and needs consent first. SDK initialization is tied to startup."
+        confidence: Inferred
+        fills: { c38-first-launch: prompts before first content }
+      - label: Prompts appear only at first use of the feature that needs them
+        reading: "Lazy initialization. Modules and SDKs start when used, which is the rule a well-designed library follows."
+        confidence: Inferred
+        fills: { c38-first-launch: prompts at first relevant use }
+      - label: No prompts appear at all
+        reading: "No SDK that needs consent is present, or the app's region does not require the prompt. Compare with P38.2."
+        confidence: Speculative
+        fills: { c38-first-launch: no prompts }
+
+  - id: P38.9
+    name: Parity across platforms
+    do:
+      - Use the app on one device of each platform, if you have both. Sign in to the same account on each.
+      - Compare the feature list, including recent additions named in the version notes.
+      - Enter the same unusual input on both, such as a very long name, an invalid date or an empty required field, and compare the messages word for word.
+      - Compare any defect you have noticed on one platform with the other.
+    watch: Whether both platforms have the same features at the same time, and whether edge cases and wording match exactly.
+    outcomes:
+      - label: The same features, with identical edge-case behavior and wording
+        reading: "Shared logic under both apps, or two teams working from one precise specification. The two cannot be separated."
+        confidence: Speculative
+        fills: { c38-parity: identical on both }
+      - label: The same features, with differences in edge cases or wording
+        reading: "Two implementations of one specification. Logic is not shared at that level."
+        confidence: Inferred
+        fills: { c38-parity: same features with different details }
+      - label: Features are missing or late on one platform
+        reading: "Separate teams with separate plans for each platform."
+        confidence: Inferred
+        fills: { c38-parity: differs by platform }
+
+signals:
+  - { signal: "Look, loading, errors and offline behavior all change at the same border between two areas", design: "A boundary between two teams and their feature modules", confidence: Inferred }
+  - { signal: "Every button, row and empty state matches across dozens of screens", design: "A shared design system with a team that maintains it", confidence: Inferred }
+  - { signal: "A new visual style reaches every screen in one release", design: "UI components defined once in a shared module", confidence: Inferred }
+  - { signal: "A redesign spreads screen by screen over many releases", design: "No shared component module. Each team restyles by hand", confidence: Inferred }
+  - { signal: "A change made in one area is stale in another", design: "Separate copies per feature module with no shared store across the boundary", confidence: Inferred }
+  - { signal: "A download indicator on the first open of a feature only, and the app grows afterwards", design: "An on-demand module or a downloaded asset", confidence: Speculative }
+  - { signal: "A feature cannot be opened for the first time offline, though it needs no data", design: "Code or assets for the feature are not in the installed package", confidence: Inferred }
+  - { signal: "The licenses screen names a library", design: "The maker states that the app includes it", confidence: Observed }
+  - { signal: "The licenses screen names two libraries for the same job", design: "Teams that chose dependencies separately, or a migration in progress", confidence: Speculative }
+  - { signal: "The store's privacy listing declares tracking across other companies' apps", design: "An advertising or attribution SDK", confidence: Inferred }
+  - { signal: "A payment sheet, chat or ad that does not match the app's controls", design: "A screen supplied by a third-party SDK", confidence: Inferred }
+  - { signal: "One function fails alone while the rest of the app works", design: "A dependency on a third-party backend or on one team's service", confidence: Inferred }
+  - { signal: "A consent prompt before the first screen", design: "An SDK initialized at launch", confidence: Inferred }
+  - { signal: "Releases every one or two weeks with generic notes", design: "A calendar-driven release process with feature flags", confidence: Inferred }
+  - { signal: "The app is far larger than peers with similar features", design: "Accumulated modules and SDKs, a bundled engine or bundled assets", confidence: Speculative }
+  - { signal: "Identical edge-case behavior and wording on both platforms", design: "Shared logic across platforms, or one precise specification", confidence: Speculative }
+  - { signal: "A feature exists on one platform and not the other for months", design: "Separate platform teams with separate plans", confidence: Inferred }
+  - { signal: "An area asks for a second sign-in or has its own account screen", design: "A separate product and backend joined to the app, often by acquisition", confidence: Speculative }
+
+worksheet:
+  - { id: c38-licenses, label: Licenses screen, options: [long list, short list, not found] }
+  - { id: c38-sdk-categories, label: Library and SDK categories the maker lists }
+  - { id: c38-privacy-listing, label: Store privacy listing, options: [third-party tracking declared, own purposes only, none declared] }
+  - { id: c38-visual-consistency, label: Visual consistency across areas, options: [consistent, a few areas differ, most areas differ] }
+  - { id: c38-behavior-consistency, label: Behavioral consistency across areas, options: [consistent, differs at the same borders as the look, differs under a consistent look] }
+  - { id: c38-team-seams, label: Borders where several things change at once }
+  - { id: c38-on-demand, label: Download at first use, options: [none seen, downloaded once, loads every time] }
+  - { id: c38-cadence, label: Release rhythm, options: [fixed rhythm, irregular, rare] }
+  - { id: c38-size, label: App size for its scope, options: [small for scope, in line with scope, large for scope] }
+  - { id: c38-first-launch, label: Prompts at first launch, options: [prompts before first content, prompts at first relevant use, no prompts] }
+  - { id: c38-parity, label: Parity across platforms, options: [identical on both, same features with different details, differs by platform, not compared] }
+  - { id: c38-third-party-screens, label: Screens supplied by third parties }
+  - { id: c38-structure-claim, label: Module structure claim and its confidence }
+  - { id: c38-unobservable, label: Questions that cannot be observed }

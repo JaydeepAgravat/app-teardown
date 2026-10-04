@@ -1,0 +1,22 @@
+chapter: 6
+title: The teardown worksheet
+link: /part-1-method/6-the-teardown-worksheet/
+
+worksheet:
+  - { id: c6-app-name, label: App name }
+  - { id: c6-category, label: Store category }
+  - { id: c6-version, label: App version tested }
+  - { id: c6-date, label: Date of the teardown }
+  - { id: c6-platforms, label: Platforms and devices tested }
+  - { id: c6-accounts, label: "Accounts used, and any plan or region that may change behavior" }
+  - { id: c6-depth, label: Depth, options: [quick, full] }
+  - { id: c6-archetype, label: Archetype guess, options: [Messaging, Social feed and stories, Video and short-video streaming, Audio streaming and podcasts, Marketplace and e-commerce, "On-demand services: rides and delivery", Booking and reservations, "Banking, payments and fintech", Maps and navigation, "Notes, documents and collaboration", Meetings and calling, AI assistants, "Health, fitness and connected devices", Games, Super-apps and mini-programs, Apps with no backend, Fits no archetype] }
+  - { id: c6-features, label: Features in scope }
+  - { id: c6-out-of-scope, label: Features left out }
+  - { id: c6-client-components, label: Client components present }
+  - { id: c6-backend-components, label: Backend components present }
+  - { id: c6-concerns, label: Dominant concerns and the chapters used }
+  - { id: c6-published, label: "Published statements from the maker, with source and date" }
+  - { id: c6-backend-sketch, label: Backend sketch }
+  - { id: c6-open-questions, label: "Open questions, each with the probe or publication that would settle it" }
+  - { id: c6-summary, label: Summary of findings with confidence words }

@@ -1,0 +1,231 @@
+chapter: 51
+title: "Health, fitness and connected devices"
+link: /part-3-archetypes/51-health-fitness-and-connected-devices/
+
+probes:
+  - id: P51.1
+    name: Kill mid-workout
+    caution: Use a test workout you do not need. In some designs the recording is lost.
+    do:
+      - Start recording a workout and walk for five minutes with the phone in a pocket.
+      - Open the app and note the elapsed time and the distance.
+      - Force-quit the app. Keep walking for two minutes.
+      - Open the app again.
+    watch: Whether the workout is still there, whether the app offers to continue it, and what it shows for the two minutes after the force-quit.
+    outcomes:
+      - label: The workout is still running or the app offers to resume it, with the first five minutes intact
+        reading: "Samples are written durably to the local store as they arrive, and the recording session is stored state that the app restores at launch."
+        confidence: Inferred
+        fills: { c51-kill-recovery: resumes with data kept }
+      - label: The app shows a finished or partial workout that ends at the force-quit
+        reading: "Samples are written durably as they arrive. The session itself is not restored, so the recording ends where the process did."
+        confidence: Inferred
+        fills: { c51-kill-recovery: saved as a partial workout }
+      - label: The workout is gone
+        reading: "Samples were held in memory until the workout was saved. Process death during a recording loses it."
+        confidence: Inferred
+        fills: { c51-kill-recovery: lost }
+
+  - id: P51.2
+    name: Offline workout, end to end
+    do:
+      - Sign in to the same account on a second device, or on the web version, and keep it at hand.
+      - On the phone, turn on airplane mode, then start, record and save a ten-minute workout.
+      - Check that the saved workout opens on the phone with its full detail.
+      - Turn the network back on and put the phone down without opening the app. Wait ten minutes.
+      - Look for the workout on the second device. Then open the app on the phone and look again.
+    watch: Whether the workout can be recorded and saved offline, and what causes it to reach the second device.
+    outcomes:
+      - label: It reaches the second device while the app stays closed on the phone
+        reading: "The saved workout is an entry in a durable outbox, and a deferred task drains it when the network returns."
+        confidence: Inferred
+        fills: { c51-offline-recording: records and saves offline, c51-upload: in the background after reconnect }
+      - label: It reaches the second device only after the app is opened on the phone
+        reading: "The workout is stored durably, and the outbox is drained only while the app is in the foreground."
+        confidence: Inferred
+        fills: { c51-offline-recording: records and saves offline, c51-upload: on next open }
+      - label: It never reaches the second device, and each device shows its own history
+        reading: "The data stays on the device. There is no backend copy, or sync is a feature that is turned off."
+        confidence: Inferred
+        fills: { c51-offline-recording: records and saves offline, c51-upload: none seen }
+      - label: The app refuses to start or to save the workout offline
+        reading: "Recording depends on the backend. The session is created or saved by a request, which is unusual for this archetype."
+        confidence: Observed
+        fills: { c51-offline-recording: refuses offline }
+
+  - id: P51.3
+    name: History from before the install
+    do:
+      - Install the app on a phone you have carried for at least a week, or use a fresh install.
+      - Grant the motion or health permissions it asks for.
+      - Open the step or daily activity screen at once and look at the days before the install.
+      - Compare today's step count with the figure on the device's own health screen.
+    watch: Whether days before the install have data, and whether today's figure matches the system's.
+    outcomes:
+      - label: Earlier days are filled in, and today's figure matches the system's
+        reading: "The app reads step history from platform services or from the platform health data store. It does not count steps itself."
+        confidence: Inferred
+        fills: { c51-step-source: platform history }
+      - label: Data starts at the install, and today's figure differs from the system's
+        reading: "The app counts in its own process from raw motion data, and has nothing from times when it was not running."
+        confidence: Inferred
+        fills: { c51-step-source: counted in the app }
+      - label: Nothing appears until an accessory has synced
+        reading: "The accessory is the source of daily activity, and the phone's own sensors are not used."
+        confidence: Inferred
+        fills: { c51-step-source: accessory }
+
+  - id: P51.4
+    name: Accessory away from the phone
+    caution: This probe leaves the phone behind, or turns off its short-range radio, which also disconnects other accessories. Turn the radio back on afterwards.
+    do:
+      - Sign in to the same account on a second device or the web version.
+      - Wear the accessory and move out of range of the phone for at least an hour. Walk during that hour.
+      - Return within range of the phone, or turn the radio back on. Do not open the app.
+      - After fifteen minutes, look at the away period on the second device.
+      - Open the app on the phone, wait for any sync indicator to finish, and look at the away period again.
+    watch: Whether the away period arrives with minute-by-minute detail, and whether it arrived before you opened the app.
+    outcomes:
+      - label: The away period is on the second device, in detail, before the app is opened
+        reading: "The accessory stores its data, and the operating system wakes the app when the accessory reconnects. The app pulls the stored batches and uploads them in the background."
+        confidence: Inferred
+        fills: { c51-accessory-sync: in the background, c51-accessory-gap: backfilled in detail }
+      - label: The away period appears, in detail, only after the app is opened and a sync runs
+        reading: "The accessory stores its data, and the transfer runs only while the app is in the foreground."
+        confidence: Inferred
+        fills: { c51-accessory-sync: on opening the app, c51-accessory-gap: backfilled in detail }
+      - label: Only totals appear for the away period, without detail
+        reading: "The accessory keeps counters or summaries and not the samples. Its storage or the link is too small for the full record."
+        confidence: Inferred
+        fills: { c51-accessory-gap: backfilled as totals }
+      - label: The away period is empty
+        reading: "The accessory streams live and stores nothing. Data exists only while the phone is listening."
+        confidence: Inferred
+        fills: { c51-accessory-gap: lost }
+
+  - id: P51.5
+    name: Workout on the watch alone
+    do:
+      - Use the app's watch app, if it has one. Switch the phone off completely.
+      - On the watch, start a workout, walk outdoors for ten minutes and end it.
+      - With the phone still off, look for the workout on a second device or the web version.
+      - Switch the phone on, wait ten minutes and look again.
+    watch: Whether the watch can record without the phone, and whether the workout reaches the backend before the phone returns.
+    outcomes:
+      - label: The watch records it, and it is on the second device while the phone is still off
+        reading: "The watch app works alone. It has its own local store, its own session and its own network client."
+        confidence: Inferred
+        fills: { c51-watch: works alone with its own network }
+      - label: The watch records it, and it reaches the second device only after the phone is back
+        reading: "The watch has its own local store and recording session, and relies on the phone to relay data to the backend."
+        confidence: Inferred
+        fills: { c51-watch: records alone and syncs through the phone }
+      - label: The watch cannot start a workout without the phone
+        reading: "The watch is a remote control for a recording that runs on the phone."
+        confidence: Observed
+        fills: { c51-watch: needs the phone }
+
+  - id: P51.6
+    name: One workout, two sources
+    do:
+      - In the app's settings, allow it to read and to write workouts in the platform health data store.
+      - Record a ten-minute walk in the app and save it.
+      - Open the device's own health screen and confirm that the walk is there.
+      - Return to the app. Force-quit and reopen it, then look at the workout list and at today's totals.
+      - If you have a second source, such as an accessory that also recorded the walk, wait for it to sync and look once more.
+    watch: Whether the same walk appears once or twice in the list, and whether the day's totals count it once.
+    outcomes:
+      - label: One entry, and the totals count the walk once
+        reading: "Each record carries a source and a client-generated id. The app recognizes its own writes when it reads them back, and overlapping sources are resolved by a rule."
+        confidence: Inferred
+        fills: { c51-duplicates: one entry }
+      - label: Two entries for the same walk, or totals that are doubled
+        reading: "The app imports what it reads from the platform health data store without matching it against what it wrote or recorded itself."
+        confidence: Observed
+        fills: { c51-duplicates: two entries }
+      - label: One entry that names two sources
+        reading: "Overlapping records are detected by time and type, and merged with their sources kept."
+        confidence: Observed
+        fills: { c51-duplicates: merged entry }
+
+  - id: P51.7
+    name: Revoke health access
+    caution: This probe changes a permission in the device settings. Grant it again afterwards if you want the app to keep working as before.
+    do:
+      - Confirm that the app shows data that it read from the platform health data store, such as steps or sleep.
+      - Leave the app. In the device settings, remove the app's permission to read health data.
+      - Return to the app and open the same screens.
+      - Open a workout that you recorded in the app itself.
+    watch: What the screens show for data that came from the platform, whether the app says why, and whether its own recordings are still there.
+    outcomes:
+      - label: A notice names the missing access, and workouts recorded in the app remain
+        reading: "The app checks access each time it reads, has a degraded mode, and keeps its own recordings in its own local store."
+        confidence: Observed
+        fills: { c51-health-revoke: explains and keeps own data }
+      - label: Screens show zeros, blanks or old figures with no notice
+        reading: "The app cannot tell refused access from an absence of data, or does not check. Some platforms hide the difference by design."
+        confidence: Observed
+        fills: { c51-health-revoke: silent stale or empty }
+      - label: The app blocks every screen until access is granted
+        reading: "The platform health data store is the app's only source of data, and there is no degraded mode."
+        confidence: Observed
+        fills: { c51-health-revoke: blocks the app }
+
+  - id: P51.8
+    name: Leave during a firmware update
+    caution: Run this only when the app offers an update. Keep the accessory charged and next to the phone, and do not force-quit the app or switch anything off during the update.
+    do:
+      - Start the accessory update and note the progress figure after one minute.
+      - Leave the app for the home screen and lock the phone. Look for a progress notification.
+      - After three minutes, open the app and note the progress figure.
+      - Let the update finish before you do anything else.
+    watch: Whether progress advanced while you were away, and whether it continued or started again when you returned.
+    outcomes:
+      - label: Progress advanced while away, with an indicator shown by the system
+        reading: "The transfer runs as user-visible work, so the app keeps its link to the accessory in the background."
+        confidence: Inferred
+        fills: { c51-firmware: continues in the background }
+      - label: Progress stopped while away and continued from the same point on return
+        reading: "The transfer has no background grant. It is resumable, so the accessory keeps the parts it already holds."
+        confidence: Inferred
+        fills: { c51-firmware: pauses and resumes }
+      - label: Progress started again from zero, or the update failed
+        reading: "The transfer has no background grant and is not resumable. The app asks you to keep it open for that reason."
+        confidence: Inferred
+        fills: { c51-firmware: restarts or fails }
+
+signals:
+  - { signal: A persistent system indicator shows for the whole length of a workout, design: The recording runs as user-visible work, confidence: Observed }
+  - { signal: A workout survives a force-quit and the app offers to resume it, design: Samples and the recording session are written durably to the local store as they arrive, confidence: Inferred }
+  - { signal: A workout recorded in airplane mode reaches another device later without being opened again, design: Durable outbox drained by a deferred task, confidence: Inferred }
+  - { signal: "The route of a workout is drawn with long straight segments while the phone was in a pocket", design: Location readings were reduced or paused in the background to save battery, confidence: Inferred }
+  - { signal: Step history appears for days before the app was installed, design: Steps are read from platform services or the platform health data store, confidence: Inferred }
+  - { signal: The app's step count differs from the device's own health screen, design: The app counts in its own process or takes steps from an accessory, confidence: Inferred }
+  - { signal: Opening the app shows a sync indicator and then fills in the last hours, design: The accessory stores data and the transfer runs in the foreground only, confidence: Inferred }
+  - { signal: Data from an accessory is on other devices before the app is opened, design: The operating system wakes the app when the accessory reconnects, confidence: Inferred }
+  - { signal: Time spent away from the phone shows totals and no detail, design: The accessory keeps summaries and not samples, confidence: Inferred }
+  - { signal: The watch starts and records a workout with the phone switched off, design: The watch app has its own local store and recording session, confidence: Inferred }
+  - { signal: The same walk appears twice in the workout list, design: Records from two sources are imported without duplicate detection, confidence: Observed }
+  - { signal: A workout recorded in the app appears in other apps on the same device with no account in common, design: The app writes to the platform health data store, confidence: Inferred }
+  - { signal: "A permission screen drawn by the system lists each kind of health data, with separate switches to read and to write", design: Access to the platform health data store is granted per data type and per direction, confidence: Observed }
+  - { signal: "The app works fully with no account, and a new phone starts empty", design: "The data stays on the device, or in the platform health data store, with no backend copy", confidence: Inferred }
+  - { signal: A settings screen offers export and deletion of health data apart from account deletion, design: Sensitive data has its own consent record and its own retention path, confidence: Speculative }
+  - { signal: An accessory update asks you to keep the app open and the accessory close, design: The firmware transfer has no background grant, confidence: Inferred }
+  - { signal: "Battery use for the app is high on workout days and close to zero on other days", design: Sensors and location are subscribed only during a recording session, confidence: Inferred }
+  - { signal: "Live figures such as heart rate freeze when the accessory moves out of range and recover on return", design: A live stream over the short-range radio beside the stored batches, confidence: Inferred }
+
+worksheet:
+  - { id: c51-variant, label: Variant, options: [phone-only tracker, paired accessory, platform health data store client, mixed] }
+  - { id: c51-kill-recovery, label: Recording after a force-quit, options: [resumes with data kept, saved as a partial workout, lost] }
+  - { id: c51-offline-recording, label: Recording without a network, options: [records and saves offline, refuses offline] }
+  - { id: c51-upload, label: Upload of a saved workout, options: [in the background after reconnect, on next open, live during recording, none seen] }
+  - { id: c51-step-source, label: Source of steps and daily activity, options: [platform history, counted in the app, accessory] }
+  - { id: c51-accessory-sync, label: Accessory sync trigger, options: [in the background, on opening the app, manual only, no accessory] }
+  - { id: c51-accessory-gap, label: Data from time away from the phone, options: [backfilled in detail, backfilled as totals, lost] }
+  - { id: c51-watch, label: Watch app, options: [works alone with its own network, records alone and syncs through the phone, needs the phone, no watch app] }
+  - { id: c51-duplicates, label: Same workout from two sources, options: [one entry, two entries, merged entry] }
+  - { id: c51-health-store, label: Use of the platform health data store, options: [reads and writes, reads only, writes only, none] }
+  - { id: c51-health-revoke, label: After health access is revoked, options: [explains and keeps own data, silent stale or empty, blocks the app] }
+  - { id: c51-firmware, label: Firmware update when you leave the app, options: [continues in the background, pauses and resumes, restarts or fails, not tested] }
+  - { id: c51-consent, label: "Consent and privacy: what is asked, when, and what can be exported or deleted" }
+  - { id: c51-notes, label: Notes and open questions }

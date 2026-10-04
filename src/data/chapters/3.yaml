@@ -1,0 +1,149 @@
+chapter: 3
+title: The universal app model
+link: /part-1-method/3-the-universal-app-model/
+
+probes:
+  - id: P3.1
+    name: Offline tour
+    do:
+      - Use the app online for a few minutes, and open several screens.
+      - Force-quit the app.
+      - Turn on airplane mode.
+      - Open the app and revisit those screens.
+      - Open a screen you did not visit, and try one action that changes data.
+    watch: Whether content appears after the cold start, whether the app mentions the network at all, and whether the action is refused, accepted or accepted with a pending indicator.
+    outcomes:
+      - label: Nothing appears, or only an error
+        reading: "Content is held in memory only and comes from a backend. There is no local store for content."
+        confidence: Inferred
+        fills: { c3-local-store: absent, c3-network-client: present, c3-backend-store: present }
+      - label: Visited content appears, other content and actions fail
+        reading: "A local store or cache on the device, filled from a backend through a network client."
+        confidence: Inferred
+        fills: { c3-local-store: present, c3-network-client: present, c3-backend-store: present }
+      - label: The action is accepted with a pending indicator
+        reading: "A local store and a queue of unsent changes. Whether a sync engine drains it is settled in Chapter 12."
+        confidence: Inferred
+        fills: { c3-local-store: present, c3-network-client: present, c3-sync-engine: unclear }
+      - label: Everything works and nothing mentions the network
+        reading: "Either the app has no backend, or it writes to a local replica and syncs later. P3.2 separates the two."
+        confidence: Speculative
+        fills: { c3-local-store: present }
+
+  - id: P3.2
+    name: Second device
+    do:
+      - Sign in to the same account on a second device, or on the web version if one exists.
+      - Open the same screen on both, and keep the second device's screen on.
+      - Create or change an item on the first device.
+      - Watch the second device for one minute without touching it.
+      - If nothing changes, refresh the screen or reopen the app on the second device.
+    watch: Whether the change reaches the second device at all, and whether it arrives while you watch or only after you refresh.
+    outcomes:
+      - label: The app has no account, and no way to move data to another device
+        reading: "No backend store for user data. The local store is the only copy."
+        confidence: Inferred
+        fills: { c3-backend-store: absent, c3-sync-engine: absent, c3-change-log: absent }
+      - label: The change appears only after a refresh or a reopen
+        reading: "A backend store holds the data. Nothing delivered the change to an open screen, so async delivery is not used for this feature."
+        confidence: Inferred
+        fills: { c3-backend-store: present, c3-services: present }
+      - label: The change appears while you watch
+        reading: "A backend store, plus async delivery to a running client over a persistent connection or by polling. Chapter 14 separates those."
+        confidence: Inferred
+        fills: { c3-backend-store: present, c3-services: present, c3-async-delivery: present }
+      - label: The change appears with no app account, only on devices of the same platform account
+        reading: "The data moves through storage the platform provides. The app's team may run no backend store of its own."
+        confidence: Speculative
+        fills: { c3-backend-store: unclear, c3-platform-services: present }
+
+  - id: P3.3
+    name: Delivery to a closed app
+    do:
+      - Pick an event that another device or account can cause, such as a message, a comment or a shared item.
+      - On the receiving device, allow notifications for the app, put the app in the background and lock the screen.
+      - Wait ten minutes, then cause the event from the other device or account.
+      - When a notification arrives, wait one more minute, then turn on airplane mode on the receiving device.
+      - Open the app from its icon, not from the notification.
+    watch: Whether a notification arrives, and whether the new item is already inside the app when you open it offline.
+    outcomes:
+      - label: No notification arrives
+        reading: "This event has no async delivery to a closed app, or the notification category is turned off. Check the app's notification settings before recording it as absent."
+        confidence: Speculative
+        fills: { c3-async-delivery: unclear }
+      - label: A notification arrives, and the item is already in the app offline
+        reading: "Async delivery by push, and a background worker that fetched and stored the item before you opened the app."
+        confidence: Inferred
+        fills: { c3-async-delivery: present, c3-background-workers: present, c3-platform-services: present, c3-local-store: present }
+      - label: A notification arrives, and the item is missing until you go online
+        reading: "Async delivery by push that carries only the notification text. No background worker stored the item."
+        confidence: Inferred
+        fills: { c3-async-delivery: present, c3-platform-services: present, c3-background-workers: unclear }
+
+  - id: P3.4
+    name: Text before media
+    do:
+      - Find a weak connection, or a place where the app is clearly slow.
+      - Open a screen with many images or videos that you have not opened before.
+      - Scroll slowly through it.
+    watch: The order in which text, layout and images arrive, and whether images change sharpness after they appear.
+    outcomes:
+      - label: Text and layout first, images fill in one by one
+        reading: "Media is fetched separately from data. The backend has media delivery apart from the services that return data."
+        confidence: Inferred
+        fills: { c3-media-delivery: present }
+      - label: Images appear blurred or small, then sharpen
+        reading: "Media delivery that serves more than one size of each image. The client asks for a small one first."
+        confidence: Inferred
+        fills: { c3-media-delivery: present }
+      - label: Text and images appear together, in one step
+        reading: "Either the media was already cached, or it travels with the data. Repeat on a screen you are sure is new."
+        confidence: Speculative
+        fills: { c3-media-delivery: unclear }
+      - label: The app shows no remote media
+        reading: "All images ship inside the app. No media delivery."
+        confidence: Observed
+        fills: { c3-media-delivery: absent }
+
+signals:
+  - { signal: Content appears on a cold start in airplane mode, design: Local store or cache on the device, confidence: Inferred }
+  - { signal: The app works fully offline and never asks you to sign in, design: "No backend for user data. Third parties may still be present", confidence: Speculative }
+  - { signal: Search over old content works offline, design: A local store the client can query, confidence: Inferred }
+  - { signal: A change on one screen shows on another screen with no reload, design: A shared data layer that screens observe, confidence: Inferred }
+  - { signal: A list shows the old value until you refresh it, design: Each screen fetches and holds its own data, confidence: Inferred }
+  - { signal: "Totals, validation or filters work with no network", design: Domain logic on the client, confidence: Inferred }
+  - { signal: A rule or a price changes with no app update, design: Domain logic in backend services, confidence: Inferred }
+  - { signal: A half-typed form is still there after a long time in the background, design: Screen state saved to durable storage, confidence: Inferred }
+  - { signal: Offline changes send while you are on a different screen, design: App-level sync engine, confidence: Inferred }
+  - { signal: An upload finishes after you leave the app, design: Background worker, confidence: Inferred }
+  - { signal: Content is already current when you open the app offline after a notification, design: Push plus a background worker that fetches and stores, confidence: Inferred }
+  - { signal: Every screen shows the same sign-in or update prompt at the same moment, design: "A gateway in front of all services, and one network client", confidence: Speculative }
+  - { signal: One tab fails while the others keep working, design: Separate backend services per feature, confidence: Speculative }
+  - { signal: Data returns after a reinstall and sign-in, design: Backend store is the source of truth, confidence: Inferred }
+  - { signal: A deletion on one device removes the item on another, design: Change log or equivalent that carries deletions, confidence: Speculative }
+  - { signal: A notification arrives while the app is closed, design: Async delivery through the platform's push service, confidence: Observed }
+  - { signal: Text loads first and images fill in afterwards, design: Media delivery separate from data services, confidence: Inferred }
+  - { signal: A payment sheet or sign-in screen carries another company's name, design: Third party in the flow, confidence: Observed }
+  - { signal: Device settings list a permission for the app, design: The app uses that platform service, confidence: Observed }
+
+worksheet:
+  - { id: c3-ui, label: UI, options: [present, absent, unclear] }
+  - { id: c3-screen-state, label: Screen state, options: [present, absent, unclear] }
+  - { id: c3-domain-logic, label: Domain logic on the client, options: [present, absent, unclear] }
+  - { id: c3-data-layer, label: Shared data layer, options: [present, absent, unclear] }
+  - { id: c3-local-store, label: Local store, options: [present, absent, unclear] }
+  - { id: c3-network-client, label: Network client, options: [present, absent, unclear] }
+  - { id: c3-sync-engine, label: Sync engine, options: [present, absent, unclear] }
+  - { id: c3-background-workers, label: Background workers, options: [present, absent, unclear] }
+  - { id: c3-platform-services, label: Platform services, options: [present, absent, unclear] }
+  - { id: c3-platform-list, label: Platform services used }
+  - { id: c3-gateway, label: Gateway, options: [present, absent, unclear] }
+  - { id: c3-services, label: Services, options: [present, absent, unclear] }
+  - { id: c3-backend-store, label: Backend store, options: [present, absent, unclear] }
+  - { id: c3-change-log, label: Change log, options: [present, absent, unclear] }
+  - { id: c3-async-delivery, label: Async delivery, options: [present, absent, unclear] }
+  - { id: c3-media-delivery, label: Media delivery, options: [present, absent, unclear] }
+  - { id: c3-third-parties, label: Third parties, options: [present, absent, unclear] }
+  - { id: c3-third-party-list, label: Third parties seen }
+  - { id: c3-closest-subset, label: Closest subset, options: [no backend, content app, messaging app, other] }
+  - { id: c3-notes, label: Evidence and open questions }

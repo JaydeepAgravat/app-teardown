@@ -1,0 +1,267 @@
+chapter: 39
+title: Messaging
+link: /part-3-archetypes/39-messaging/
+
+probes:
+  - id: P39.1
+    name: Status stages
+    do:
+      - Use two accounts, A and B, on two devices. A second account of your own is best.
+      - Put A in airplane mode and send a text message to B.
+      - Note the mark next to the message on A.
+      - Turn the network back on at A and keep watching the mark. Keep the app closed on B.
+      - Open the conversation on B and look at A again.
+    watch: How many distinct marks the message passes through on A, and which action on either device causes each change.
+    outcomes:
+      - label: Four marks, one each for pending, sent, delivered and read
+        reading: "The send path has three separate acknowledgments. One from the backend, one from a recipient device that stored the message, and one from the recipient opening the conversation."
+        confidence: Observed
+        fills: { c39-status-stages: "sending, sent, delivered, read" }
+      - label: Three marks, with no separate delivered mark
+        reading: "The backend acknowledges the send, and a read position is shared. Recipient devices do not report storage, or the app chooses not to show it."
+        confidence: Observed
+        fills: { c39-status-stages: "sending, sent, read" }
+      - label: Pending, then sent, and nothing after that
+        reading: "Only the backend acknowledgment reaches the sender. Read state is not shared, or it is turned off in settings on one of the accounts."
+        confidence: Observed
+        fills: { c39-status-stages: "sending, sent" }
+      - label: The message is refused or marked failed while offline
+        reading: "There is no outbox for messages. The feature is Level 1 at most, which is rare for this archetype."
+        confidence: Observed
+        fills: { c39-status-stages: no offline send }
+
+  - id: P39.2
+    name: Recipient switched off
+    do:
+      - Sign B out of every device except one, and switch that device off completely.
+      - Send a message from A to B.
+      - Wait several minutes and note the mark on A.
+      - Switch B's device on, and do not open the app.
+      - Note the mark on A again, then open the app on B.
+    watch: Whether the mark on A changes while B's device is off, when it comes on, or only when B opens the app.
+    outcomes:
+      - label: Delivered appears when B's device comes on, before the app is opened
+        reading: "The backend holds the message for the device, a platform push wakes the client, and the client stores the message and acknowledges it in the background."
+        confidence: Inferred
+        fills: { c39-offline-recipient: delivered in background }
+      - label: Delivered appears only when B opens the app
+        reading: "The backend holds the message, and the client fetches and acknowledges it only in the foreground. A notification may still show, drawn from the push alone."
+        confidence: Inferred
+        fills: { c39-offline-recipient: delivered on open }
+      - label: Delivered appears while B's device is still off
+        reading: "Delivered means that the backend accepted the message for B, and not that a device holds it."
+        confidence: Inferred
+        fills: { c39-offline-recipient: delivered means backend accepted }
+      - label: There is no delivered mark at any point
+        reading: "No device acknowledgment is shown. The probe cannot tell whether the backend receives one."
+        confidence: Speculative
+        fills: { c39-offline-recipient: no delivered stage }
+
+  - id: P39.3
+    name: Crossed messages
+    do:
+      - Open the same conversation on A and B.
+      - Put A in airplane mode and send "one" from A. It stays pending.
+      - Send "two" from B.
+      - Turn the network back on at A and wait for both marks to settle.
+      - Compare the order of "one" and "two" on both devices. Close and reopen the conversation on each and compare again.
+    watch: Whether both devices agree on the order, and whether "one" changes position on A after it is confirmed.
+    outcomes:
+      - label: Both devices show "two" before "one"
+        reading: "The backend assigns the position in the conversation when it accepts a message. A reconciles its local order to that position."
+        confidence: Inferred
+        fills: { c39-order: backend sequence }
+      - label: Both devices show "one" before "two"
+        reading: "The conversation is ordered by the time the sender's device recorded, not by arrival at the backend."
+        confidence: Inferred
+        fills: { c39-order: sender time }
+      - label: The two devices show different orders
+        reading: "Each device orders by what it saw first. There is no shared position, and the conversation can differ between participants."
+        confidence: Observed
+        fills: { c39-order: differs per device }
+
+  - id: P39.4
+    name: New device history
+    do:
+      - Use an account that has months of conversations on one device, the old device.
+      - Switch the old device off, or put it in airplane mode.
+      - Sign in to the same account on a device that has never had the app. Decline any offer to restore a backup, if you can.
+      - Open several conversations and scroll back.
+      - If no history appears, switch the old device on and follow whatever the app offers.
+    watch: How much history appears with the old device off, and what the app asks for before it shows more.
+    outcomes:
+      - label: Full history appears with the old device off
+        reading: "The backend keeps the conversations and can serve them to any signed-in device."
+        confidence: Inferred
+        fills: { c39-history-home: backend, c39-new-device-history: from the backend }
+      - label: History appears only after a transfer from the old device
+        reading: "The device is the main copy. The backend cannot supply history, so one of your devices sends it to the other."
+        confidence: Inferred
+        fills: { c39-history-home: device, c39-new-device-history: transfer from the old device }
+      - label: History appears only after you restore a backup
+        reading: "The device is the main copy, and a backup you control stands in for the old device."
+        confidence: Inferred
+        fills: { c39-history-home: device, c39-new-device-history: restore from a backup }
+      - label: Conversations start empty and only new messages arrive
+        reading: "The device is the main copy and nothing moved it. The backend relays messages and does not keep them."
+        confidence: Inferred
+        fills: { c39-history-home: device, c39-new-device-history: none }
+
+  - id: P39.5
+    name: Old conversation on a second device
+    do:
+      - On a second device that has been signed in for a while, open a conversation you have not opened there before.
+      - Scroll back as far as you can, and note any pause or loading indicator.
+      - Pick a different conversation that is also unopened on this device.
+      - Turn on airplane mode and scroll back in that one.
+    watch: Whether old messages are already on the device, load in pages while you scroll, or stop at a fixed point.
+    outcomes:
+      - label: Old messages appear at once, online and offline
+        reading: "The device holds a full replica of the conversation history."
+        confidence: Inferred
+        fills: { c39-old-history: full replica on the device }
+      - label: Old messages load in pages online and stop loading offline
+        reading: "The device holds a recent window. Backfill of older messages comes from the backend on demand."
+        confidence: Inferred
+        fills: { c39-old-history: recent window with backfill }
+      - label: History stops at a fixed point, online as well
+        reading: "This device received a limited copy of history when it was linked, and nothing can supply the rest."
+        confidence: Inferred
+        fills: { c39-old-history: limited copy from linking }
+
+  - id: P39.6
+    name: Interrupted video
+    caution: This probe uploads a large file. Run it on a connection where the data cost does not matter, and send it to your own second account.
+    do:
+      - Pick a video of a few hundred megabytes, or the largest the app accepts.
+      - Move to a weak connection and send the video to your second account.
+      - When the progress indicator is near the middle, turn on airplane mode.
+      - Wait one minute, turn the network back on, and watch the progress indicator.
+      - Send a short text in the same conversation while the upload is still running.
+    watch: Where the progress resumes from, whether you must tap to retry, and whether the text overtakes the video.
+    outcomes:
+      - label: Progress continues from where it stopped
+        reading: "A resumable transfer. The media is uploaded in parts, apart from the message, and the backend tracks which parts it holds."
+        confidence: Inferred
+        fills: { c39-media-send: resumes }
+      - label: Progress starts again from zero without a tap
+        reading: "The upload is retried automatically as a single request. There is no resumable transfer."
+        confidence: Inferred
+        fills: { c39-media-send: restarts }
+      - label: The message is marked failed and waits for a tap
+        reading: "The upload belongs to the screen that started it. No background worker owns the transfer."
+        confidence: Inferred
+        fills: { c39-media-send: fails until retried }
+
+  - id: P39.7
+    name: Offline search
+    do:
+      - Choose a distinctive word that you know is in a message more than a year old, in a conversation you have not opened recently.
+      - Choose a second word from a message sent this week.
+      - Turn on airplane mode.
+      - Search for each word.
+      - Turn the network back on and search for the old word again.
+    watch: Which of the two words is found offline, and whether the old word is found online.
+    outcomes:
+      - label: Both words are found offline
+        reading: "An on-device index over a full replica. The backend takes no part in search."
+        confidence: Inferred
+        fills: { c39-search: on-device over full history }
+      - label: Only the recent word is found offline, and the old word is found online
+        reading: "An on-device index over the recent window, with backend search for the rest. The backend can read message content."
+        confidence: Inferred
+        fills: { c39-search: on-device recent plus backend }
+      - label: Search does not work offline at all
+        reading: "Backend search only. The backend can read message content."
+        confidence: Inferred
+        fills: { c39-search: backend only }
+      - label: The old word is not found online either
+        reading: "Search covers only what this device holds, and this device does not hold the old message."
+        confidence: Inferred
+        fills: { c39-search: on-device over partial history }
+
+  - id: P39.8
+    name: Delete for everyone
+    do:
+      - Sign B in on two devices, B1 and B2. If the app allows one device only, use B1 alone and take it offline in the third step.
+      - Send a message from A and confirm that it shows on B1 and B2.
+      - Put B2 in airplane mode.
+      - On A, delete the message for everyone.
+      - Check B1. Then turn the network back on at B2, open the app and check it.
+    watch: What replaces the message on each device, and whether the device that was offline catches up.
+    outcomes:
+      - label: A placeholder replaces the message on every device
+        reading: "The deletion is a tombstone that keeps the message's position in the conversation and reaches devices through catch-up."
+        confidence: Inferred
+        fills: { c39-delete: tombstone with placeholder }
+      - label: The message vanishes without a trace on every device
+        reading: "The deletion travels through catch-up like any change, and clients remove the item instead of marking it."
+        confidence: Inferred
+        fills: { c39-delete: removed everywhere }
+      - label: The message remains on the device that was offline
+        reading: "The deletion is sent as a live event only. A device that misses the event never learns of it."
+        confidence: Inferred
+        fills: { c39-delete: missed by the offline device }
+      - label: The app does not offer the action, or refuses it
+        reading: "A sent message is treated as final, or the time limit for deletion has passed. Try again with a message sent a moment ago."
+        confidence: Observed
+        fills: { c39-delete: not offered }
+
+  - id: P39.9
+    name: Phone off, companion on
+    do:
+      - Sign in on the web or desktop version, if one exists, while the phone is online.
+      - Put the phone in airplane mode, or switch it off.
+      - Wait a few minutes. Send a message from the web or desktop version to your second account.
+      - Reply from the second account.
+      - Reload the web or desktop version with the phone still off.
+    watch: Whether messages send and arrive without the phone, and whether the companion still shows its conversations after a reload.
+    outcomes:
+      - label: Sending, receiving and reload all work with the phone off
+        reading: "Each device is an independent client with its own connection and its own cursor."
+        confidence: Inferred
+        fills: { c39-multi-device: independent devices }
+      - label: The companion waits for the phone, and nothing sends
+        reading: "The phone is the only full client. The companion is a remote view that relays through it."
+        confidence: Inferred
+        fills: { c39-multi-device: companion relays through the phone }
+      - label: There is no companion, or a second sign-in ends the first
+        reading: "A single-device design. The account is bound to one device at a time."
+        confidence: Observed
+        fills: { c39-multi-device: single device }
+
+signals:
+  - { signal: A sent message keeps its place while pending and then moves below a message that arrived meanwhile, design: Per-conversation sequence assigned by the backend and reconciled on the client, confidence: Inferred }
+  - { signal: "A message sent offline shows a pending mark, survives a force-quit and sends later from any screen", design: Local store first with a durable outbox and an app-level sync engine, confidence: Inferred }
+  - { signal: Weak-connection retries never produce a duplicate message, design: "Client-generated message id used as the idempotency key. Weak evidence, because you cannot force a lost response", confidence: Speculative }
+  - { signal: The delivered mark appears only when the recipient's device comes on, design: Delivered is an acknowledgment from a recipient device that stored the message, confidence: Inferred }
+  - { signal: The delivered mark appears while every recipient device is off, design: Delivered means the backend accepted the message, confidence: Inferred }
+  - { signal: Reading a conversation on one device clears its unread count on your other devices, design: Read position is synced data per user and conversation, confidence: Inferred }
+  - { signal: A new device shows full history while the old device is off, design: The backend keeps full history, confidence: Inferred }
+  - { signal: A new device asks for the old device or for a backup before it shows history, design: The device is the main copy and the backend relays, confidence: Inferred }
+  - { signal: A settings screen offers a backup protected by a password or key that only you hold, design: History is kept by clients and the backend cannot read it, confidence: Inferred }
+  - { signal: A contact screen offers a code that two people compare to verify each other, design: "Per-device keys and end-to-end encryption. The claim itself cannot be verified from outside", confidence: Speculative }
+  - { signal: A notice appears in a conversation when a contact adds a device or reinstalls, design: Messages are encrypted to each recipient device separately, confidence: Inferred }
+  - { signal: Search finds year-old messages in airplane mode, design: On-device index over a full replica, confidence: Inferred }
+  - { signal: Search shows nothing offline and old results online, design: Backend search over content the backend can read, confidence: Inferred }
+  - { signal: A blurred thumbnail shows before a photo or video has downloaded, design: A small preview travels inside the message and the media is fetched separately, confidence: Inferred }
+  - { signal: A text sent after a large video arrives before the video, design: Media uploads run on their own queue and the message is sent when its upload completes, confidence: Inferred }
+  - { signal: The web or desktop version stops working when the phone is off, design: Companion relays through the phone, confidence: Inferred }
+  - { signal: Storage used by the app grows with the age of the account and not with recent use, design: Full replica of history and media on the device, confidence: Inferred }
+  - { signal: Typing and presence indicators are missing in large groups, design: "Ephemeral events are not fanned out above a group size. One of several reasons a product may hide them", confidence: Speculative }
+
+worksheet:
+  - { id: c39-history-home, label: Main copy of history, options: [backend, device, mixed] }
+  - { id: c39-content-visibility, label: Who can read message content, options: [backend-readable, end-to-end encrypted, differs per conversation type, unknown] }
+  - { id: c39-identity, label: Identity, options: [phone number, account, both] }
+  - { id: c39-multi-device, label: Multi-device model, options: [single device, companion relays through the phone, independent devices] }
+  - { id: c39-order, label: Conversation order, options: [backend sequence, sender time, differs per device] }
+  - { id: c39-status-stages, label: Status stages shown }
+  - { id: c39-offline-recipient, label: Delivery to a recipient who is off, options: [delivered in background, delivered on open, delivered means backend accepted, no delivered stage] }
+  - { id: c39-new-device-history, label: History on a new device, options: [from the backend, transfer from the old device, restore from a backup, none] }
+  - { id: c39-old-history, label: Old history on a second device, options: [full replica on the device, recent window with backfill, limited copy from linking] }
+  - { id: c39-media-send, label: Interrupted media upload, options: [resumes, restarts, fails until retried] }
+  - { id: c39-search, label: Search, options: [on-device over full history, on-device recent plus backend, backend only, on-device over partial history] }
+  - { id: c39-delete, label: Delete for everyone, options: [tombstone with placeholder, removed everywhere, missed by the offline device, not offered] }
+  - { id: c39-group, label: "Group behavior: size limit, status detail, history for new members" }
+  - { id: c39-notes, label: Notes and open questions }

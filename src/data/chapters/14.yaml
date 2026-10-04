@@ -1,0 +1,255 @@
+chapter: 14
+title: Real-time delivery
+link: /part-2-concerns/14-real-time-delivery/
+
+probes:
+  - id: P14.1
+    name: Foreground latency
+    do:
+      - Sign in to account A on one device and account B on another, and place them side by side.
+      - On A, open the screen that should show B's change, for example a shared conversation or a shared list.
+      - On B, make a change that A should see. Start a stopwatch as you confirm it.
+      - Do not touch A. Stop the stopwatch when the change appears.
+    watch: Whether the change appears on A without any gesture, and after how long.
+    outcomes:
+      - label: It appears within about two seconds
+        reading: "Something delivers events to the open app. P14.2 narrows down what."
+        confidence: Observed
+      - label: It appears after several seconds or longer, untouched
+        reading: "Updates arrive unasked, and slowly. Polling is the leading candidate, and P14.2 tests it."
+        confidence: Observed
+      - label: It appears only after a refresh or after reopening the screen
+        reading: "Fetch on open or on gesture. This feature has no real-time delivery in the foreground."
+        confidence: Observed
+        fills: { c14-fg-mechanism: none }
+
+  - id: P14.2
+    name: Update rhythm
+    do:
+      - Repeat P14.1 ten times, at irregular moments, and write down each delay.
+      - Keep the screen on A open and untouched throughout.
+    watch: The spread of the delays. Look for a largest value that the delays never exceed, and for whether short and long delays are equally common.
+    outcomes:
+      - label: Every delay is short and similar
+        reading: "A held connection of some kind, or platform push. Long polling, a server stream and a persistent connection cannot be told apart from outside."
+        confidence: Inferred
+        fills: { c14-fg-mechanism: held connection or push }
+      - label: Delays are spread evenly from near zero up to a fixed maximum
+        reading: "Polling on a timer. The maximum delay is close to the interval."
+        confidence: Inferred
+        fills: { c14-fg-mechanism: polling }
+      - label: Delays are irregular with no clear maximum
+        reading: "Fits slow polling with jitter, a struggling connection or delayed platform push equally well."
+        confidence: Speculative
+        fills: { c14-fg-mechanism: unknown }
+
+  - id: P14.3
+    name: Subscription scope
+    do:
+      - On A, leave the screen that shows B's change and open an unrelated screen in the same app, one where a badge, a tab marker or a list preview is visible.
+      - On B, make a change.
+      - Watch the badge or preview on A without touching it. Then go back to the original screen.
+    watch: Whether the badge or preview changes while you are elsewhere, and whether the change is already present when you return.
+    outcomes:
+      - label: The badge changes at once and the content is present on return
+        reading: "The connection belongs to the whole app and writes into shared state or the local store."
+        confidence: Inferred
+        fills: { c14-scope: app }
+      - label: Nothing changes until the original screen is opened, then it loads
+        reading: "The subscription or timer belongs to that screen."
+        confidence: Inferred
+        fills: { c14-scope: screen }
+      - label: A banner inside the app appears but the badge and content lag
+        reading: "The event reached the app and was shown, but was not written to shared state. Delivery and data follow separate paths."
+        confidence: Inferred
+        fills: { c14-scope: app }
+
+  - id: P14.4
+    name: Background delivery
+    do:
+      - On A, allow notifications for the app, then go to the home screen and wait two minutes.
+      - On B, make a change that should notify A. Start the stopwatch.
+      - Note when the notification appears on A.
+      - Tap the notification and watch the screen it opens.
+    watch: The delay to the notification, and whether the content is already on screen when the app opens or loads after a visible wait.
+    outcomes:
+      - label: A notification arrives and the content is already there on opening
+        reading: "Platform push, and the app's data was ready. P14.5 shows whether that was a background pull or a fast fetch on open."
+        confidence: Observed
+        fills: { c14-bg-delivery: notification and data ready }
+      - label: A notification arrives and the content loads after opening
+        reading: "Platform push carries the text to display. The app's data comes from a pull when it opens."
+        confidence: Inferred
+        fills: { c14-bg-delivery: notification only, c14-push-role: carries content }
+      - label: No notification arrives, and the change is there on opening
+        reading: "No platform push for this event. Delivery in the background is fetch on open."
+        confidence: Observed
+        fills: { c14-bg-delivery: none }
+
+  - id: P14.5
+    name: Notification, then offline
+    caution: This probe uses airplane mode, which interrupts calls and other apps on that device.
+    do:
+      - Put A's app in the background as in P14.4.
+      - On B, send a change with content longer than a notification can show, for example a long message or one with an image.
+      - When the notification appears on A, wait ten seconds, then turn on airplane mode on A.
+      - Open the app on A from its icon and go to the item.
+    watch: Whether the full item is present in the app while offline.
+    outcomes:
+      - label: The full item is present offline
+        reading: "The push woke the app in the background and the app pulled the change into its local store. The push acts as a push hint, usually with display text added."
+        confidence: Inferred
+        fills: { c14-push-role: push hint }
+      - label: Only the text from the notification is present
+        reading: "The push carried the content and the app stored that payload. No pull happened in the background."
+        confidence: Inferred
+        fills: { c14-push-role: carries content }
+      - label: The item is absent from the app
+        reading: "The operating system displayed the push and the app never ran. The data arrives only by a pull on open."
+        confidence: Inferred
+        fills: { c14-push-role: carries content }
+
+  - id: P14.6
+    name: Force-quit delivery
+    do:
+      - Force-quit the app on A.
+      - On B, make a change that should notify A. Time the notification.
+      - Compare with the delay you measured in P14.4.
+      - Repeat once more to rule out a single slow delivery.
+    watch: Whether a notification still arrives, and whether it is as fast and as complete as with the app in the background.
+    outcomes:
+      - label: The notification arrives as fast and as complete as before
+        reading: "The backend sends visible content in the push itself, so no app code is needed to show it."
+        confidence: Inferred
+        fills: { c14-force-quit: delivered }
+      - label: The notification arrives but is later, or has less detail
+        reading: "The normal path wakes the app to build the notification. After a force-quit a fallback with visible content is used."
+        confidence: Speculative
+        fills: { c14-force-quit: degraded }
+      - label: No notification arrives until the app is opened
+        reading: "Notifications depend on app code running after a silent push, and the platform does not wake a force-quit app."
+        confidence: Inferred
+        fills: { c14-force-quit: not delivered }
+
+  - id: P14.7
+    name: Notification permission off
+    caution: This probe changes a device setting for the app. You will miss its notifications until you turn the permission back on.
+    do:
+      - In the device settings on A, turn off notifications for the app.
+      - Open the app on A and repeat P14.1 three times.
+      - Turn the permission back on when you finish.
+    watch: Whether changes still appear in the open app, and at the same speed as before.
+    outcomes:
+      - label: Changes still appear at the same speed
+        reading: "The foreground path does not depend on visible notifications. Together with a short, steady delay in P14.2, this points to the app's own held connection. A silent push can still pass on some platforms, so it is not excluded."
+        confidence: Speculative
+        fills: { c14-permission-off: in-app updates continue }
+      - label: Changes appear only after a refresh, or much later
+        reading: "The foreground path depends on platform push. The app has no connection of its own for this feature."
+        confidence: Inferred
+        fills: { c14-permission-off: in-app updates stop }
+
+  - id: P14.8
+    name: Reconnect catch-up
+    caution: This probe uses airplane mode, which interrupts calls and other apps on that device.
+    do:
+      - On A, open the screen that shows B's changes, then turn on airplane mode.
+      - On B, create ten items a few seconds apart and number them 1 to 10 in their text.
+      - On A, turn airplane mode off. Do not touch the app.
+      - After a minute, pull to refresh or reopen the screen and compare.
+    watch: Whether all ten items appear without a gesture, in what order they appear, and whether a refresh adds or reorders anything.
+    outcomes:
+      - label: All ten appear in order with no gesture
+        reading: "The client catches up after reconnecting, by cursor or by refetching the screen, and orders by a backend sequence."
+        confidence: Inferred
+        fills: { c14-catch-up: in order without gaps }
+      - label: All ten appear, out of order, then settle or stay wrong until refresh
+        reading: "Missed events are delivered, and the client orders them by arrival before or instead of by sequence."
+        confidence: Inferred
+        fills: { c14-catch-up: reordered after arrival }
+      - label: Some or all are missing until a refresh
+        reading: "No catch-up on reconnect. The connection delivers only what is sent while it is up."
+        confidence: Inferred
+        fills: { c14-catch-up: gaps until refresh }
+
+  - id: P14.9
+    name: Second device of one user
+    do:
+      - Sign in to account A on two devices, A1 and A2, with the app open on both.
+      - From account B, send an item to A. Note whether both A1 and A2 show it.
+      - On A1, send an item of your own. Watch A2.
+      - Put A2 in the background, send another item from B, and read it on A1. Watch the notification on A2.
+    watch: Whether incoming events reach both devices, whether your own action on A1 appears on A2 without a refresh, and whether the notification on A2 is removed after you read on A1.
+    outcomes:
+      - label: Both devices get incoming events and A1's own action appears on A2 at once
+        reading: "Fan-out to every device of the user, including the sender's other devices."
+        confidence: Observed
+        fills: { c14-multi-device: all events live on every device }
+      - label: Both get incoming events, but A1's own action reaches A2 only after a refresh
+        reading: "Fan-out covers recipients and not the sender's other devices. Those learn of it by a pull."
+        confidence: Inferred
+        fills: { c14-multi-device: incoming only }
+      - label: Only one device gets the incoming event live
+        reading: "Delivery targets one connection or one token per user, usually the most recent."
+        confidence: Inferred
+        fills: { c14-multi-device: one device only }
+
+  - id: P14.10
+    name: Ephemeral signal expiry
+    caution: This probe uses airplane mode, which interrupts calls and other apps on that device.
+    do:
+      - Find a signal that is shown live and not kept, such as a typing indicator or an online marker for B as seen from A.
+      - On B, trigger it, for example start typing, and confirm that A shows it.
+      - While it is showing, turn on airplane mode on B and stop.
+      - Time how long A keeps showing it.
+    watch: How long the indicator stays on A after B has lost the network.
+    outcomes:
+      - label: It disappears within a few seconds
+        reading: "The receiver expires the signal unless it is renewed. This also shows a held connection on A in the foreground."
+        confidence: Inferred
+        fills: { c14-ephemeral-expiry: expires in seconds }
+      - label: It stays for a minute or more, or until the screen is reopened
+        reading: "The indicator is cleared only by an explicit stop signal or by a long heartbeat time limit."
+        confidence: Inferred
+        fills: { c14-ephemeral-expiry: persists }
+      - label: The app shows no such signal
+        reading: "No ephemeral signals in this feature. This removes the strongest outside evidence for a held connection, and says nothing against one."
+        confidence: Observed
+        fills: { c14-ephemeral-expiry: none shown }
+
+signals:
+  - { signal: Content changes only after a refresh or after reopening the screen, design: Fetch on open or on gesture, confidence: Observed }
+  - { signal: Changes appear untouched with delays spread evenly up to a fixed maximum, design: Polling on a timer with that maximum as the interval, confidence: Inferred }
+  - { signal: Changes appear untouched within about a second every time, design: "A held connection. Which kind cannot be determined from outside", confidence: Inferred }
+  - { signal: Updates get faster while something is in progress and slower when idle, design: Adaptive polling, confidence: Speculative }
+  - { signal: A typing indicator or live cursor that responds within a second, design: Persistent connection in the foreground with ephemeral signals, confidence: Inferred }
+  - { signal: Badges and previews on other screens change at the same moment as the open screen, design: App-level connection that writes to shared state, confidence: Inferred }
+  - { signal: A notification arrives and the item still shows a loading state on opening, design: Push carries display content and the data is pulled on open, confidence: Inferred }
+  - { signal: The full item is readable offline right after its notification, design: Push hint that wakes the app to pull into the local store, confidence: Inferred }
+  - { signal: Notifications stop after a force-quit, design: Notifications built by app code after a silent push, confidence: Inferred }
+  - { signal: In-app updates continue with notification permission off, design: "The app's own connection or polling carries foreground updates", confidence: Speculative }
+  - { signal: A notification for the screen you are looking at, design: "Delivery on both paths, with no suppression on the client", confidence: Inferred }
+  - { signal: Missed items arrive in order with no gesture after reconnecting, design: Catch-up by cursor or refetch on reconnect, confidence: Inferred }
+  - { signal: Items are missing after a network drop until a refresh, design: Connection with no catch-up, confidence: Inferred }
+  - { signal: The same item appears twice until refresh, design: At-least-once delivery with no check for repeats on the client, confidence: Inferred }
+  - { signal: "Separate marks for sent, delivered and read", design: Acknowledgments at three levels delivered back to the sender, confidence: Observed }
+  - { signal: A typing indicator that stays after the other person lost the network, design: No expiry on the receiver, confidence: Inferred }
+  - { signal: A notification disappears from one device after the item is read on another, design: Read state fanned out by push to the user's other devices, confidence: Inferred }
+  - { signal: Live indicators are missing or become counts in very large groups, design: Fan-out limit for per-recipient features, confidence: Speculative }
+
+worksheet:
+  - { id: c14-fg-latency, label: Foreground delay measured }
+  - { id: c14-fg-mechanism, label: Foreground mechanism, options: [none, polling, held connection or push, unknown] }
+  - { id: c14-poll-interval, label: Polling interval if seen }
+  - { id: c14-scope, label: Subscription scope, options: [screen, app] }
+  - { id: c14-bg-delivery, label: Background delivery, options: [none, notification only, notification and data ready] }
+  - { id: c14-push-role, label: Role of platform push, options: [push hint, carries content, unknown] }
+  - { id: c14-force-quit, label: Delivery after force-quit, options: [delivered, degraded, not delivered] }
+  - { id: c14-permission-off, label: With notification permission off, options: [in-app updates continue, in-app updates stop] }
+  - { id: c14-catch-up, label: Catch-up on reconnect, options: [in order without gaps, reordered after arrival, gaps until refresh] }
+  - { id: c14-acks, label: Acknowledgments shown to the sender }
+  - { id: c14-multi-device, label: Fan-out to the user's devices, options: [all events live on every device, incoming only, one device only] }
+  - { id: c14-ephemeral, label: Ephemeral signals present }
+  - { id: c14-ephemeral-expiry, label: Ephemeral signal expiry, options: [expires in seconds, persists, none shown] }
+  - { id: c14-backend, label: Backend components implied }
+  - { id: c14-failures, label: Failure modes seen }

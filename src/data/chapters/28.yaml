@@ -1,0 +1,246 @@
+chapter: 28
+title: Search and discovery
+link: /part-2-concerns/28-search-and-discovery/
+
+probes:
+  - id: P28.1
+    name: Search in airplane mode
+    do:
+      - Use the app online for a few minutes, and open a few items so that the device holds some data.
+      - Turn on airplane mode.
+      - Search for a word from an item you opened.
+      - Search for a word from an item you know exists and have never opened on this device.
+    watch: Whether results appear at all, and whether they include items you have not opened.
+    outcomes:
+      - label: An error or an empty screen for both searches
+        reading: "Backend search. The device holds no index and does not filter its own data."
+        confidence: Observed
+        fills: { c28-where: backend search, c28-offline: none }
+      - label: Results only for items already opened or loaded
+        reading: "A local filter over held data, or an on-device index over a partial copy. Online, the backend supplies the rest, which makes the search a hybrid."
+        confidence: Inferred
+        fills: { c28-offline: held data only }
+      - label: Results include items never opened on this device
+        reading: "An on-device index over a local replica that is synced ahead of need."
+        confidence: Inferred
+        fills: { c28-where: on-device index, c28-offline: all synced data }
+
+  - id: P28.2
+    name: Typing rhythm
+    do:
+      - On a good connection, type a long word slowly, one letter per second.
+      - Clear the box and type the same word at normal speed without stopping.
+      - Note whether there is a submit key that must be pressed.
+    watch: When the result list changes. On each letter, shortly after you stop, or only on submit. Note whether some rows change at once while others arrive later.
+    outcomes:
+      - label: Results change on every letter with no delay
+        reading: "The work is local, or the backend is called per keystroke with no debouncing. P28.1 separates the two."
+        confidence: Observed
+        fills: { c28-trigger: every keystroke }
+      - label: Results change a moment after you stop typing
+        reading: "Debouncing in front of a backend search."
+        confidence: Inferred
+        fills: { c28-trigger: after a pause }
+      - label: Some rows change per letter and others arrive after a pause
+        reading: "A hybrid. Local matches are drawn at once and backend results are merged in."
+        confidence: Inferred
+        fills: { c28-where: hybrid, c28-trigger: after a pause }
+      - label: Nothing changes until submit is pressed
+        reading: "One request per submitted query. There is no search as you type on this surface."
+        confidence: Observed
+        fills: { c28-trigger: on submit }
+
+  - id: P28.3
+    name: Fast typing on a weak connection
+    do:
+      - Run this only if P28.1 showed that results come from the backend.
+      - Find a weak connection, for example the edge of wireless coverage.
+      - Type a short word and pause, then at once extend it into a longer word with different results, for example a first name followed by a surname.
+      - Stop typing and watch the list for ten seconds without touching it.
+      - Repeat five times with different words.
+    watch: Whether the list ever shows results that belong to the shorter text, and whether it ends on the right results.
+    outcomes:
+      - label: The list goes straight to the results for the final text
+        reading: "Late responses are cancelled or discarded. Weak evidence across few runs, because the race needs unlucky timing."
+        confidence: Speculative
+        fills: { c28-stale: none seen }
+      - label: Results for the shorter text appear, then are replaced
+        reading: "Each response is drawn as it arrives, in order. Nothing is cancelled, but no response overtook another this time."
+        confidence: Observed
+        fills: { c28-stale: flash then corrected }
+      - label: The list ends on results for the shorter text
+        reading: "Responses are drawn in arrival order with no check against the current text."
+        confidence: Observed
+        fills: { c28-stale: stale results remain }
+
+  - id: P28.4
+    name: Misspelling
+    do:
+      - Pick an item with a distinctive word of at least seven letters in its name.
+      - Search for that word with two letters swapped in the middle.
+      - Search again with one letter missing.
+    watch: Whether the item is found, and whether the app says it changed your query.
+    outcomes:
+      - label: The item is found with no notice
+        reading: "The search index tolerates small spelling differences."
+        confidence: Inferred
+        fills: { c28-typo: tolerant }
+      - label: The item is found under a line that shows a corrected query
+        reading: "The backend rewrites the query before searching, and says so."
+        confidence: Observed
+        fills: { c28-typo: corrects with notice }
+      - label: Nothing is found
+        reading: "Exact or prefix matching. Typical of a local filter or a simple on-device index."
+        confidence: Inferred
+        fills: { c28-typo: exact only }
+
+  - id: P28.5
+    name: Create, then search
+    do:
+      - Create an item whose name contains an invented word that nothing else matches.
+      - Search for that word at once on the same device, and note the time.
+      - Search for it at once on a second device or, if the item is public, a second account.
+      - Repeat the second search every minute until the item is found, then at longer intervals.
+      - Delete the item when you are done, and search once more.
+    watch: How long each device takes to find the item, and whether the deleted item still appears in results.
+    outcomes:
+      - label: Found at once on both devices
+        reading: "The index is updated as part of the write, or the lag is too short to see. For private data, both devices may hold an on-device index that synced quickly."
+        confidence: Speculative
+        fills: { c28-index-lag: none seen }
+      - label: Found at once on the creating device and later on the other
+        reading: "The creating device searches its own data. The other device waits for sync or for the backend's search index."
+        confidence: Inferred
+        fills: { c28-index-lag: other devices only }
+      - label: Found nowhere at first and everywhere after a delay
+        reading: "Backend search with an asynchronous index. The delay you measured is the indexing lag."
+        confidence: Inferred
+        fills: { c28-where: backend search, c28-index-lag: everywhere }
+      - label: Still not found after an hour
+        reading: "The index is rebuilt on a schedule, or new items are held back before they become searchable. These cannot be separated from outside."
+        confidence: Speculative
+        fills: { c28-index-lag: everywhere }
+
+  - id: P28.6
+    name: Filter counts
+    do:
+      - Run a broad query that returns many results and open the filter controls.
+      - Note whether each filter value shows a number.
+      - Choose one value in one filter, then look at the numbers beside the values of a different filter.
+      - Look for values that are dimmed or have disappeared.
+    watch: Whether counts exist, and whether they change when another filter is applied.
+    outcomes:
+      - label: Counts are shown and change with every filter choice
+        reading: "The backend runs a faceted query on each change. The counts come from the search index."
+        confidence: Inferred
+        fills: { c28-filters: dynamic counts }
+      - label: Counts are shown and stay the same
+        reading: "Counts are computed once for the query, or cached separately from the results."
+        confidence: Inferred
+        fills: { c28-filters: static counts }
+      - label: Filters have no counts
+        reading: "Filtering without aggregation. Whether it runs on the backend or on the client is shown by whether the list reloads from the top."
+        confidence: Observed
+        fills: { c28-filters: no counts }
+      - label: There are no filters
+        reading: "The surface offers a query only."
+        confidence: Observed
+        fills: { c28-filters: no filters }
+
+  - id: P28.7
+    name: Same query, two accounts
+    do:
+      - Sign in to two of your own accounts on two devices in the same place, on the same network. One account should have a long history and the other little or none.
+      - Run the same query on both within a few seconds.
+      - Compare the first ten results in order, ignoring rows marked as paid placements.
+      - Repeat with four more queries, including one close to the older account's known interests.
+    watch: Whether the two lists hold the same items in the same order.
+    outcomes:
+      - label: The same items in the same order for every query
+        reading: "Ranking does not use the account for these queries."
+        confidence: Inferred
+        fills: { c28-ranking: same for everyone }
+      - label: The same items in a different order
+        reading: "An account-specific input reorders the results. Which input is used cannot be seen from outside. An experiment group is the alternative."
+        confidence: Speculative
+        fills: { c28-ranking: differs by account }
+      - label: Different items near the top
+        reading: "The account changes which candidates are retrieved, not only their order. An experiment group remains a possible cause."
+        confidence: Speculative
+        fills: { c28-ranking: differs by account }
+
+  - id: P28.8
+    name: Recent searches on a second device
+    do:
+      - On device A, run three searches with distinctive words.
+      - On device B, signed in to the same account, open the search screen with the box empty.
+      - On A, clear one recent search if the app allows it, then check B again after a minute.
+    watch: Whether A's searches are listed on B, and whether the cleared one disappears from B.
+    outcomes:
+      - label: The searches appear on B
+        reading: "Recent searches are stored on the backend against the account."
+        confidence: Observed
+        fills: { c28-recents: synced }
+      - label: B shows only its own searches
+        reading: "Recent searches are kept in the local store of each device."
+        confidence: Inferred
+        fills: { c28-recents: device only }
+      - label: Neither device shows recent searches
+        reading: "The surface keeps no visible search history. The backend may still log queries."
+        confidence: Observed
+        fills: { c28-recents: none shown }
+
+  - id: P28.9
+    name: Voice search offline
+    do:
+      - Run this only if the search box offers voice input.
+      - Online, speak a short query and confirm that it works.
+      - Turn on airplane mode and speak the same query.
+    watch: Whether your words appear as text in the box with no network, whatever happens to the search afterwards.
+    outcomes:
+      - label: The words appear as text in airplane mode
+        reading: "Speech is turned into text on the device. Only the text is sent to the search."
+        confidence: Observed
+        fills: { c28-voice: converted on the device }
+      - label: Voice input fails or is disabled in airplane mode
+        reading: "Audio is sent to a backend for conversion, or the app disables voice input whenever search itself is unavailable."
+        confidence: Speculative
+        fills: { c28-voice: needs the network }
+
+signals:
+  - { signal: Search returns results in airplane mode, design: Local filter or on-device index, confidence: Inferred }
+  - { signal: Offline search finds items never opened on the device, design: On-device index over a local replica, confidence: Inferred }
+  - { signal: Results update on every letter with no delay on a weak connection, design: The matching runs on the device, confidence: Inferred }
+  - { signal: Results arrive in a batch shortly after typing stops, design: Debouncing in front of a backend search, confidence: Inferred }
+  - { signal: Some rows update per letter and others arrive later, design: Hybrid search that merges local and backend results, confidence: Inferred }
+  - { signal: Results for an earlier query stay under the current text, design: Responses drawn in arrival order with no tag check, confidence: Observed }
+  - { signal: A misspelled word still finds the item, design: A search index that tolerates small spelling differences, confidence: Inferred }
+  - { signal: A line states that results are shown for a corrected query, design: Query rewriting on the backend, confidence: Observed }
+  - { signal: Results share no words with the query, design: "Matching by meaning on the backend. The model cannot be determined from outside", confidence: Speculative }
+  - { signal: A new item is found only after a delay on every device, design: Backend search index updated asynchronously, confidence: Inferred }
+  - { signal: A new item is found at once on the creating device only, design: The creating device searches its own local store, confidence: Inferred }
+  - { signal: A deleted item appears in results and fails to open, design: The index lags the store and results are not checked against it, confidence: Inferred }
+  - { signal: Counts beside filter values change as other filters are applied, design: Faceted query on the backend per filter change, confidence: Inferred }
+  - { signal: A filter leaves a very short list with no further pages, design: Filter applied on the client to one page of results, confidence: Inferred }
+  - { signal: Recent searches appear on a second device, design: Query history stored on the backend per account, confidence: Observed }
+  - { signal: Two accounts get a different order for the same query, design: "Personal ranking, or two experiment groups", confidence: Speculative }
+  - { signal: Spoken words appear as text in airplane mode, design: Speech to text on the device, confidence: Observed }
+  - { signal: Search is incomplete shortly after sign-in or an update and complete later, design: On-device index being built or rebuilt, confidence: Inferred }
+
+worksheet:
+  - { id: c28-surface, label: Search surface examined }
+  - { id: c28-where, label: Where the search runs, options: [local filter, on-device index, backend search, hybrid] }
+  - { id: c28-offline, label: Offline search scope, options: [none, held data only, all synced data] }
+  - { id: c28-trigger, label: What triggers a query, options: [every keystroke, after a pause, on submit] }
+  - { id: c28-stale, label: Stale results under fast typing, options: [none seen, flash then corrected, stale results remain] }
+  - { id: c28-typo, label: Misspelling tolerance, options: [tolerant, corrects with notice, exact only] }
+  - { id: c28-index-lag, label: Where a new item is late to be found, options: [none seen, other devices only, everywhere] }
+  - { id: c28-lag-time, label: Measured time until a new item is searchable }
+  - { id: c28-filters, label: Filters and counts, options: [dynamic counts, static counts, no counts, no filters] }
+  - { id: c28-ranking, label: Ranking across accounts, options: [same for everyone, differs by account, unknown] }
+  - { id: c28-recents, label: Recent searches, options: [synced, device only, none shown] }
+  - { id: c28-voice, label: Voice input, options: [converted on the device, needs the network, not offered] }
+  - { id: c28-suggestions, label: Suggestion and completion rows seen }
+  - { id: c28-discovery, label: Browse and recommendation surfaces and whether they differ by account }
+  - { id: c28-backend, label: Backend components implied }
+  - { id: c28-failures, label: Failure modes seen }
