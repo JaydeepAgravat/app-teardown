@@ -228,5 +228,9 @@ STYLE.md              Writing rules, the fixed lists and the file format
 | Worked examples: Bluesky and Expensify | Done |
 | One-command agent teardown | Works on Android emulators. Limited on the iOS simulator |
 | Build commands: new-app, rebuild-app, feature | Each run once on a small app. See the limits above |
-| License | Not chosen yet |
+| License | CC BY-NC-SA 4.0 |
 | Hosting | Not chosen yet |
+
+## License
+
+[CC BY-NC-SA 4.0](LICENSE). You may share and adapt everything in this repository, including the command line tools, as long as you give credit, do not use it commercially, and share what you make from it under the same license.
