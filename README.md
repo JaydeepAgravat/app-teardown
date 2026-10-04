@@ -228,9 +228,16 @@ STYLE.md              Writing rules, the fixed lists and the file format
 | Worked examples: Bluesky and Expensify | Done |
 | One-command agent teardown | Works on Android emulators. Limited on the iOS simulator |
 | Build commands: new-app, rebuild-app, feature | Each run once on a small app. See the limits above |
-| License | CC BY-NC-SA 4.0 |
+| License | MIT for code, CC BY-NC-SA 4.0 for content |
 | Hosting | Not chosen yet |
 
 ## License
 
-[CC BY-NC-SA 4.0](LICENSE). You may share and adapt everything in this repository, including the command line tools, as long as you give credit, do not use it commercially, and share what you make from it under the same license.
+Two licenses, by kind of file.
+
+| What | Files | License |
+|---|---|---|
+| Code and agent playbooks | `bin/`, `scripts/`, `src/components/`, `src/pages/`, `src/plugins/`, `src/lib/`, `src/styles/`, `.claude/`, `AGENT_PLAYBOOK.md`, `PLAN_PLAYBOOK.md`, `AGENTS.md`, and the config files at the root | [MIT](LICENSE) |
+| Handbook content | `src/content/`, `src/data/`, `templates/`, `teardowns/`, `public/`, `STYLE.md`, `OUTLINE.md` and this README | [CC BY-NC-SA 4.0](LICENSE-CONTENT) |
+
+In practice: you can run the commands anywhere, including on a company codebase, and what you plan or build with them is yours. You can share and adapt the handbook content with credit, not for commercial use, and under the same license.
